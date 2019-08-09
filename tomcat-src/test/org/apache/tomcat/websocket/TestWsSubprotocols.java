@@ -20,12 +20,15 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.servlet.ServletContextEvent;
 import javax.websocket.ClientEndpointConfig;
 import javax.websocket.ContainerProvider;
+import javax.websocket.DeploymentException;
 import javax.websocket.EndpointConfig;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpoint;
 import javax.websocket.server.ServerEndpointConfig;
 
@@ -37,7 +40,8 @@ import org.apache.catalina.Context;
 import org.apache.catalina.servlets.DefaultServlet;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.tomcat.websocket.TesterMessageCountClient.TesterProgrammaticEndpoint;
-import org.apache.tomcat.websocket.server.TesterEndpointConfig;
+import org.apache.tomcat.websocket.server.Constants;
+import org.apache.tomcat.websocket.server.WsContextListener;
 
 public class TestWsSubprotocols extends WebSocketBaseTest {
 
@@ -49,7 +53,7 @@ public class TestWsSubprotocols extends WebSocketBaseTest {
         ctx.addApplicationListener(Config.class.getName());
 
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -95,7 +99,7 @@ public class TestWsSubprotocols extends WebSocketBaseTest {
 
     @ServerEndpoint(value = "/echo", subprotocols = {"sp1","sp2"})
     public static class SubProtocolsEndpoint {
-        public static final String PATH_BASIC = "/echo";
+        public static String PATH_BASIC = "/echo";
         public static volatile List<String> subprotocols;
 
         @OnOpen
@@ -110,11 +114,18 @@ public class TestWsSubprotocols extends WebSocketBaseTest {
 
     }
 
-    public static class Config extends TesterEndpointConfig {
-
+    public static class Config extends WsContextListener {
         @Override
-        protected Class<?> getEndpointClass() {
-            return SubProtocolsEndpoint.class;
+        public void contextInitialized(ServletContextEvent sce) {
+            super.contextInitialized(sce);
+            ServerContainer sc = (ServerContainer) sce.getServletContext()
+                    .getAttribute(Constants.
+                            SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE);
+            try {
+                sc.addEndpoint(SubProtocolsEndpoint.class);
+            } catch (DeploymentException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 }

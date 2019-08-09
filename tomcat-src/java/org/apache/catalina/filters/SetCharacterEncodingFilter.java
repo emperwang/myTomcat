@@ -129,7 +129,6 @@ public class SetCharacterEncodingFilter extends FilterBase {
      * filter.
      *
      * @param request The servlet request we are processing
-     * @return the encoding that was configured
      */
     protected String selectEncoding(ServletRequest request) {
         return this.encoding;

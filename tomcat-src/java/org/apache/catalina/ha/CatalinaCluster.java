@@ -20,18 +20,47 @@ package org.apache.catalina.ha;
 import java.util.Map;
 
 import org.apache.catalina.Cluster;
+import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Valve;
 import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.Member;
+import org.apache.juli.logging.Log;
+
 
 
 /**
  * A <b>CatalinaCluster</b> interface allows to plug in and out the
  * different cluster implementations
+ *
+ * @author Filip Hanik
  */
 public interface CatalinaCluster extends Cluster {
     // ----------------------------------------------------- Instance Variables
+
+    /**
+     * Descriptive information about this component implementation.
+     */
+    public String info = "CatalinaCluster/2.0";
+
+    /**
+     * Start the cluster, the owning container will invoke this
+     * @throws Exception - if failure to start cluster
+     */
+    public void start() throws Exception;
+
+    /**
+     * Stops the cluster, the owning container will invoke this
+     * @throws LifecycleException
+     */
+    public void stop() throws LifecycleException;
+
+    /**
+     * Returns the associates logger with this cluster.
+     *
+     * @return Log
+     */
+    public Log getLogger();
 
     /**
      * Sends a message to all the members in the cluster
@@ -48,17 +77,21 @@ public interface CatalinaCluster extends Cluster {
     public void send(ClusterMessage msg, Member dest);
 
     /**
-     * @return <code>true</code> if the cluster has members.
+     * Returns that cluster has members.
      */
     public boolean hasMembers();
 
     /**
-     * @return an array containing all the members currently participating in the cluster.
+     * Returns all the members currently participating in the cluster.
+     *
+     * @return Member[]
      */
     public Member[] getMembers();
 
     /**
-     * @return the member that represents this node.
+     * Return the member that represents this node.
+     *
+     * @return Member
      */
     public Member getLocalMember();
 
@@ -77,25 +110,11 @@ public interface CatalinaCluster extends Cluster {
      */
     public Map<String,ClusterManager> getManagers();
 
-    /**
-     * Get Manager
-     * @param name The manager name
-     * @return The manager
-     */
     public Manager getManager(String name);
-
-    /**
-     * Get a new cluster name for a manager.
-     * @param name Override name (optional)
-     * @param manager The manager
-     * @return the manager name in the cluster
-     */
     public String getManagerName(String name, Manager manager);
-
     public Valve[] getValves();
 
     public void setChannel(Channel channel);
-
     public Channel getChannel();
 
 

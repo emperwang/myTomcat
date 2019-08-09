@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -26,7 +26,7 @@
     <properties>
         <author email="glenn@voyager.apg.more.net">Glenn Nielsen</author>
         <author email="jeanfrancois.arcand@sun.com">Jean-Francois Arcand</author>
-        <title>Security Manager How-To</title>
+        <title>Security Manager HOW-TO</title>
     </properties>
 
 <body>
@@ -48,7 +48,9 @@
 
   <p>Imagine if someone who is authorized to publish JSPs on your site
   inadvertently included the following in their JSP:</p>
-<source><![CDATA[<% System.exit(1); %>]]></source>
+<source>
+&lt;% System.exit(1); %&gt;
+</source>
 
   <p>Every time this JSP was executed by Tomcat, Tomcat would exit.
   Using the Java SecurityManager is just one more line of defense a
@@ -105,6 +107,42 @@
 
   </subsection>
 
+
+  <subsection name="Tomcat Custom Permissions">
+
+    <p>Tomcat utilizes a custom permission class called
+    <strong>org.apache.naming.JndiPermission</strong>.  This permission
+    controls read access to JNDI named file based resources.  The permission
+    name is the JNDI name and there are no actions.  A trailing "*" can be
+    used to do wild card matching for a JNDI named file resource when
+    granting permission.  For example, you might include the following
+    in your policy file:</p>
+<source>
+permission  org.apache.naming.JndiPermission  "jndi://localhost/examples/*";
+</source>
+
+    <p>A Permission entry like this is generated dynamically for each web
+    application that is deployed, to allow it to read its own static resources
+    but disallow it from using file access to read any other files (unless
+    permissions for those files are explicitly granted).</p>
+
+    <p>Also, Tomcat always dynamically creates the following file permissions:</p>
+<source>
+permission java.io.FilePermission "** your application context**", "read";
+
+permission java.io.FilePermission
+  "** application working directory**", "read,write";
+permission java.io.FilePermission
+  "** application working directory**/-", "read,write,delete";
+</source>
+    <p>Where **your application context** equals the folder (or WAR file) under which
+    your application has been deployed and **application working directory** is the
+    temporary directory provided to your application as required by the
+    Servlet Specification.</p>
+
+  </subsection>
+
+
 </section>
 
 
@@ -122,11 +160,13 @@
 
   <p>Entries in the <code>catalina.policy</code> file use the standard
   <code>java.policy</code> file format, as follows:</p>
-<source><![CDATA[// Example policy file entry
+<source>
+// Example policy file entry
 
-grant [signedBy <signer>,] [codeBase <code source>] {
-  permission  <class>  [<name> [, <action list>]];
-};]]></source>
+grant [signedBy &lt;signer&gt;,] [codeBase &lt;code source&gt;] {
+  permission  &lt;class&gt;  [&lt;name&gt; [, &lt;action list&gt;]];
+};
+</source>
 
   <p>The <strong>signedBy</strong> and <strong>codeBase</strong> entries are
   optional when granting permissions.  Comment lines begin with "//" and
@@ -151,36 +191,12 @@ grant [signedBy <signer>,] [codeBase <code source>] {
   <p>Once you have configured the <code>catalina.policy</code> file for use
   with a SecurityManager, Tomcat can be started with a SecurityManager in
   place by using the "-security" option:</p>
-<source>$CATALINA_HOME/bin/catalina.sh start -security    (Unix)
-%CATALINA_HOME%\bin\catalina start -security      (Windows)</source>
-
-  <subsection name="Permissions for packed WAR files">
-
-    <p>When using packed WAR files, it is necessary to use Tomcat's custom war
-    URL protocol to assign permissions to web application code.</p>
-
-    <p>To assign permissions to the entire web application the entry in the
-    policy file would look like this:</p>
-
-<source><![CDATA[// Example policy file entry
-grant codeBase "war:file:${catalina.base}/webapps/examples.war*/-" {
-    ...
-};
-]]></source>
-
-    <p>To assign permissions to a single JAR within the web application the
-    entry in the policy file would look like this:</p>
-
-<source><![CDATA[// Example policy file entry
-grant codeBase "war:file:${catalina.base}/webapps/examples.war*/WEB-INF/lib/foo.jar" {
-    ...
-};
-]]></source>
-
-  </subsection>
+<source>
+$CATALINA_HOME/bin/catalina.sh start -security    (Unix)
+%CATALINA_HOME%\bin\catalina start -security      (Windows)
+</source>
 
 </section>
-
 <section name="Configuring Package Protection in Tomcat">
   <p>Starting with Tomcat 5, it is now possible to configure which Tomcat
   internal package are protected against package definition and access. See
@@ -196,7 +212,8 @@ grant codeBase "war:file:${catalina.base}/webapps/examples.war*/WEB-INF/lib/foo.
 
   <p>The default <code>$CATALINA_BASE/conf/catalina.properties</code> file
   looks like this:</p>
-<source><![CDATA[#
+<source>
+#
 # List of comma-separated packages that start with or equal this string
 # will cause a security exception to be thrown when
 # passed to checkPackageAccess unless the
@@ -215,7 +232,8 @@ org.apache.jasper.
 # the class loaders supplied with the JDK call checkPackageDefinition.
 #
 package.definition=sun.,java.,org.apache.catalina.,org.apache.coyote.,
-org.apache.tomcat.,org.apache.jasper.]]></source>
+org.apache.tomcat.,org.apache.jasper.
+</source>
   <p>Once you have configured the <code>catalina.properties</code> file for use
   with a SecurityManager, remember to re-start Tomcat.</p>
 </section>
@@ -231,8 +249,10 @@ org.apache.tomcat.,org.apache.jasper.]]></source>
   is done by setting a system property before starting Tomcat.  The easiest
   way to do this is via the <code>CATALINA_OPTS</code> environment variable.
   Execute this command:</p>
-<source>export CATALINA_OPTS=-Djava.security.debug=all    (Unix)
-set CATALINA_OPTS=-Djava.security.debug=all       (Windows)</source>
+<source>
+export CATALINA_OPTS=-Djava.security.debug=all    (Unix)
+set CATALINA_OPTS=-Djava.security.debug=all       (Windows)
+</source>
 
   <p>before starting Tomcat.</p>
 

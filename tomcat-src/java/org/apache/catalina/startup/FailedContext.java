@@ -17,15 +17,16 @@
 package org.apache.catalina.startup;
 
 import java.beans.PropertyChangeListener;
-import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import javax.naming.directory.DirContext;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
-import javax.servlet.ServletRegistration;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletSecurityElement;
 import javax.servlet.descriptor.JspConfigDescriptor;
@@ -36,32 +37,31 @@ import org.apache.catalina.Cluster;
 import org.apache.catalina.Container;
 import org.apache.catalina.ContainerListener;
 import org.apache.catalina.Context;
-import org.apache.catalina.Engine;
-import org.apache.catalina.Host;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Loader;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Pipeline;
 import org.apache.catalina.Realm;
-import org.apache.catalina.ThreadBindingListener;
 import org.apache.catalina.Valve;
-import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
-import org.apache.catalina.deploy.NamingResourcesImpl;
-import org.apache.catalina.util.ContextName;
+import org.apache.catalina.core.ApplicationServletRegistration;
+import org.apache.catalina.deploy.ApplicationListener;
+import org.apache.catalina.deploy.ApplicationParameter;
+import org.apache.catalina.deploy.ErrorPage;
+import org.apache.catalina.deploy.FilterDef;
+import org.apache.catalina.deploy.FilterMap;
+import org.apache.catalina.deploy.LoginConfig;
+import org.apache.catalina.deploy.NamingResources;
+import org.apache.catalina.deploy.SecurityConstraint;
+import org.apache.catalina.mbeans.MBeanUtils;
+import org.apache.catalina.util.CharsetMapper;
 import org.apache.catalina.util.LifecycleMBeanBase;
 import org.apache.juli.logging.Log;
 import org.apache.tomcat.InstanceManager;
 import org.apache.tomcat.JarScanner;
-import org.apache.tomcat.util.descriptor.web.ApplicationParameter;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
-import org.apache.tomcat.util.descriptor.web.FilterMap;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
-import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
-import org.apache.tomcat.util.http.CookieProcessor;
+import org.apache.tomcat.util.http.mapper.Mapper;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -124,49 +124,8 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
 
 
     @Override
-    protected String getDomainInternal() {
-        Container p = getParent();
-        if (p == null) {
-            return null;
-        } else {
-            return p.getDomain();
-        }
-    }
-
-
-    @Override
-    public String getMBeanKeyProperties() {
-        Container c = this;
-        StringBuilder keyProperties = new StringBuilder();
-        int containerCount = 0;
-
-        // Work up container hierarchy, add a component to the name for
-        // each container
-        while (!(c instanceof Engine)) {
-            if (c instanceof Context) {
-                keyProperties.append(",context=");
-                ContextName cn = new ContextName(c.getName(), false);
-                keyProperties.append(cn.getDisplayName());
-            } else if (c instanceof Host) {
-                keyProperties.append(",host=");
-                keyProperties.append(c.getName());
-            } else if (c == null) {
-                // May happen in unit testing and/or some embedding scenarios
-                keyProperties.append(",container");
-                keyProperties.append(containerCount++);
-                keyProperties.append("=null");
-                break;
-            } else {
-                // Should never happen...
-                keyProperties.append(",container");
-                keyProperties.append(containerCount++);
-                keyProperties.append('=');
-                keyProperties.append(c.getName());
-            }
-            c = c.getParent();
-        }
-        return keyProperties.toString();
-    }
+    @Deprecated
+    protected String getDomainInternal() { return MBeanUtils.getDomain(this); }
 
 
     @Override
@@ -241,9 +200,6 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public Log getLogger() { return null; }
 
     @Override
-    public String getLogName() { return null; }
-
-    @Override
     public Manager getManager() { return null; }
     @Override
     public void setManager(Manager manager) { /* NO-OP */ }
@@ -272,9 +228,9 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void setRealm(Realm realm) { /* NO-OP */ }
 
     @Override
-    public WebResourceRoot getResources() { return null; }
+    public DirContext getResources() { return null; }
     @Override
-    public void setResources(WebResourceRoot resources) { /* NO-OP */ }
+    public void setResources(DirContext resources) { /* NO-OP */ }
 
     @Override
     public void backgroundProcess() { /* NO-OP */ }
@@ -290,6 +246,10 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void addPropertyChangeListener(PropertyChangeListener listener) { /* NO-OP */ }
     @Override
     public void removePropertyChangeListener(PropertyChangeListener listener) { /* NO-OP */ }
+
+    @Override
+    public void invoke(Request request, Response response) throws IOException,
+            ServletException { /* NO-OP */ }
 
     @Override
     public void fireContainerEvent(String type, Object data) { /* NO-OP */ }
@@ -321,6 +281,16 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public Object[] getApplicationLifecycleListeners() { return null; }
     @Override
     public void setApplicationLifecycleListeners(Object[] listeners) { /* NO-OP */ }
+
+    @Override
+    public boolean getAvailable() { return false; }
+
+    @Deprecated
+    @Override
+    public CharsetMapper getCharsetMapper() { return null; }
+    @Deprecated
+    @Override
+    public void setCharsetMapper(CharsetMapper mapper) { /* NO-OP */ }
 
     @Override
     public String getCharset(Locale locale) { return null; }
@@ -372,13 +342,6 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void setAltDDName(String altDDName) { /* NO-OP */ }
 
     @Override
-    public boolean getDenyUncoveredHttpMethods() { return false; }
-    @Override
-    public void setDenyUncoveredHttpMethods(boolean denyUncoveredHttpMethods) {
-        // NO-OP
-    }
-
-    @Override
     public String getDisplayName() { return null; }
     @Override
     public void setDisplayName(String displayName) { /* NO-OP */ }
@@ -402,9 +365,12 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void setLoginConfig(LoginConfig config) { /* NO-OP */ }
 
     @Override
-    public NamingResourcesImpl getNamingResources() { return null; }
+    public Mapper getMapper() { return null; }
+
     @Override
-    public void setNamingResources(NamingResourcesImpl namingResources) { /* NO-OP */ }
+    public NamingResources getNamingResources() { return null; }
+    @Override
+    public void setNamingResources(NamingResources namingResources) { /* NO-OP */ }
 
     @Override
     public String getPublicId() { return null; }
@@ -460,14 +426,19 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void setXmlValidation(boolean xmlValidation) { /* NO-OP */ }
 
     @Override
+    public void setTldValidation(boolean tldValidation) { /* NO-OP */ }
+    @Override
     public boolean getXmlBlockExternal() { return true; }
     @Override
     public void setXmlBlockExternal(boolean xmlBlockExternal) { /* NO-OP */ }
 
     @Override
     public boolean getTldValidation() { return false; }
+
     @Override
-    public void setTldValidation(boolean tldValidation){ /* NO-OP */ }
+    public boolean getTldNamespaceAware() { return true; }
+    @Override
+    public void setTldNamespaceAware(boolean tldNamespaceAware) { /* NO-OP */ }
 
     @Override
     public JarScanner getJarScanner() { return null; }
@@ -482,6 +453,8 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     @Override
     public boolean getLogEffectiveWebXml() { return false; }
 
+    @Override
+    public void addApplicationListener(ApplicationListener listener) { /* NO-OP */ }
     @Override
     public void addApplicationListener(String listener) { /* NO-OP */ }
     @Override
@@ -510,8 +483,6 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     @Override
     public ErrorPage findErrorPage(String exceptionType) { return null; }
     @Override
-    public ErrorPage findErrorPage(Throwable throwable) { return null; }
-    @Override
     public ErrorPage[] findErrorPages() { return null; }
     @Override
     public void removeErrorPage(ErrorPage errorPage) { /* NO-OP */ }
@@ -533,6 +504,13 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public FilterMap[] findFilterMaps() { return null; }
     @Override
     public void removeFilterMap(FilterMap filterMap) { /* NO-OP */ }
+
+    @Override
+    public void addInstanceListener(String listener) { /* NO-OP */ }
+    @Override
+    public String[] findInstanceListeners() { return null; }
+    @Override
+    public void removeInstanceListener(String listener) { /* NO-OP */ }
 
     @Override
     public void addLocaleEncodingMappingParameter(String locale, String encoding) { /* NO-OP */ }
@@ -575,11 +553,6 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void addServletMapping(String pattern, String name) { /* NO-OP */ }
     @Override
     public void addServletMapping(String pattern, String name,
-            boolean jspWildcard) { /* NO-OP */ }
-    @Override
-    public void addServletMappingDecoded(String pattern, String name) { /* NO-OP */ }
-    @Override
-    public void addServletMappingDecoded(String pattern, String name,
             boolean jspWildcard) { /* NO-OP */ }
     @Override
     public String findServletMapping(String pattern) { return null; }
@@ -644,7 +617,7 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public JspConfigDescriptor getJspConfigDescriptor() { return null; }
 
     @Override
-    public void setJspConfigDescriptor(JspConfigDescriptor descriptor) { /* NO-OP */ }
+    public void addResourceJarUrl(URL url) { /* NO-OP */ }
 
     @Override
     public void addServletContainerInitializer(ServletContainerInitializer sci,
@@ -658,7 +631,7 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
 
     @Override
     public Set<String> addServletSecurity(
-            ServletRegistration.Dynamic registration,
+            ApplicationServletRegistration registration,
             ServletSecurityElement servletSecurityElement) { return null; }
 
     @Override
@@ -690,17 +663,10 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public synchronized void addValve(Valve valve) { /* NO-OP */ }
 
     @Override
-    public File getCatalinaBase() { return null; }
+    public String getInfo() { return null; }
 
     @Override
-    public File getCatalinaHome() { return null; }
-
-    @Override
-    public void setAddWebinfClassesResources(boolean addWebinfClassesResources) {
-        // NO-OP
-    }
-    @Override
-    public boolean getAddWebinfClassesResources() { return false; }
+    public Object getMappingObject() { return null; }
 
     @Override
     public void addPostConstructMethod(String clazz, String method) { /* NO-OP */ }
@@ -739,33 +705,6 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public String getContainerSciFilter() { return null; }
 
     @Override
-    public ThreadBindingListener getThreadBindingListener() { return null; }
-
-    @Override
-    public void setThreadBindingListener(ThreadBindingListener threadBindingListener) {
-        // NO-OP
-    }
-
-    @Override
-    public ClassLoader bind(boolean usePrivilegedAction, ClassLoader originalClassLoader) {
-        return null;
-    }
-
-    @Override
-    public void unbind(boolean usePrivilegedAction, ClassLoader originalClassLoader) {
-        // NO-OP
-    }
-
-    @Override
-    public Object getNamingToken() { return null; }
-
-    @Override
-    public void setCookieProcessor(CookieProcessor cookieProcessor) { /* NO-OP */ }
-
-    @Override
-    public CookieProcessor getCookieProcessor() { return null; }
-
-    @Override
     public void setValidateClientProvidedNewSessionId(boolean validateClientProvidedNewSessionId) {
         // NO-OP
     }
@@ -798,16 +737,6 @@ public class FailedContext extends LifecycleMBeanBase implements Context {
     public void setDispatchersUseEncodedPaths(boolean dispatchersUseEncodedPaths) { /* NO-OP */ }
     @Override
     public boolean getDispatchersUseEncodedPaths() { return true; }
-
-    @Override
-    public void setRequestCharacterEncoding(String encoding) { /* NO-OP */ }
-    @Override
-    public String getRequestCharacterEncoding() { return null; }
-
-    @Override
-    public void setResponseCharacterEncoding(String encoding) { /* NO-OP */ }
-    @Override
-    public String getResponseCharacterEncoding() { return null; }
 
     @Override
     public void setAllowMultipleLeadingForwardSlashInPath(

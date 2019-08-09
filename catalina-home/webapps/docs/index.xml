@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -34,8 +34,8 @@
 <section name="Introduction">
 
 <p>This is the top-level entry point of the documentation bundle for the
-<strong>Apache Tomcat</strong> Servlet/JSP container.  Apache Tomcat version
-<version-major-minor/> implements the Servlet 3.1 and JavaServer Pages 2.3
+<strong>Apache Tomcat</strong> Servlet/JSP container.  Apache Tomcat version 7.0
+implements the Servlet 3.0 and JavaServer Pages 2.2
 <a href="https://wiki.apache.org/tomcat/Specifications">specifications</a> from the
 <a href="https://www.jcp.org">Java Community Process</a>, and includes many
 additional features that make it a useful platform for developing and deploying
@@ -50,8 +50,8 @@ manual is described in more detail below.</p>
 
 <section name="Apache Tomcat User Guide">
 
-<p>The following documents will assist you in downloading and installing
-Apache Tomcat, and using many of the Apache Tomcat features.</p>
+<p>The following documents will assist you in downloading, installing
+Apache Tomcat 7, and using many of the Apache Tomcat features.</p>
 
 <ol>
 <li><a href="introduction.html"><strong>Introduction</strong></a> - A
@@ -139,8 +139,6 @@ Apache Tomcat, and using many of the Apache Tomcat features.</p>
     Configuring Tomcat to use an alternative JDBC pool.</li>
 <li><a href="web-socket-howto.html"><strong>WebSocket support</strong></a> -
     Developing WebSocket applications for Apache Tomcat.</li>
-<li><a href="rewrite.html"><strong>URL rewrite</strong></a> -
-    Using the regexp based rewrite valve for conditional URL and host rewrite.</li>
 
 </ol>
 
@@ -164,34 +162,24 @@ are responsible for installing, configuring, and operating an Apache Tomcat serv
     - Complete documentation and HOWTOs on the JK native webserver connector,
       used to interface Apache Tomcat with servers like Apache HTTPd, IIS
       and others.</li>
-<li>Servlet 3.1
-    <a href="http://jcp.org/aboutJava/communityprocess/final/jsr340/index.html">
+<li>Servlet 3.0
+    <a href="https://jcp.org/aboutJava/communityprocess/final/jsr315/index.html">
     <strong>Specification</strong></a> and
-    <a href="http://docs.oracle.com/javaee/7/api/javax/servlet/package-summary.html">
+    <a href="http://docs.oracle.com/javaee/6/api/index.html?javax/servlet/package-summary.html">
     <strong>Javadoc</strong></a>
     </li>
-<li>JSP 2.3
-    <a href="https://jcp.org/aboutJava/communityprocess/mrel/jsr245/index2.html">
-    <strong>Specification</strong></a> and
-    <a href="http://docs.oracle.com/javaee/7/api/javax/servlet/jsp/package-summary.html">
-    <strong>Javadoc</strong></a>
-    </li>
-<li>EL 3.0
-    <a href="https://jcp.org/aboutJava/communityprocess/final/jsr341/index.html">
-    <strong>Specification</strong></a> and
-    <a href="http://docs.oracle.com/javaee/7/api/javax/el/package-summary.html">
+<li>JSP 2.2 and EL 2.2
+    <a href="https://jcp.org/aboutJava/communityprocess/mrel/jsr245/index.html">
+    <strong>Specifications</strong></a>, JSP 2.2
+    <a href="http://docs.oracle.com/javaee/6/api/index.html?javax/servlet/jsp/package-summary.html">
+    <strong>Javadoc (note it is labelled as JSP 2.1)</strong></a>, EL 2.2
+    <a href="http://docs.oracle.com/javaee/6/api/index.html?javax/el/package-summary.html">
     <strong>Javadoc</strong></a>
     </li>
 <li>WebSocket 1.1
     <a href="https://jcp.org/aboutJava/communityprocess/mrel/jsr356/index.html">
     <strong>Specification</strong></a> and
     <a href="http://docs.oracle.com/javaee/7/api/javax/websocket/package-summary.html">
-    <strong>Javadoc</strong></a>
-    </li>
-<li>JASPIC 1.1
-    <a href="https://jcp.org/aboutJava/communityprocess/mrel/jsr196/index.html">
-    <strong>Specification</strong></a> and
-    <a href="http://docs.oracle.com/javaee/7/api/javax/security/auth/message/package-summary.html">
     <strong>Javadoc</strong></a>
     </li>
 </ul>

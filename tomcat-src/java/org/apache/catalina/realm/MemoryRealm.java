@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.realm;
+
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,9 +60,15 @@ public class MemoryRealm  extends RealmBase {
 
     /**
      * Descriptive information about this Realm implementation.
-     * @deprecated This will be removed in Tomcat 9 onwards.
      */
-    @Deprecated
+    protected static final String info =
+        "org.apache.catalina.realm.MemoryRealm/1.0";
+
+
+    /**
+     * Descriptive information about this Realm implementation.
+     */
+
     protected static final String name = "MemoryRealm";
 
 
@@ -73,13 +82,28 @@ public class MemoryRealm  extends RealmBase {
     /**
      * The set of valid Principals for this Realm, keyed by user name.
      */
-    private final Map<String,GenericPrincipal> principals = new HashMap<>();
+    private Map<String,GenericPrincipal> principals =
+        new HashMap<String,GenericPrincipal>();
 
 
     // ------------------------------------------------------------- Properties
 
+
     /**
-     * @return the pathname of our XML file containing user definitions.
+     * Return descriptive information about this Realm implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    @Override
+    public String getInfo() {
+
+        return info;
+
+    }
+
+
+    /**
+     * Return the pathname of our XML file containing user definitions.
      */
     public String getPathname() {
 
@@ -111,7 +135,6 @@ public class MemoryRealm  extends RealmBase {
      * @param username Username of the Principal to look up
      * @param credentials Password or other credentials to use in
      *  authenticating this username
-     * @return the associated principal, or <code>null</code> if there is none.
      */
     @Override
     public Principal authenticate(String username, String credentials) {
@@ -126,17 +149,17 @@ public class MemoryRealm  extends RealmBase {
 
         GenericPrincipal principal = principals.get(username);
 
-        if(principal == null || principal.getPassword() == null) {
+        if (principal == null || principal.getPassword() == null) {
             // User was not found in the database or the password was null
             // Waste a bit of time as not to reveal that the user does not exist.
-            getCredentialHandler().mutate(credentials);
+            compareCredentials(credentials, getClass().getName());
 
             if (log.isDebugEnabled())
                 log.debug(sm.getString("memoryRealm.authenticateFailure", username));
             return null;
         }
 
-        boolean validated = getCredentialHandler().matches(credentials, principal.getPassword());
+        boolean validated = compareCredentials(credentials, principal.getPassword());
 
         if (validated) {
             if (log.isDebugEnabled())
@@ -163,7 +186,7 @@ public class MemoryRealm  extends RealmBase {
     void addUser(String username, String password, String roles) {
 
         // Accumulate the list of roles for this user
-        ArrayList<String> list = new ArrayList<>();
+        ArrayList<String> list = new ArrayList<String>();
         roles += ",";
         while (true) {
             int comma = roles.indexOf(',');
@@ -186,10 +209,11 @@ public class MemoryRealm  extends RealmBase {
 
 
     /**
-     * @return a configured <code>Digester</code> to use for processing
+     * Return a configured <code>Digester</code> to use for processing
      * the XML input file, creating a new one if necessary.
      */
     protected synchronized Digester getDigester() {
+
         if (digester == null) {
             digester = new Digester();
             digester.setValidating(false);
@@ -202,35 +226,40 @@ public class MemoryRealm  extends RealmBase {
             }
             digester.addRuleSet(new MemoryRuleSet());
         }
-        return digester;
-    }
+        return (digester);
 
-
-    @Override
-    @Deprecated
-    protected String getName() {
-        return name;
     }
 
 
     /**
-     * @return the password associated with the given principal's user name.
+     * Return a short name for this Realm implementation.
+     */
+    @Override
+    protected String getName() {
+
+        return (name);
+
+    }
+
+
+    /**
+     * Return the password associated with the given principal's user name.
      */
     @Override
     protected String getPassword(String username) {
 
         GenericPrincipal principal = principals.get(username);
         if (principal != null) {
-            return principal.getPassword();
+            return (principal.getPassword());
         } else {
-            return null;
+            return (null);
         }
 
     }
 
 
     /**
-     * @return the Principal associated with the given user name.
+     * Return the Principal associated with the given user name.
      */
     @Override
     protected Principal getPrincipal(String username) {
@@ -239,8 +268,21 @@ public class MemoryRealm  extends RealmBase {
 
     }
 
+    /**
+     * Returns the principals for this realm.
+     *
+     * @return The principals, keyed by user name (a String)
+     *
+     * @deprecated  Unused
+     */
+    @Deprecated
+    protected Map<String,GenericPrincipal> getPrincipals() {
+        return principals;
+    }
+
 
     // ------------------------------------------------------ Lifecycle Methods
+
 
     /**
      * Prepare for the beginning of active use of the public methods of this
@@ -252,8 +294,13 @@ public class MemoryRealm  extends RealmBase {
      */
     @Override
     protected void startInternal() throws LifecycleException {
+
         String pathName = getPathname();
-        try (InputStream is = ConfigFileLoader.getInputStream(pathName)) {
+        InputStream is = null;
+
+        try {
+            is = ConfigFileLoader.getInputStream(pathName);
+
             // Load the contents of the database file
             if (log.isDebugEnabled()) {
                 log.debug(sm.getString("memoryRealm.loadPath", pathName));
@@ -266,12 +313,24 @@ public class MemoryRealm  extends RealmBase {
                     digester.parse(is);
                 }
             } catch (Exception e) {
-                throw new LifecycleException(sm.getString("memoryRealm.readXml"), e);
+                throw new LifecycleException
+                        (sm.getString("memoryRealm.readXml"), e);
             } finally {
                 digester.reset();
             }
+
         } catch (IOException ioe) {
-            throw new LifecycleException(sm.getString("memoryRealm.loadExist", pathName), ioe);
+            throw new LifecycleException(sm.getString("memoryRealm.loadExist",
+                            pathName), ioe);
+
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
         }
 
         super.startInternal();

@@ -18,7 +18,6 @@
 
 package org.apache.el.parser;
 
-import javax.el.ELClass;
 import javax.el.ELException;
 import javax.el.MethodExpression;
 import javax.el.MethodInfo;
@@ -61,12 +60,6 @@ public final class AstIdentifier extends SimpleNode {
 
     @Override
     public Object getValue(EvaluationContext ctx) throws ELException {
-        // Lambda parameters
-        if (ctx.isLambdaArgument(this.image)) {
-            return ctx.getLambdaArgument(this.image);
-        }
-
-        // Variable mapper
         VariableMapper varMapper = ctx.getVariableMapper();
         if (varMapper != null) {
             ValueExpression expr = varMapper.resolveVariable(this.image);
@@ -74,51 +67,13 @@ public final class AstIdentifier extends SimpleNode {
                 return expr.getValue(ctx.getELContext());
             }
         }
-
-        // EL Resolvers
         ctx.setPropertyResolved(false);
-        Object result;
-        /* Putting the Boolean into the ELContext is part of a performance
-         * optimisation for ScopedAttributeELResolver. When looking up "foo",
-         * the resolver can't differentiate between ${ foo } and ${ foo.bar }.
-         * This is important because the expensive class lookup only needs to
-         * be performed in the later case. This flag tells the resolver if the
-         * lookup can be skipped.
-         */
-        if (parent instanceof AstValue) {
-            ctx.putContext(this.getClass(), Boolean.FALSE);
-        } else {
-            ctx.putContext(this.getClass(), Boolean.TRUE);
+        Object result = ctx.getELResolver().getValue(ctx, null, this.image);
+        if (!ctx.isPropertyResolved()) {
+            throw new PropertyNotFoundException(MessageFactory.get(
+                    "error.resolver.unhandled.null", this.image));
         }
-        try {
-            result = ctx.getELResolver().getValue(ctx, null, this.image);
-        } finally {
-            // Always reset the flag to false so the optimisation is not applied
-            // inappropriately
-            ctx.putContext(this.getClass(), Boolean.FALSE);
-        }
-
-        if (ctx.isPropertyResolved()) {
-            return result;
-        }
-
-        // Import
-        result = ctx.getImportHandler().resolveClass(this.image);
-        if (result != null) {
-            return new ELClass((Class<?>) result);
-        }
-        result = ctx.getImportHandler().resolveStatic(this.image);
-        if (result != null) {
-            try {
-                return ((Class<?>) result).getField(this.image).get(null);
-            } catch (IllegalArgumentException | IllegalAccessException
-                    | NoSuchFieldException | SecurityException e) {
-                throw new ELException(e);
-            }
-        }
-
-        throw new PropertyNotFoundException(MessageFactory.get(
-                "error.resolver.unhandled.null", this.image));
+        return result;
     }
 
     @Override

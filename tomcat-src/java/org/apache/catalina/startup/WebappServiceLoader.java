@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -34,25 +34,23 @@ import java.util.regex.Pattern;
 import javax.servlet.ServletContext;
 
 import org.apache.catalina.Context;
-import org.apache.tomcat.util.scan.JarFactory;
+import org.apache.tomcat.util.buf.UriUtil;
 
 /**
  * A variation of Java's JAR ServiceLoader that respects exclusion rules for
  * web applications.
- * <p>
+ * <p/>
  * Primarily intended for use loading ServletContainerInitializers as defined
  * by Servlet 8.2.4. This implementation does not attempt lazy loading as the
  * container is required to introspect all implementations discovered.
- * <p>
+ * <p/>
  * If the ServletContext defines ORDERED_LIBS, then only JARs in WEB-INF/lib
  * that are named in that set will be included in the search for
  * provider configuration files; if ORDERED_LIBS is not defined then
  * all JARs will be searched for provider configuration files. Providers
  * defined by resources in the parent ClassLoader will always be returned.
- * <p>
+ * <p/>
  * Provider classes will be loaded using the context's ClassLoader.
- *
- * @param <T> The type of service to load
  *
  * @see javax.servlet.ServletContainerInitializer
  * @see java.util.ServiceLoader
@@ -60,6 +58,7 @@ import org.apache.tomcat.util.scan.JarFactory;
 public class WebappServiceLoader<T> {
     private static final String LIB = "/WEB-INF/lib/";
     private static final String SERVICES = "META-INF/services/";
+    private static final Charset UTF8 = Charset.forName("UTF-8");
 
     private final Context context;
     private final ServletContext servletContext;
@@ -91,8 +90,8 @@ public class WebappServiceLoader<T> {
     public List<T> load(Class<T> serviceType) throws IOException {
         String configFile = SERVICES + serviceType.getName();
 
-        LinkedHashSet<String> applicationServicesFound = new LinkedHashSet<>();
-        LinkedHashSet<String> containerServicesFound = new LinkedHashSet<>();
+        LinkedHashSet<String> applicationServicesFound = new LinkedHashSet<String>();
+        LinkedHashSet<String> containerServicesFound = new LinkedHashSet<String>();
 
         ClassLoader loader = servletContext.getClassLoader();
 
@@ -115,7 +114,7 @@ public class WebappServiceLoader<T> {
                 if (base.endsWith("/")) {
                     url = new URL(base + configFile);
                 } else {
-                    url = JarFactory.getJarEntryURL(jarUrl, configFile);
+                    url = UriUtil.buildJarUrl(base, configFile);
                 }
                 try {
                     parseConfigFile(applicationServicesFound, url);
@@ -159,11 +158,14 @@ public class WebappServiceLoader<T> {
         return loadServices(serviceType, containerServicesFound);
     }
 
-    void parseConfigFile(LinkedHashSet<String> servicesFound, URL url)
+    private void parseConfigFile(LinkedHashSet<String> servicesFound, URL url)
             throws IOException {
-        try (InputStream is = url.openStream();
-            InputStreamReader in = new InputStreamReader(is, StandardCharsets.UTF_8);
-            BufferedReader reader = new BufferedReader(in);) {
+        InputStream is = null;
+        BufferedReader reader = null;
+        try {
+            is = url.openStream();
+            InputStreamReader in = new InputStreamReader(is, UTF8);
+            reader = new BufferedReader(in);
             String line;
             while ((line = reader.readLine()) != null) {
                 int i = line.indexOf('#');
@@ -176,18 +178,31 @@ public class WebappServiceLoader<T> {
                 }
                 servicesFound.add(line);
             }
+        } finally {
+            if (reader != null) {
+                reader.close();
+            }
+            if (is != null) {
+                is.close();
+            }
         }
     }
 
-    List<T> loadServices(Class<T> serviceType, LinkedHashSet<String> servicesFound)
+    private List<T> loadServices(Class<T> serviceType, LinkedHashSet<String> servicesFound)
             throws IOException {
         ClassLoader loader = servletContext.getClassLoader();
-        List<T> services = new ArrayList<>(servicesFound.size());
+        List<T> services = new ArrayList<T>(servicesFound.size());
         for (String serviceClass : servicesFound) {
             try {
                 Class<?> clazz = Class.forName(serviceClass, true, loader);
-                services.add(serviceType.cast(clazz.getConstructor().newInstance()));
-            } catch (ReflectiveOperationException | ClassCastException e) {
+                services.add(serviceType.cast(clazz.newInstance()));
+            } catch (ClassNotFoundException e) {
+                throw new IOException(e);
+            } catch (InstantiationException e) {
+                throw new IOException(e);
+            } catch (IllegalAccessException e) {
+                throw new IOException(e);
+            } catch (ClassCastException e) {
                 throw new IOException(e);
             }
         }

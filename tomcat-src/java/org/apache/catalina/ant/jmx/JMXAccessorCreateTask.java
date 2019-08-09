@@ -33,9 +33,8 @@ import org.apache.tools.ant.BuildException;
  * </ul>
  * <p>
  * Examples:
- * <br>
+ * <br/>
  * create a new Mbean at jmx.server connection
- * </p>
  * <pre>
  *   &lt;jmx:create
  *           ref="jmx.server"
@@ -45,6 +44,7 @@ import org.apache.tools.ant.BuildException;
  *            &lt;Arg value="org.apache.catalina.mbeans.MBeanFactory" /&gt;
  *   &lt;/jmxCreate/&gt;
  * </pre>
+ * </p>
  * <p>
  * <b>WARNING</b>Not all Tomcat MBeans can create remotely and autoregister by its parents!
  * Please, use the MBeanFactory operation to generate valves and realms.
@@ -62,7 +62,27 @@ public class JMXAccessorCreateTask extends JMXAccessorTask {
 
     private String className;
     private String classLoader;
-    private List<Arg> args=new ArrayList<>();
+    private List<Arg> args=new ArrayList<Arg>();
+
+    // ----------------------------------------------------- Instance Info
+
+    /**
+     * Descriptive information describing this implementation.
+     */
+    private static final String info = "org.apache.catalina.ant.JMXAccessorCreateTask/1.0";
+
+    /**
+     * Return descriptive information about this implementation and the
+     * corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     * @return Returns the class info.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
 
     // ------------------------------------------------------------- Properties
 
@@ -113,6 +133,14 @@ public class JMXAccessorCreateTask extends JMXAccessorTask {
 
     // ------------------------------------------------------ protected Methods
 
+    /**
+     * Execute the specified command, based on the configured properties. The
+     * input stream will be closed upon completion of this task, whether it was
+     * executed successfully or not.
+     *
+     * @exception Exception
+     *                if an error occurs
+     */
     @Override
     public String jmxExecute(MBeanServerConnection jmxServerConnection)
         throws Exception {
@@ -124,19 +152,19 @@ public class JMXAccessorCreateTask extends JMXAccessorTask {
             throw new BuildException(
                     "Must specify a 'className' for get");
         }
-        jmxCreate(jmxServerConnection, getName());
-        return null;
+        return jmxCreate(jmxServerConnection, getName());
      }
 
     /**
-     * Create new MBean from ClassLoader identified by an ObjectName.
-     *
-     * @param jmxServerConnection Connection to the JMX server
-     * @param name MBean name
-     * @throws Exception Error creating MBean
+     * create new Mbean and when set from ClassLoader Objectname
+     * @param jmxServerConnection
+     * @param name
+     * @return The value of the given named attribute
+     * @throws Exception
      */
-    protected void jmxCreate(MBeanServerConnection jmxServerConnection,
+    protected String jmxCreate(MBeanServerConnection jmxServerConnection,
             String name) throws Exception {
+        String error = null;
         Object argsA[] = null;
         String sigA[] = null;
         if (args != null) {
@@ -174,6 +202,7 @@ public class JMXAccessorCreateTask extends JMXAccessorTask {
             else
                 jmxServerConnection.createMBean(className, new ObjectName(name),argsA,sigA);
         }
+        return error;
     }
 
 }

@@ -23,8 +23,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Collections;
-import java.util.List;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -34,30 +32,22 @@ import javax.net.ssl.SSLException;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.buf.ByteBufferUtils;
-import org.apache.tomcat.util.compat.JreCompat;
-import org.apache.tomcat.util.net.TLSClientHelloExtractor.ExtractorResult;
-import org.apache.tomcat.util.net.openssl.ciphers.Cipher;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
+ *
  * Implementation of a secure socket channel
+ * @author Filip Hanik
+ * @version 1.0
  */
+
 public class SecureNioChannel extends NioChannel  {
 
-    private static final Log log = LogFactory.getLog(SecureNioChannel.class);
-    private static final StringManager sm = StringManager.getManager(SecureNioChannel.class);
-
-    // Value determined by observation of what the SSL Engine requested in
-    // various scenarios
-    private static final int DEFAULT_NET_BUFFER_SIZE = 16921;
+    protected static final Log log = LogFactory.getLog(SecureNioChannel.class);
 
     protected ByteBuffer netInBuffer;
     protected ByteBuffer netOutBuffer;
 
     protected SSLEngine sslEngine;
-
-    protected boolean sniComplete = false;
 
     protected boolean handshakeComplete = false;
     protected HandshakeStatus handshakeStatus; //gets set by handshake
@@ -66,68 +56,75 @@ public class SecureNioChannel extends NioChannel  {
     protected boolean closing = false;
 
     protected NioSelectorPool pool;
-    private final NioEndpoint endpoint;
 
-    public SecureNioChannel(SocketChannel channel, SocketBufferHandler bufHandler,
-            NioSelectorPool pool, NioEndpoint endpoint) {
-        super(channel, bufHandler);
+    public SecureNioChannel(SocketChannel channel, SSLEngine engine,
+                            ApplicationBufferHandler bufHandler, NioSelectorPool pool) throws IOException {
+        super(channel,bufHandler);
+        this.sslEngine = engine;
+        int appBufSize = sslEngine.getSession().getApplicationBufferSize();
+        int netBufSize = sslEngine.getSession().getPacketBufferSize();
+        //allocate network buffers - TODO, add in optional direct non-direct buffers
+        if ( netInBuffer == null ) netInBuffer = ByteBuffer.allocateDirect(netBufSize);
+        if ( netOutBuffer == null ) netOutBuffer = ByteBuffer.allocateDirect(netBufSize);
 
-        // Create the network buffers (these hold the encrypted data).
-        if (endpoint.getSocketProperties().getDirectSslBuffer()) {
-            netInBuffer = ByteBuffer.allocateDirect(DEFAULT_NET_BUFFER_SIZE);
-            netOutBuffer = ByteBuffer.allocateDirect(DEFAULT_NET_BUFFER_SIZE);
-        } else {
-            netInBuffer = ByteBuffer.allocate(DEFAULT_NET_BUFFER_SIZE);
-            netOutBuffer = ByteBuffer.allocate(DEFAULT_NET_BUFFER_SIZE);
-        }
-
-        // selector pool for blocking operations
+        //selector pool for blocking operations
         this.pool = pool;
-        this.endpoint = endpoint;
+
+        //ensure that the application has a large enough read/write buffers
+        //by doing this, we should not encounter any buffer overflow errors
+        bufHandler.expand(bufHandler.getReadBuffer(), appBufSize);
+        bufHandler.expand(bufHandler.getWriteBuffer(), appBufSize);
+        reset();
     }
 
+    public void reset(SSLEngine engine) throws IOException {
+        this.sslEngine = engine;
+        reset();
+    }
     @Override
     public void reset() throws IOException {
         super.reset();
-        sslEngine = null;
-        sniComplete = false;
+        netOutBuffer.position(0);
+        netOutBuffer.limit(0);
+        netInBuffer.position(0);
+        netInBuffer.limit(0);
         handshakeComplete = false;
         closed = false;
         closing = false;
-        netInBuffer.clear();
+        //initiate handshake
+        sslEngine.beginHandshake();
+        handshakeStatus = sslEngine.getHandshakeStatus();
     }
 
     @Override
-    public void free() {
-        super.free();
-        if (endpoint.getSocketProperties().getDirectSslBuffer()) {
-            ByteBufferUtils.cleanDirectBuffer(netInBuffer);
-            ByteBufferUtils.cleanDirectBuffer(netOutBuffer);
-        }
+    public int getBufferSize() {
+        int size = super.getBufferSize();
+        size += netInBuffer!=null?netInBuffer.capacity():0;
+        size += netOutBuffer!=null?netOutBuffer.capacity():0;
+        return size;
     }
+
 
 //===========================================================================================
 //                  NIO SSL METHODS
 //===========================================================================================
-
     /**
      * Flush the channel.
      *
      * @param block     Should a blocking write be used?
-     * @param s         The selector to use for blocking, if null then a busy
-     *                  write will be initiated
-     * @param timeout   The timeout for this write operation in milliseconds,
-     *                  -1 means no timeout
+     * @param s
+     * @param timeout
      * @return <code>true</code> if the network buffer has been flushed out and
      *         is empty else <code>false</code>
-     * @throws IOException If an I/O error occurs during the operation
+     * @throws IOException
      */
     @Override
-    public boolean flush(boolean block, Selector s, long timeout) throws IOException {
+    public boolean flush(boolean block, Selector s, long timeout)
+            throws IOException {
         if (!block) {
             flush(netOutBuffer);
         } else {
-            pool.write(netOutBuffer, this, s, timeout, block);
+            pool.write(netOutBuffer, this, s, timeout,block);
         }
         return !netOutBuffer.hasRemaining();
     }
@@ -136,7 +133,7 @@ public class SecureNioChannel extends NioChannel  {
      * Flushes the buffer to the network, non blocking
      * @param buf ByteBuffer
      * @return boolean true if the buffer has been emptied out, false otherwise
-     * @throws IOException An IO error occurred writing data
+     * @throws IOException
      */
     protected boolean flush(ByteBuffer buf) throws IOException {
         int remaining = buf.remaining();
@@ -149,36 +146,19 @@ public class SecureNioChannel extends NioChannel  {
     }
 
     /**
-     * Performs SSL handshake, non blocking, but performs NEED_TASK on the same
-     * thread. Hence, you should never call this method using your Acceptor
-     * thread, as you would slow down your system significantly. If the return
-     * value from this method is positive, the selection key should be
-     * registered interestOps given by the return value.
-     *
+     * Performs SSL handshake, non blocking, but performs NEED_TASK on the same thread.<br>
+     * Hence, you should never call this method using your Acceptor thread, as you would slow down
+     * your system significantly.<br>
+     * The return for this operation is 0 if the handshake is complete and a positive value if it is not complete.
+     * In the event of a positive value coming back, reregister the selection key for the return values interestOps.
      * @param read boolean - true if the underlying channel is readable
      * @param write boolean - true if the underlying channel is writable
-     *
-     * @return 0 if hand shake is complete, -1 if an error (other than an
-     *         IOException) occurred, otherwise it returns a SelectionKey
-     *         interestOps value
-     *
-     * @throws IOException If an I/O error occurs during the handshake or if the
-     *                     handshake fails during wrapping or unwrapping
+     * @return int - 0 if hand shake is complete, otherwise it returns a SelectionKey interestOps value
+     * @throws IOException
      */
     @Override
     public int handshake(boolean read, boolean write) throws IOException {
-        if (handshakeComplete) {
-            return 0; //we have done our initial handshake
-        }
-
-        if (!sniComplete) {
-            int sniResult = processSNI();
-            if (sniResult == 0) {
-                sniComplete = true;
-            } else {
-                return sniResult;
-            }
-        }
+        if ( handshakeComplete ) return 0; //we have done our initial handshake
 
         if (!flush(netOutBuffer)) return SelectionKey.OP_WRITE; //we still have data to write
 
@@ -188,18 +168,9 @@ public class SecureNioChannel extends NioChannel  {
             switch ( handshakeStatus ) {
                 case NOT_HANDSHAKING: {
                     //should never happen
-                    throw new IOException(sm.getString("channel.nio.ssl.notHandshaking"));
+                    throw new IOException("NOT_HANDSHAKING during handshake");
                 }
                 case FINISHED: {
-                    if (endpoint.hasNegotiableProtocols()) {
-                        if (sslEngine instanceof SSLUtil.ProtocolInfo) {
-                            socketWrapper.setNegotiatedProtocol(
-                                    ((SSLUtil.ProtocolInfo) sslEngine).getNegotiatedProtocol());
-                        } else if (JreCompat.isJre9Available()) {
-                            socketWrapper.setNegotiatedProtocol(
-                                    JreCompat.getInstance().getApplicationProtocol(sslEngine));
-                        }
-                    }
                     //we are complete if we have delivered the last package
                     handshakeComplete = !netOutBuffer.hasRemaining();
                     //return 0 if we are complete, otherwise we still have data to write
@@ -223,7 +194,7 @@ public class SecureNioChannel extends NioChannel  {
                         return -1;
                     } else {
                         //wrap should always work with our buffers
-                        throw new IOException(sm.getString("channel.nio.ssl.unexpectedStatusDuringWrap", handshake.getStatus()));
+                        throw new IOException("Unexpected status:" + handshake.getStatus() + " during handshake WRAP.");
                     }
                     if ( handshakeStatus != HandshakeStatus.NEED_UNWRAP || (!flush(netOutBuffer)) ) {
                         //should actually return OP_READ if we have NEED_UNWRAP
@@ -243,7 +214,7 @@ public class SecureNioChannel extends NioChannel  {
                         //read more data, reregister for OP_READ
                         return SelectionKey.OP_READ;
                     } else {
-                        throw new IOException(sm.getString("channel.nio.ssl.unexpectedStatusDuringWrap", handshake.getStatus()));
+                        throw new IOException("Invalid handshake status:"+handshakeStatus+" during handshake UNWRAP.");
                     }//switch
                     break;
                 }
@@ -251,106 +222,12 @@ public class SecureNioChannel extends NioChannel  {
                     handshakeStatus = tasks();
                     break;
                 }
-                default: throw new IllegalStateException(sm.getString("channel.nio.ssl.invalidStatus", handshakeStatus));
+                default: throw new IllegalStateException("Invalid handshake status:"+handshakeStatus);
             }
         }
         // Handshake is complete if this point is reached
         return 0;
     }
-
-
-    /*
-     * Peeks at the initial network bytes to determine if the SNI extension is
-     * present and, if it is, what host name has been requested. Based on the
-     * provided host name, configure the SSLEngine for this connection.
-     *
-     * @return 0 if SNI processing is complete, -1 if an error (other than an
-     *         IOException) occurred, otherwise it returns a SelectionKey
-     *         interestOps value
-     *
-     * @throws IOException If an I/O error occurs during the SNI processing
-     */
-    private int processSNI() throws IOException {
-        // Read some data into the network input buffer so we can peek at it.
-        int bytesRead = sc.read(netInBuffer);
-        if (bytesRead == -1) {
-            // Reached end of stream before SNI could be processed.
-            return -1;
-        }
-        TLSClientHelloExtractor extractor = new TLSClientHelloExtractor(netInBuffer);
-
-        while (extractor.getResult() == ExtractorResult.UNDERFLOW &&
-                netInBuffer.capacity() < endpoint.getSniParseLimit()) {
-            // extractor needed more data to process but netInBuffer was full so
-            // expand the buffer and read some more data.
-            int newLimit = Math.min(netInBuffer.capacity() * 2, endpoint.getSniParseLimit());
-            log.info(sm.getString("channel.nio.ssl.expandNetInBuffer",
-                    Integer.toString(newLimit)));
-
-            netInBuffer = ByteBufferUtils.expand(netInBuffer, newLimit);
-            sc.read(netInBuffer);
-            extractor = new TLSClientHelloExtractor(netInBuffer);
-        }
-
-        String hostName = null;
-        List<Cipher> clientRequestedCiphers = null;
-        List<String> clientRequestedApplicationProtocols = null;
-        switch (extractor.getResult()) {
-        case COMPLETE:
-            hostName = extractor.getSNIValue();
-            clientRequestedApplicationProtocols =
-                    extractor.getClientRequestedApplicationProtocols();
-            //$FALL-THROUGH$ to set the client requested ciphers
-        case NOT_PRESENT:
-            clientRequestedCiphers = extractor.getClientRequestedCiphers();
-            break;
-        case NEED_READ:
-            return SelectionKey.OP_READ;
-        case UNDERFLOW:
-            // Unable to buffer enough data to read SNI extension data
-            if (log.isDebugEnabled()) {
-                log.debug(sm.getString("channel.nio.ssl.sniDefault"));
-            }
-            hostName = endpoint.getDefaultSSLHostConfigName();
-            clientRequestedCiphers = Collections.emptyList();
-            break;
-        case NON_SECURE:
-            netOutBuffer.clear();
-            netOutBuffer.put(TLSClientHelloExtractor.USE_TLS_RESPONSE);
-            netOutBuffer.flip();
-            flushOutbound();
-            throw new IOException(sm.getString("channel.nio.ssl.foundHttp"));
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug(sm.getString("channel.nio.ssl.sniHostName", sc, hostName));
-        }
-
-        sslEngine = endpoint.createSSLEngine(hostName, clientRequestedCiphers,
-                clientRequestedApplicationProtocols);
-
-        // Ensure the application buffers (which have to be created earlier) are
-        // big enough.
-        getBufHandler().expand(sslEngine.getSession().getApplicationBufferSize());
-        if (netOutBuffer.capacity() < sslEngine.getSession().getApplicationBufferSize()) {
-            // Info for now as we may need to increase DEFAULT_NET_BUFFER_SIZE
-            log.info(sm.getString("channel.nio.ssl.expandNetOutBuffer",
-                    Integer.toString(sslEngine.getSession().getApplicationBufferSize())));
-        }
-        netInBuffer = ByteBufferUtils.expand(netInBuffer, sslEngine.getSession().getPacketBufferSize());
-        netOutBuffer = ByteBufferUtils.expand(netOutBuffer, sslEngine.getSession().getPacketBufferSize());
-
-        // Set limit and position to expected values
-        netOutBuffer.position(0);
-        netOutBuffer.limit(0);
-
-        // Initiate handshake
-        sslEngine.beginHandshake();
-        handshakeStatus = sslEngine.getHandshakeStatus();
-
-        return 0;
-    }
-
 
     /**
      * Force a blocking handshake to take place for this key.
@@ -360,38 +237,40 @@ public class SecureNioChannel extends NioChannel  {
      * @throws IOException - if an IO exception occurs or if application or network buffers contain data
      * @throws SocketTimeoutException - if a socket operation timed out
      */
-    @SuppressWarnings("null") // key cannot be null
     public void rehandshake(long timeout) throws IOException {
         //validate the network buffers are empty
-        if (netInBuffer.position() > 0 && netInBuffer.position()<netInBuffer.limit()) throw new IOException(sm.getString("channel.nio.ssl.netInputNotEmpty"));
-        if (netOutBuffer.position() > 0 && netOutBuffer.position()<netOutBuffer.limit()) throw new IOException(sm.getString("channel.nio.ssl.netOutputNotEmpty"));
-        if (!getBufHandler().isReadBufferEmpty()) throw new IOException(sm.getString("channel.nio.ssl.appInputNotEmpty"));
-        if (!getBufHandler().isWriteBufferEmpty()) throw new IOException(sm.getString("channel.nio.ssl.appOutputNotEmpty"));
-        handshakeComplete = false;
-        boolean isReadable = false;
-        boolean isWriteable = false;
+        if (netInBuffer.position() > 0 && netInBuffer.position()<netInBuffer.limit()) throw new IOException("Network input buffer still contains data. Handshake will fail.");
+        if (netOutBuffer.position() > 0 && netOutBuffer.position()<netOutBuffer.limit()) throw new IOException("Network output buffer still contains data. Handshake will fail.");
+        if (getBufHandler().getReadBuffer().position()>0 && getBufHandler().getReadBuffer().position()<getBufHandler().getReadBuffer().limit()) throw new IOException("Application input buffer still contains data. Data would have been lost.");
+        if (getBufHandler().getWriteBuffer().position()>0 && getBufHandler().getWriteBuffer().position()<getBufHandler().getWriteBuffer().limit()) throw new IOException("Application output buffer still contains data. Data would have been lost.");
+        reset();
+        boolean isReadable = true;
+        boolean isWriteable = true;
         boolean handshaking = true;
         Selector selector = null;
         SelectionKey key = null;
         try {
-            sslEngine.beginHandshake();
-            handshakeStatus = sslEngine.getHandshakeStatus();
             while (handshaking) {
                 int hsStatus = this.handshake(isReadable, isWriteable);
                 switch (hsStatus) {
-                    case -1 : throw new EOFException(sm.getString("channel.nio.ssl.eofDuringHandshake"));
+                    case -1 : throw new EOFException("EOF during handshake.");
                     case  0 : handshaking = false; break;
                     default : {
                         long now = System.currentTimeMillis();
                         if (selector==null) {
-                            selector = Selector.open();
+                            synchronized (Selector.class) {
+                                // Selector.open() isn't thread safe
+                                // http://bugs.sun.com/view_bug.do?bug_id=6427854
+                                // Affects 1.6.0_29, fixed in 1.7.0_01
+                                selector = Selector.open();
+                            }
                             key = getIOChannel().register(selector, hsStatus);
                         } else {
-                            key.interestOps(hsStatus); // null warning suppressed
+                            key.interestOps(hsStatus);
                         }
                         int keyCount = selector.select(timeout);
                         if (keyCount == 0 && ((System.currentTimeMillis()-now) >= timeout)) {
-                            throw new SocketTimeoutException(sm.getString("channel.nio.ssl.timeoutDuringHandshake"));
+                            throw new SocketTimeoutException("Handshake operation timed out.");
                         }
                         isReadable = key.isReadable();
                         isWriteable = key.isWritable();
@@ -399,10 +278,8 @@ public class SecureNioChannel extends NioChannel  {
                 }
             }
         } catch (IOException x) {
-            closeSilently();
             throw x;
         } catch (Exception cx) {
-            closeSilently();
             IOException x = new IOException(cx);
             throw x;
         } finally {
@@ -415,7 +292,7 @@ public class SecureNioChannel extends NioChannel  {
 
     /**
      * Executes all the tasks needed on the same thread.
-     * @return the status
+     * @return HandshakeStatus
      */
     protected SSLEngineResult.HandshakeStatus tasks() {
         Runnable r = null;
@@ -428,16 +305,15 @@ public class SecureNioChannel extends NioChannel  {
     /**
      * Performs the WRAP function
      * @param doWrite boolean
-     * @return the result
-     * @throws IOException An IO error occurred
+     * @return SSLEngineResult
+     * @throws IOException
      */
     protected SSLEngineResult handshakeWrap(boolean doWrite) throws IOException {
         //this should never be called with a network buffer that contains data
         //so we can clear it here.
         netOutBuffer.clear();
         //perform the wrap
-        getBufHandler().configureWriteBufferForRead();
-        SSLEngineResult result = sslEngine.wrap(getBufHandler().getWriteBuffer(), netOutBuffer);
+        SSLEngineResult result = sslEngine.wrap(bufHandler.getWriteBuffer(), netOutBuffer);
         //prepare the results to be written
         netOutBuffer.flip();
         //set the status
@@ -450,8 +326,8 @@ public class SecureNioChannel extends NioChannel  {
     /**
      * Perform handshake unwrap
      * @param doread boolean
-     * @return the result
-     * @throws IOException An IO error occurred
+     * @return SSLEngineResult
+     * @throws IOException
      */
     protected SSLEngineResult handshakeUnwrap(boolean doread) throws IOException {
 
@@ -462,7 +338,7 @@ public class SecureNioChannel extends NioChannel  {
         if ( doread )  {
             //if we have data to read, read it
             int read = sc.read(netInBuffer);
-            if (read == -1) throw new IOException(sm.getString("channel.nio.ssl.eofDuringHandshake"));
+            if (read == -1) throw new IOException("EOF encountered during handshake.");
         }
         SSLEngineResult result;
         boolean cont = false;
@@ -471,8 +347,7 @@ public class SecureNioChannel extends NioChannel  {
             //prepare the buffer with the incoming data
             netInBuffer.flip();
             //call unwrap
-            getBufHandler().configureReadBufferForWrite();
-            result = sslEngine.unwrap(netInBuffer, getBufHandler().getReadBuffer());
+            result = sslEngine.unwrap(netInBuffer, bufHandler.getReadBuffer());
             //compact the buffer, this is an optional method, wonder what would happen if we didn't
             netInBuffer.compact();
             //read in the status
@@ -490,16 +365,16 @@ public class SecureNioChannel extends NioChannel  {
     }
 
     /**
-     * Sends a SSL close message, will not physically close the connection here.
-     * <br>To close the connection, you could do something like
+     * Sends a SSL close message, will not physically close the connection here.<br>
+     * To close the connection, you could do something like
      * <pre><code>
      *   close();
-     *   while (isOpen() &amp;&amp; !myTimeoutFunction()) Thread.sleep(25);
+     *   while (isOpen() && !myTimeoutFunction()) Thread.sleep(25);
      *   if ( isOpen() ) close(true); //forces a close if you timed out
      * </code></pre>
      * @throws IOException if an I/O error occurs
-     * @throws IOException if there is data on the outgoing network buffer and
-     *                     we are unable to flush it
+     * @throws IOException if there is data on the outgoing network buffer and we are unable to flush it
+     * TODO Implement this java.io.Closeable method
      */
     @Override
     public void close() throws IOException {
@@ -508,7 +383,7 @@ public class SecureNioChannel extends NioChannel  {
         sslEngine.closeOutbound();
 
         if (!flush(netOutBuffer)) {
-            throw new IOException(sm.getString("channel.nio.ssl.remainingDataDuringClose"));
+            throw new IOException("Remaining data in the network buffer, can't send SSL close message, force a close with close(true) instead");
         }
         //prep the buffer for the close message
         netOutBuffer.clear();
@@ -516,7 +391,7 @@ public class SecureNioChannel extends NioChannel  {
         SSLEngineResult handshake = sslEngine.wrap(getEmptyBuf(), netOutBuffer);
         //we should be in a close state
         if (handshake.getStatus() != SSLEngineResult.Status.CLOSED) {
-            throw new IOException(sm.getString("channel.nio.ssl.invalidCloseState"));
+            throw new IOException("Invalid close state, will not send network data.");
         }
         //prepare the buffer for writing
         netOutBuffer.flip();
@@ -527,13 +402,17 @@ public class SecureNioChannel extends NioChannel  {
         closed = (!netOutBuffer.hasRemaining() && (handshake.getHandshakeStatus() != HandshakeStatus.NEED_WRAP));
     }
 
-
+    /**
+     * Force a close, can throw an IOException
+     * @param force boolean
+     * @throws IOException
+     */
     @Override
     public void close(boolean force) throws IOException {
         try {
             close();
-        } finally {
-            if (force || closed) {
+        }finally {
+            if ( force || closed ) {
                 closed = true;
                 sc.socket().close();
                 sc.close();
@@ -541,34 +420,21 @@ public class SecureNioChannel extends NioChannel  {
         }
     }
 
-
-    private void closeSilently() {
-        try {
-            close(true);
-        } catch (IOException ioe) {
-            // This is expected - swallowing the exception is the reason this
-            // method exists. Log at debug in case someone is interested.
-            log.debug(sm.getString("channel.nio.ssl.closeSilentError"), ioe);
-        }
-    }
-
-
     /**
      * Reads a sequence of bytes from this channel into the given buffer.
      *
      * @param dst The buffer into which bytes are to be transferred
-     * @return The number of bytes read, possibly zero, or <tt>-1</tt> if the
-     *         channel has reached end-of-stream
+     * @return The number of bytes read, possibly zero, or <tt>-1</tt> if the channel has reached end-of-stream
      * @throws IOException If some other I/O error occurs
-     * @throws IllegalArgumentException if the destination buffer is different
-     *                                  than getBufHandler().getReadBuffer()
+     * @throws IllegalArgumentException if the destination buffer is different than bufHandler.getReadBuffer()
+     * TODO Implement this java.nio.channels.ReadableByteChannel method
      */
     @Override
     public int read(ByteBuffer dst) throws IOException {
         //are we in the middle of closing or closed?
         if ( closing || closed) return -1;
         //did we finish our handshake?
-        if (!handshakeComplete) throw new IllegalStateException(sm.getString("channel.nio.ssl.incompleteHandshake"));
+        if (!handshakeComplete) throw new IllegalStateException("Handshake incomplete, you must complete handshake before reading data.");
 
         //read from the network
         int netread = sc.read(netInBuffer);
@@ -587,47 +453,25 @@ public class SecureNioChannel extends NioChannel  {
             //compact the buffer
             netInBuffer.compact();
 
-            if (unwrap.getStatus() == Status.OK || unwrap.getStatus() == Status.BUFFER_UNDERFLOW) {
+            if ( unwrap.getStatus()==Status.OK || unwrap.getStatus()==Status.BUFFER_UNDERFLOW ) {
                 //we did receive some data, add it to our total
                 read += unwrap.bytesProduced();
                 //perform any tasks if needed
-                if (unwrap.getHandshakeStatus() == HandshakeStatus.NEED_TASK) {
-                    tasks();
-                }
+                if (unwrap.getHandshakeStatus() == HandshakeStatus.NEED_TASK) tasks();
                 //if we need more network data, then bail out for now.
-                if (unwrap.getStatus() == Status.BUFFER_UNDERFLOW) {
-                    break;
-                }
-            } else if (unwrap.getStatus() == Status.BUFFER_OVERFLOW) {
-                if (read > 0) {
-                    // Buffer overflow can happen if we have read data. Return
-                    // so the destination buffer can be emptied before another
-                    // read is attempted
-                    break;
-                } else {
-                    // The SSL session has increased the required buffer size
-                    // since the buffer was created.
-                    if (dst == getBufHandler().getReadBuffer()) {
-                        // This is the normal case for this code
-                        getBufHandler().expand(sslEngine.getSession().getApplicationBufferSize());
-                        dst = getBufHandler().getReadBuffer();
-                    } else if (dst == getAppReadBufHandler().getByteBuffer()) {
-                        getAppReadBufHandler()
-                                .expand(sslEngine.getSession().getApplicationBufferSize());
-                        dst = getAppReadBufHandler().getByteBuffer();
-                    } else {
-                        // Can't expand the buffer as there is no way to signal
-                        // to the caller that the buffer has been replaced.
-                        throw new IOException(
-                                sm.getString("channel.nio.ssl.unwrapFailResize", unwrap.getStatus()));
-                    }
-                }
-            } else {
-                // Something else went wrong
-                throw new IOException(sm.getString("channel.nio.ssl.unwrapFail", unwrap.getStatus()));
+                if ( unwrap.getStatus() == Status.BUFFER_UNDERFLOW ) break;
+            }else if ( unwrap.getStatus()==Status.BUFFER_OVERFLOW && read>0 ) {
+                //buffer overflow can happen, if we have read data, then
+                //empty out the dst buffer before we do another read
+                break;
+            }else {
+                //here we should trap BUFFER_OVERFLOW and call expand on the buffer
+                //for now, throw an exception, as we initialized the buffers
+                //in the constructor
+                throw new IOException("Unable to unwrap data, invalid status: " + unwrap.getStatus());
             }
-        } while (netInBuffer.position() != 0); //continue to unwrapping as long as the input buffer has stuff
-        return read;
+        } while ( (netInBuffer.position() != 0)); //continue to unwrapping as long as the input buffer has stuff
+        return (read);
     }
 
     /**
@@ -636,41 +480,44 @@ public class SecureNioChannel extends NioChannel  {
      * @param src The buffer from which bytes are to be retrieved
      * @return The number of bytes written, possibly zero
      * @throws IOException If some other I/O error occurs
+     * TODO Implement this java.nio.channels.WritableByteChannel method
      */
     @Override
     public int write(ByteBuffer src) throws IOException {
         checkInterruptStatus();
-        if (src == this.netOutBuffer) {
+        if ( src == this.netOutBuffer ) {
             //we can get here through a recursive call
             //by using the NioBlockingSelector
             int written = sc.write(src);
             return written;
         } else {
-            // Are we closing or closed?
-            if (closing || closed) {
-                throw new IOException(sm.getString("channel.nio.ssl.closing"));
-            }
+            //are we closing or closed?
+            if ( closing || closed) throw new IOException("Channel is in closing state.");
+
+            //the number of bytes written
+            int written = 0;
 
             if (!flush(netOutBuffer)) {
-                // We haven't emptied out the buffer yet
-                return 0;
+                //we haven't emptied out the buffer yet
+                return written;
             }
 
-            // The data buffer is empty, we can reuse the entire buffer.
+            /*
+             * The data buffer is empty, we can reuse the entire buffer.
+             */
             netOutBuffer.clear();
 
             SSLEngineResult result = sslEngine.wrap(src, netOutBuffer);
-            // The number of bytes written
-            int written = result.bytesConsumed();
+            written = result.bytesConsumed();
             netOutBuffer.flip();
 
             if (result.getStatus() == Status.OK) {
                 if (result.getHandshakeStatus() == HandshakeStatus.NEED_TASK) tasks();
             } else {
-                throw new IOException(sm.getString("channel.nio.ssl.wrapFail", result.getStatus()));
+                throw new IOException("Unable to wrap data, invalid engine state: " +result.getStatus());
             }
 
-            // Force a flush
+            //force a flush
             flush(netOutBuffer);
 
             return written;
@@ -690,6 +537,22 @@ public class SecureNioChannel extends NioChannel  {
         return remaining2 < remaining;
     }
 
+
+    /**
+     * Callback interface to be able to expand buffers
+     * when buffer overflow exceptions happen
+     */
+    public static interface ApplicationBufferHandler {
+        public ByteBuffer expand(ByteBuffer buffer, int remaining);
+        public ByteBuffer getReadBuffer();
+        public ByteBuffer getWriteBuffer();
+    }
+
+    @Override
+    public ApplicationBufferHandler getBufHandler() {
+        return bufHandler;
+    }
+
     @Override
     public boolean isHandshakeComplete() {
         return handshakeComplete;
@@ -706,5 +569,9 @@ public class SecureNioChannel extends NioChannel  {
 
     public ByteBuffer getEmptyBuf() {
         return emptyBuf;
+    }
+
+    public void setBufHandler(ApplicationBufferHandler bufHandler) {
+        this.bufHandler = bufHandler;
     }
 }

@@ -43,7 +43,7 @@ public class TestSlowQueryComparator {
 
         };
 
-        List<QueryStats> stats = new ArrayList<>();
+        List<QueryStats> stats = new ArrayList<QueryStats>();
 
         for (int i = 0; i < testData.length; i++) {
             QueryStats qs = new QueryStats(String.valueOf(i));
@@ -111,7 +111,8 @@ public class TestSlowQueryComparator {
             SecurityException, NoSuchMethodException {
         Class<?> comparatorClass = Class
                 .forName("org.apache.tomcat.jdbc.pool.interceptor.SlowQueryReport$QueryStatsComparator");
-        Constructor<?> comparatorConstructor = comparatorClass.getConstructor();
+        Constructor<?> comparatorConstructor = comparatorClass
+                .getDeclaredConstructor();
         comparatorConstructor.setAccessible(true);
         @SuppressWarnings("unchecked")
         Comparator<QueryStats> queryStatsComparator = (Comparator<QueryStats>) comparatorConstructor

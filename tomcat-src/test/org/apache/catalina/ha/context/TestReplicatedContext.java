@@ -45,11 +45,11 @@ public class TestReplicatedContext extends TomcatBaseTest {
             ((StandardHost) host).setContextClass(ReplicatedContext.class.getName());
         }
 
-        File root = new File("test/webapp");
+        File root = new File("test/webapp-3.0");
         Context context = tomcat.addWebapp(host, "", root.getAbsolutePath());
 
         Tomcat.addServlet(context, "test", new AccessContextServlet());
-        context.addServletMappingDecoded("/access", "test");
+        context.addServletMapping("/access", "test");
 
         tomcat.start();
 

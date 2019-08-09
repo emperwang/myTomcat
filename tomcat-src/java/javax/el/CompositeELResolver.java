@@ -19,7 +19,6 @@ package javax.el;
 import java.beans.FeatureDescriptor;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 
 public class CompositeELResolver extends ELResolver {
 
@@ -44,7 +43,9 @@ public class CompositeELResolver extends ELResolver {
     }
 
     public void add(ELResolver elResolver) {
-        Objects.requireNonNull(elResolver);
+        if (elResolver == null) {
+            throw new NullPointerException();
+        }
 
         if (this.size >= this.resolvers.length) {
             ELResolver[] nr = new ELResolver[this.size * 2];
@@ -148,19 +149,6 @@ public class CompositeELResolver extends ELResolver {
             }
         }
         return commonType;
-    }
-
-    @Override
-    public Object convertToType(ELContext context, Object obj, Class<?> type) {
-        context.setPropertyResolved(false);
-        int sz = this.size;
-        for (int i = 0; i < sz; i++) {
-            Object result = this.resolvers[i].convertToType(context, obj, type);
-            if (context.isPropertyResolved()) {
-                return result;
-            }
-        }
-        return null;
     }
 
     private static final class FeatureIterator implements Iterator<FeatureDescriptor> {

@@ -29,6 +29,7 @@ import org.apache.catalina.tribes.io.ReplicationStream;
  * This is so that we can have a more pluggable way
  * of swapping session managers for different algorithms.
  *
+ * @author Filip Hanik
  * @author Peter Rossbach
  */
 public interface ClusterManager extends Manager {
@@ -70,7 +71,7 @@ public interface ClusterManager extends Manager {
 
    /**
     * Set the name of the manager, at host /context name and at engine hostname+/context
-    * @param name The manager name
+    * @param name
     * @since 5.5.10
     */
    public void setName(String name);

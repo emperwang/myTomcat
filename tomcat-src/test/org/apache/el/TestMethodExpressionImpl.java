@@ -20,7 +20,6 @@ package org.apache.el;
 import javax.el.ELContext;
 import javax.el.ExpressionFactory;
 import javax.el.MethodExpression;
-import javax.el.MethodNotFoundException;
 import javax.el.ValueExpression;
 
 import org.junit.Assert;
@@ -40,7 +39,7 @@ public class TestMethodExpressionImpl {
     @Before
     public void setUp() {
         factory = ExpressionFactory.newInstance();
-        context = new ELContextImpl(factory);
+        context = new ELContextImpl();
 
         TesterBeanA beanA = new TesterBeanA();
         beanA.setName("A");
@@ -83,18 +82,30 @@ public class TestMethodExpressionImpl {
 
     @Test
     public void testIsParametersProvided() {
+        TesterBeanB beanB = new TesterBeanB();
+        beanB.setName("Tomcat");
+        ValueExpression var =
+            factory.createValueExpression(beanB, TesterBeanB.class);
+        context.getVariableMapper().setVariable("beanB", var);
+
         MethodExpression me1 = factory.createMethodExpression(
                 context, "${beanB.getName}", String.class, new Class<?>[] {});
         MethodExpression me2 = factory.createMethodExpression(
                 context, "${beanB.sayHello('JUnit')}", String.class,
                 new Class<?>[] { String.class });
 
-        Assert.assertFalse(me1.isParametersProvided());
-        Assert.assertTrue(me2.isParametersProvided());
+        Assert.assertFalse(me1.isParmetersProvided());
+        Assert.assertTrue(me2.isParmetersProvided());
     }
 
     @Test
     public void testInvoke() {
+        TesterBeanB beanB = new TesterBeanB();
+        beanB.setName("B");
+
+        context.getVariableMapper().setVariable("beanB",
+                factory.createValueExpression(beanB, TesterBeanB.class));
+
         MethodExpression me1 = factory.createMethodExpression(
                 context, "${beanB.getName}", String.class, new Class<?>[] {});
         MethodExpression me2 = factory.createMethodExpression(
@@ -490,7 +501,7 @@ public class TestMethodExpressionImpl {
     }
 
 
-    @Test(expected=MethodNotFoundException.class)
+    @Test(expected=IllegalArgumentException.class)
     public void testBug57855a() {
         MethodExpression me = factory.createMethodExpression(context,
                 "${beanAA.echo2}", null , new Class[]{String.class});
@@ -520,8 +531,7 @@ public class TestMethodExpressionImpl {
         Object r = me.invoke(context, new String[] { "aaa" });
         Assert.assertEquals("aaa", r.toString());
     }
-
-    @Test(expected=MethodNotFoundException.class)
+    @Test
     public void testBug57855e() {
         MethodExpression me = factory.createMethodExpression(context,
                 "${beanB.echo}", null , new Class[]{String.class});

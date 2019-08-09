@@ -383,17 +383,6 @@ public interface HttpServletRequest extends ServletRequest {
     public HttpSession getSession();
 
     /**
-     * Changes the session ID of the session associated with this request. This
-     * method does not create a new session object it only changes the ID of the
-     * current session.
-     *
-     * @return the new session ID allocated to the session
-     * @see HttpSessionIdListener
-     * @since Servlet 3.1
-     */
-    public String changeSessionId();
-
-    /**
      * Checks whether the requested session ID is still valid.
      *
      * @return <code>true</code> if this request has an id for a valid session
@@ -423,7 +412,6 @@ public interface HttpServletRequest extends ServletRequest {
     public boolean isRequestedSessionIdFromURL();
 
     /**
-     * @return {@link #isRequestedSessionIdFromURL()}
      * @deprecated As of Version 2.1 of the Java Servlet API, use
      *             {@link #isRequestedSessionIdFromURL} instead.
      */
@@ -440,12 +428,6 @@ public interface HttpServletRequest extends ServletRequest {
      * @return <code>true</code> if the user is successfully authenticated and
      *         <code>false</code> if not
      *
-     * @throws IOException if the authentication process attempted to read from
-     *         the request or write to the response and an I/O error occurred
-     * @throws IllegalStateException if the authentication process attempted to
-     *         write to the response after it had been committed
-     * @throws ServletException if the authentication failed and the caller is
-     *         expected to handle the failure
      * @since Servlet 3.0
      */
     public boolean authenticate(HttpServletResponse response)
@@ -484,21 +466,19 @@ public interface HttpServletRequest extends ServletRequest {
      * @throws IOException
      *             if an I/O error occurs
      * @throws IllegalStateException
-     *             if size limits are exceeded or no multipart configuration is
-     *             provided
+     *             if size limits are exceeded
      * @throws ServletException
      *             if the request is not multipart/form-data
      * @since Servlet 3.0
      */
     public Collection<Part> getParts() throws IOException,
-            ServletException;
+            IllegalStateException, ServletException;
 
     /**
      * Gets the named Part or null if the Part does not exist. Triggers upload
      * of all Parts.
      *
-     * @param name The name of the Part to obtain
-     *
+     * @param name
      * @return The named Part or null if the Part does not exist
      * @throws IOException
      *             if an I/O error occurs
@@ -508,29 +488,6 @@ public interface HttpServletRequest extends ServletRequest {
      *             if the request is not multipart/form-data
      * @since Servlet 3.0
      */
-    public Part getPart(String name) throws IOException,
+    public Part getPart(String name) throws IOException, IllegalStateException,
             ServletException;
-
-    /**
-     * Start the HTTP upgrade process and pass the connection to the provided
-     * protocol handler once the current request/response pair has completed
-     * processing. Calling this method sets the response status to {@link
-     * HttpServletResponse#SC_SWITCHING_PROTOCOLS} and flushes the response.
-     * Protocol specific headers must have already been set before this method
-     * is called.
-     *
-     * @param <T>                     The type of the upgrade handler
-     * @param httpUpgradeHandlerClass The class that implements the upgrade
-     *                                handler
-     *
-     * @return A newly created instance of the specified upgrade handler type
-     *
-     * @throws IOException
-     *             if an I/O error occurred during the upgrade
-     * @throws ServletException
-     *             if the given httpUpgradeHandlerClass fails to be instantiated
-     * @since Servlet 3.1
-     */
-    public <T extends HttpUpgradeHandler> T upgrade(
-            Class<T> httpUpgradeHandlerClass) throws java.io.IOException, ServletException;
 }

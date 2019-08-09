@@ -14,6 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.catalina.connector;
 
 import java.io.BufferedReader;
@@ -25,12 +26,9 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.TreeMap;
 
 import javax.servlet.ServletException;
@@ -40,21 +38,20 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.authenticator.BasicAuthenticator;
+import org.apache.catalina.deploy.FilterDef;
+import org.apache.catalina.deploy.FilterMap;
+import org.apache.catalina.deploy.LoginConfig;
 import org.apache.catalina.filters.FailedRequestFilter;
 import org.apache.catalina.startup.SimpleHttpClient;
-import org.apache.catalina.startup.TesterMapRealm;
+import org.apache.catalina.startup.TestTomcat.MapRealm;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.unittest.TesterRequest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
-import org.apache.tomcat.util.descriptor.web.FilterMap;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
 
 /**
  * Test case for {@link Request}.
@@ -173,9 +170,10 @@ public class TestRequest extends TomcatBaseTest {
             if (init) return;
 
             Tomcat tomcat = getTomcatInstance();
-            Context root = tomcat.addContext("", TEMP_DIR);
+            // No file system docBase required
+            Context root = tomcat.addContext("", null);
             Tomcat.addServlet(root, "Bug37794", new Bug37794Servlet());
-            root.addServletMappingDecoded("/test", "Bug37794");
+            root.addServletMapping("/test", "Bug37794");
 
             if (createFilter) {
                 FilterDef failedRequestFilter = new FilterDef();
@@ -184,7 +182,7 @@ public class TestRequest extends TomcatBaseTest {
                         FailedRequestFilter.class.getName());
                 FilterMap failedRequestFilterMap = new FilterMap();
                 failedRequestFilterMap.setFilterName("failedRequestFilter");
-                failedRequestFilterMap.addURLPatternDecoded("/*");
+                failedRequestFilterMap.addURLPattern("/*");
                 root.addFilterDef(failedRequestFilter);
                 root.addFilterMap(failedRequestFilterMap);
             }
@@ -210,7 +208,7 @@ public class TestRequest extends TomcatBaseTest {
                 String[] request = new String[2];
                 if (ucChunkedHead) {
                     request[0] =
-                        "POST http://localhost:8080/test HTTP/1.1" + CRLF +
+                        "POST /test HTTP/1.1" + CRLF +
                         "Host: localhost:8080" + CRLF +
                         "content-type: application/x-www-form-urlencoded" + CRLF +
                         "Transfer-Encoding: CHUNKED" + CRLF +
@@ -220,7 +218,7 @@ public class TestRequest extends TomcatBaseTest {
                         "a=1" + CRLF;
                 } else {
                     request[0] =
-                        "POST http://localhost:8080/test HTTP/1.1" + CRLF +
+                        "POST /test HTTP/1.1" + CRLF +
                         "Host: localhost:8080" + CRLF +
                         "content-type: application/x-www-form-urlencoded" + CRLF +
                         "Transfer-Encoding: chunked" + CRLF +
@@ -262,7 +260,7 @@ public class TestRequest extends TomcatBaseTest {
 
     }
 
-    /*
+    /**
      * Test case for
      * <a href="https://bz.apache.org/bugzilla/show_bug.cgi?id=38113">bug
      * 38118</a>.
@@ -277,7 +275,7 @@ public class TestRequest extends TomcatBaseTest {
 
         // Add the Servlet
         Tomcat.addServlet(ctx, "servlet", new EchoQueryStringServlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -307,7 +305,7 @@ public class TestRequest extends TomcatBaseTest {
         }
     }
 
-    /*
+    /**
      * Test case for {@link Request#login(String, String)} and
      * {@link Request#logout()}.
      */
@@ -325,9 +323,9 @@ public class TestRequest extends TomcatBaseTest {
         ctx.getPipeline().addValve(new BasicAuthenticator());
 
         Tomcat.addServlet(ctx, "servlet", new LoginLogoutServlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
-        TesterMapRealm realm = new TesterMapRealm();
+        MapRealm realm = new MapRealm();
         realm.addUser(LoginLogoutServlet.USER, LoginLogoutServlet.PWD);
         ctx.setRealm(realm);
 
@@ -369,10 +367,10 @@ public class TestRequest extends TomcatBaseTest {
     @Test
     public void testBug49424NoChunking() throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        Context root = tomcat.addContext("",
-                System.getProperty("java.io.tmpdir"));
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
         Tomcat.addServlet(root, "Bug37794", new Bug37794Servlet());
-        root.addServletMappingDecoded("/", "Bug37794");
+        root.addServletMapping("/", "Bug37794");
         tomcat.start();
 
         HttpURLConnection conn = getConnection("http://localhost:" + getPort() + "/");
@@ -383,10 +381,10 @@ public class TestRequest extends TomcatBaseTest {
     @Test
     public void testBug49424WithChunking() throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        Context root = tomcat.addContext("",
-                System.getProperty("java.io.tmpdir"));
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
         Tomcat.addServlet(root, "Bug37794", new Bug37794Servlet());
-        root.addServletMappingDecoded("/", "Bug37794");
+        root.addServletMapping("/", "Bug37794");
         tomcat.start();
 
         HttpURLConnection conn = getConnection("http://localhost:" + getPort() + "/");
@@ -475,11 +473,11 @@ public class TestRequest extends TomcatBaseTest {
     @Test
     public void testBug54984() throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        Context root = tomcat.addContext("",
-                System.getProperty("java.io.tmpdir"));
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
         root.setAllowCasualMultipartParsing(true);
         Tomcat.addServlet(root, "Bug54984", new Bug54984Servlet());
-        root.addServletMappingDecoded("/", "Bug54984");
+        root.addServletMapping("/", "Bug54984");
         tomcat.start();
 
         HttpURLConnection conn = getConnection("http://localhost:" + getPort()
@@ -520,8 +518,7 @@ public class TestRequest extends TomcatBaseTest {
 
             PrintWriter out = resp.getWriter();
 
-            TreeMap<String,String[]> parameters =
-                    new TreeMap<>(req.getParameterMap());
+            TreeMap<String,String[]> parameters = new TreeMap<String,String[]>(req.getParameterMap());
 
             boolean first = true;
 
@@ -554,9 +551,10 @@ public class TestRequest extends TomcatBaseTest {
             if (init) return;
 
             Tomcat tomcat = getTomcatInstance();
-            Context root = tomcat.addContext("", TEMP_DIR);
+            // No file system docBase required
+            Context root = tomcat.addContext("", null);
             Tomcat.addServlet(root, "EchoParameters", new EchoParametersServlet());
-            root.addServletMappingDecoded("/echo", "EchoParameters");
+            root.addServletMapping("/echo", "EchoParameters");
             tomcat.start();
 
             setPort(tomcat.getConnector().getLocalPort());
@@ -591,7 +589,7 @@ public class TestRequest extends TomcatBaseTest {
                      method + " http://localhost:" + getPort() + "/echo"
                      + (null == queryString ? "" : ("?" + queryString))
                      + " HTTP/1.1" + CRLF
-                     + "Host: localhost:" + getPort() + CRLF
+                     + "Host: localhost" + CRLF
                      + (null == contentType ? ""
                         : ("Content-Type: " + contentType + CRLF))
                      + "Connection: close" + CRLF
@@ -660,8 +658,10 @@ public class TestRequest extends TomcatBaseTest {
         conn.setRequestProperty("Content-Type",
                 "multipart/form-data; boundary=" + boundary);
 
-        try (OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");
-                PrintWriter writer = new PrintWriter(osw, true)) {
+        PrintWriter writer = null;
+        try {
+            writer = new PrintWriter(new OutputStreamWriter(
+                    conn.getOutputStream(), "UTF-8"), true);
             writer.append("--" + boundary).append("\r\n");
             writer.append("Content-Disposition: form-data; name=\"part\"\r\n");
             writer.append("Content-Type: text/plain; charset=UTF-8\r\n");
@@ -673,21 +673,31 @@ public class TestRequest extends TomcatBaseTest {
             writer.flush();
 
             writer.append("--" + boundary + "--").append("\r\n");
+        } finally {
+            if (writer != null) {
+                writer.close();
+            }
         }
     }
 
     private void checkResponseBug54984(HttpURLConnection conn)
             throws Exception {
-        List<String> response = new ArrayList<>();
+        List<String> response = new ArrayList<String>();
         int status = conn.getResponseCode();
         if (status == HttpURLConnection.HTTP_OK) {
-            try (InputStreamReader isr = new InputStreamReader(conn.getInputStream(), "UTF-8");
-                    BufferedReader reader = new BufferedReader(isr)) {
+            BufferedReader reader = null;
+            try {
+                reader = new BufferedReader(new InputStreamReader(
+                        conn.getInputStream(), "UTF-8"));
                 String line = null;
                 while ((line = reader.readLine()) != null) {
                     response.add(line);
                 }
                 Assert.assertTrue(response.contains("Part äö"));
+            } finally {
+                if (reader != null) {
+                    reader.close();
+                }
             }
         } else {
             Assert.fail("OK status was expected: " + status);
@@ -830,7 +840,7 @@ public class TestRequest extends TomcatBaseTest {
         ctx.setAllowMultipleLeadingForwardSlashInPath(true);
 
         Tomcat.addServlet(ctx, "servlet", new Bug56501Servlet());
-        ctx.addServletMappingDecoded("/*", "servlet");
+        ctx.addServletMapping("/*", "servlet");
 
         tomcat.start();
 
@@ -862,7 +872,7 @@ public class TestRequest extends TomcatBaseTest {
         req.addHeader("accept-language", "en-gb");
 
         Locale actual = req.getLocale();
-        Locale expected = Locale.forLanguageTag("en-gb");
+        Locale expected = new Locale("en", "gb");
 
         Assert.assertEquals(expected, actual);
     }
@@ -879,91 +889,9 @@ public class TestRequest extends TomcatBaseTest {
         req.addHeader("accept-language", "en;q=0.5");
 
         Locale actual = req.getLocale();
-        Locale expected = Locale.forLanguageTag("en-gb");
+        Locale expected = new Locale("en", "gb");
 
         Assert.assertEquals(expected, actual);
     }
 
-
-    @Test
-    @Ignore("Used to check performance of different parsing approaches")
-    public void localeParsePerformance() throws Exception {
-        TesterRequest req = new TesterRequest();
-        req.addHeader("accept-encoding", "en-gb,en");
-
-        long start = System.nanoTime();
-
-        // Takes about 0.3s on a quad core 2.7Ghz 2013 MacBook
-        for (int i = 0; i < 10000000; i++) {
-            req.parseLocales();
-            req.localesParsed = false;
-            req.locales.clear();
-        }
-
-        long time = System.nanoTime() - start;
-
-        System.out.println(time);
-    }
-
-
-    @Test
-    public void testGetReaderValidEncoding() throws Exception {
-        doTestGetReader("ISO-8859-1", true);
-    }
-
-
-    @Test
-    public void testGetReaderInvalidEbcoding() throws Exception {
-        doTestGetReader("X-Invalid", false);
-    }
-
-
-    private void doTestGetReader(String userAgentCharaceterEncoding, boolean expect200)
-            throws Exception {
-
-        // Setup Tomcat instance
-        Tomcat tomcat = getTomcatInstance();
-
-        // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
-
-        Tomcat.addServlet(ctx, "servlet", new Bug61264GetReaderServlet());
-        ctx.addServletMappingDecoded("/", "servlet");
-
-        tomcat.start();
-
-        byte[] body = "Test".getBytes();
-        ByteChunk bc = new ByteChunk();
-        Map<String,List<String>> reqHeaders = new HashMap<>();
-        reqHeaders.put("Content-Type",
-                Arrays.asList(new String[] {"text/plain;charset=" + userAgentCharaceterEncoding}));
-
-        int rc = postUrl(body, "http://localhost:" + getPort() + "/", bc, reqHeaders, null);
-
-        if (expect200) {
-            Assert.assertEquals(200, rc);
-        } else {
-            Assert.assertEquals(500, rc);
-        }
-    }
-
-
-    private class Bug61264GetReaderServlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-            // This is intended for POST requests
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        }
-
-        @Override
-        protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-            // Container will handle any errors
-            req.getReader();
-        }
-    }
 }

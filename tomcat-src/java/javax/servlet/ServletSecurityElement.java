@@ -34,7 +34,7 @@ import javax.servlet.annotation.ServletSecurity;
 public class ServletSecurityElement extends HttpConstraintElement {
 
     private final Map<String,HttpMethodConstraintElement> methodConstraints =
-        new HashMap<>();
+        new HashMap<String,HttpMethodConstraintElement>();
 
     /**
      * Use default HttpConstraint.
@@ -43,18 +43,11 @@ public class ServletSecurityElement extends HttpConstraintElement {
         super();
     }
 
-    /**
-     * Use specified HttpConstraintElement.
-     * @param httpConstraintElement The constraint
-     */
-    public ServletSecurityElement(HttpConstraintElement httpConstraintElement) {
-        this (httpConstraintElement, null);
-    }
 
     /**
      * Use specific constraints for specified methods and default
      * HttpConstraintElement for all other methods.
-     * @param httpMethodConstraints Method constraints
+     * @param httpMethodConstraints
      * @throws IllegalArgumentException if a method name is specified more than
      * once
      */
@@ -64,12 +57,19 @@ public class ServletSecurityElement extends HttpConstraintElement {
         addHttpMethodConstraints(httpMethodConstraints);
     }
 
+    /**
+     * Use specified HttpConstraintElement.
+     * @param httpConstraintElement
+     */
+    public ServletSecurityElement(HttpConstraintElement httpConstraintElement) {
+        this (httpConstraintElement, null);
+    }
 
     /**
      * Use specified HttpConstraintElement as default and specific constraints
      * for specified methods.
-     * @param httpConstraintElement Default constraint
-     * @param httpMethodConstraints Method constraints
+     * @param httpConstraintElement
+     * @param httpMethodConstraints
      * @throws IllegalArgumentException if a method name is specified more than
      */
     public ServletSecurityElement(HttpConstraintElement httpConstraintElement,
@@ -82,7 +82,7 @@ public class ServletSecurityElement extends HttpConstraintElement {
 
     /**
      * Create from an annotation.
-     * @param annotation Annotation to use as the basis for the new instance
+     * @param annotation
      * @throws IllegalArgumentException if a method name is specified more than
      */
     public ServletSecurityElement(ServletSecurity annotation) {
@@ -90,7 +90,8 @@ public class ServletSecurityElement extends HttpConstraintElement {
                 annotation.value().transportGuarantee(),
                 annotation.value().rolesAllowed()));
 
-        List<HttpMethodConstraintElement> l = new ArrayList<>();
+        List<HttpMethodConstraintElement> l =
+            new ArrayList<HttpMethodConstraintElement>();
         HttpMethodConstraint[] constraints = annotation.httpMethodConstraints();
         if (constraints != null) {
             for (int i = 0; i < constraints.length; i++) {
@@ -107,13 +108,14 @@ public class ServletSecurityElement extends HttpConstraintElement {
     }
 
     public Collection<HttpMethodConstraintElement> getHttpMethodConstraints() {
-        Collection<HttpMethodConstraintElement> result = new HashSet<>();
+        Collection<HttpMethodConstraintElement> result =
+                new HashSet<HttpMethodConstraintElement>();
         result.addAll(methodConstraints.values());
         return result;
     }
 
     public Collection<String> getMethodNames() {
-        Collection<String> result = new HashSet<>();
+        Collection<String> result = new HashSet<String>();
         result.addAll(methodConstraints.keySet());
         return result;
     }

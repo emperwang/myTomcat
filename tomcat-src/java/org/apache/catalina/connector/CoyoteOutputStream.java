@@ -17,12 +17,8 @@
 package org.apache.catalina.connector;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
-
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * Coyote implementation of the servlet output stream.
@@ -30,12 +26,12 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Costin Manolache
  * @author Remy Maucherat
  */
-public class CoyoteOutputStream extends ServletOutputStream {
-
-    protected static final StringManager sm = StringManager.getManager(CoyoteOutputStream.class);
+public class CoyoteOutputStream
+    extends ServletOutputStream {
 
 
     // ----------------------------------------------------- Instance Variables
+
 
     protected OutputBuffer ob;
 
@@ -55,7 +51,8 @@ public class CoyoteOutputStream extends ServletOutputStream {
      * Prevent cloning the facade.
      */
     @Override
-    protected Object clone() throws CloneNotSupportedException {
+    protected Object clone()
+        throws CloneNotSupportedException {
         throw new CloneNotSupportedException();
     }
 
@@ -75,37 +72,23 @@ public class CoyoteOutputStream extends ServletOutputStream {
 
 
     @Override
-    public void write(int i) throws IOException {
-        boolean nonBlocking = checkNonBlockingWrite();
+    public void write(int i)
+        throws IOException {
         ob.writeByte(i);
-        if (nonBlocking) {
-            checkRegisterForWrite();
-        }
     }
 
 
     @Override
-    public void write(byte[] b) throws IOException {
+    public void write(byte[] b)
+        throws IOException {
         write(b, 0, b.length);
     }
 
 
     @Override
-    public void write(byte[] b, int off, int len) throws IOException {
-        boolean nonBlocking = checkNonBlockingWrite();
+    public void write(byte[] b, int off, int len)
+        throws IOException {
         ob.write(b, off, len);
-        if (nonBlocking) {
-            checkRegisterForWrite();
-        }
-    }
-
-
-    public void write(ByteBuffer from) throws IOException {
-        boolean nonBlocking = checkNonBlockingWrite();
-        ob.write(from);
-        if (nonBlocking) {
-            checkRegisterForWrite();
-        }
     }
 
 
@@ -113,59 +96,18 @@ public class CoyoteOutputStream extends ServletOutputStream {
      * Will send the buffer to the client.
      */
     @Override
-    public void flush() throws IOException {
-        boolean nonBlocking = checkNonBlockingWrite();
+    public void flush()
+        throws IOException {
         ob.flush();
-        if (nonBlocking) {
-            checkRegisterForWrite();
-        }
-    }
-
-
-    /**
-     * Checks for concurrent writes which are not permitted. This object has no
-     * state information so the call chain is
-     * CoyoteOutputStream->OutputBuffer->CoyoteResponse.
-     *
-     * @return <code>true</code> if this OutputStream is currently in
-     *         non-blocking mode.
-     */
-    private boolean checkNonBlockingWrite() {
-        boolean nonBlocking = !ob.isBlocking();
-        if (nonBlocking && !ob.isReady()) {
-            throw new IllegalStateException(sm.getString("coyoteOutputStream.nbNotready"));
-        }
-        return nonBlocking;
-    }
-
-
-    /**
-     * Checks to see if there is data left in the Coyote output buffers (NOT the
-     * servlet output buffer) and if so registers the associated socket for
-     * write so the buffers will be emptied. The container will take care of
-     * this. As far as the app is concerned, there is a non-blocking write in
-     * progress. It doesn't have visibility of whether the data is buffered in
-     * the socket buffer or the Coyote buffers.
-     */
-    private void checkRegisterForWrite() {
-        ob.checkRegisterForWrite();
     }
 
 
     @Override
-    public void close() throws IOException {
+    public void close()
+        throws IOException {
         ob.close();
     }
 
-    @Override
-    public boolean isReady() {
-        return ob.isReady();
-    }
 
-
-    @Override
-    public void setWriteListener(WriteListener listener) {
-        ob.setWriteListener(listener);
-    }
 }
 

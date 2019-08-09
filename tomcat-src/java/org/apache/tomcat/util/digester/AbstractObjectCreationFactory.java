@@ -59,7 +59,9 @@ public abstract class AbstractObjectCreationFactory
      */
     @Override
     public Digester getDigester() {
-        return this.digester;
+
+        return (this.digester);
+
     }
 
 
@@ -71,7 +73,9 @@ public abstract class AbstractObjectCreationFactory
      */
     @Override
     public void setDigester(Digester digester) {
+
         this.digester = digester;
+
     }
 
 

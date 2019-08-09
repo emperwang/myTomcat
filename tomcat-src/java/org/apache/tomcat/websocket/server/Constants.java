@@ -21,12 +21,30 @@ package org.apache.tomcat.websocket.server;
  */
 public class Constants {
 
+    /**
+     * @deprecated Will be removed in 8.5.x onwards.
+     */
+    @Deprecated
+    protected static final String PACKAGE_NAME = Constants.class.getPackage().getName();
+
     public static final String BINARY_BUFFER_SIZE_SERVLET_CONTEXT_INIT_PARAM =
             "org.apache.tomcat.websocket.binaryBufferSize";
     public static final String TEXT_BUFFER_SIZE_SERVLET_CONTEXT_INIT_PARAM =
             "org.apache.tomcat.websocket.textBufferSize";
     public static final String ENFORCE_NO_ADD_AFTER_HANDSHAKE_CONTEXT_INIT_PARAM =
             "org.apache.tomcat.websocket.noAddAfterHandshake";
+
+    // Executor configuration
+    public static final String EXECUTOR_CORE_SIZE_INIT_PARAM =
+            "org.apache.tomcat.websocket.executorCoreSize";
+    /**
+     * @deprecated No longer used and will be removed in Tomcat 9.0.x
+     */
+    @Deprecated
+    public static final String EXECUTOR_MAX_SIZE_INIT_PARAM =
+            "org.apache.tomcat.websocket.executorMaxSize";
+    public static final String EXECUTOR_KEEPALIVETIME_SECONDS_INIT_PARAM =
+            "org.apache.tomcat.websocket.executorKeepAliveTimeSeconds";
 
     public static final String SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE =
             "javax.websocket.server.ServerContainer";

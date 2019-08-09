@@ -20,7 +20,6 @@ package org.apache.catalina.authenticator;
 
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -48,7 +47,7 @@ public final class SavedRequest {
     /**
      * The set of Cookies associated with this Request.
      */
-    private final List<Cookie> cookies = new ArrayList<>();
+    private final List<Cookie> cookies = new ArrayList<Cookie>();
 
     public void addCookie(Cookie cookie) {
         cookies.add(cookie);
@@ -65,12 +64,12 @@ public final class SavedRequest {
      * values for this header.  The values are returned as an Iterator when
      * you ask for them.
      */
-    private final Map<String, List<String>> headers = new HashMap<>();
+    private Map<String,List<String>> headers = new HashMap<String,List<String>>();
 
     public void addHeader(String name, String value) {
         List<String> values = headers.get(name);
         if (values == null) {
-            values = new ArrayList<>();
+            values = new ArrayList<String>();
             headers.put(name, values);
         }
         values.add(value);
@@ -83,7 +82,7 @@ public final class SavedRequest {
     public Iterator<String> getHeaderValues(String name) {
         List<String> values = headers.get(name);
         if (values == null)
-            return Collections.emptyIterator();
+            return (new ArrayList<String>()).iterator();
         else
             return values.iterator();
     }
@@ -92,7 +91,7 @@ public final class SavedRequest {
     /**
      * The set of Locales associated with this Request.
      */
-    private final List<Locale> locales = new ArrayList<>();
+    private final List<Locale> locales = new ArrayList<Locale>();
 
     public void addLocale(Locale locale) {
         locales.add(locale);

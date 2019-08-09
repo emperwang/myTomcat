@@ -18,9 +18,7 @@
 
 package org.apache.catalina;
 
-import java.io.File;
-
-import org.apache.catalina.deploy.NamingResourcesImpl;
+import org.apache.catalina.deploy.NamingResources;
 import org.apache.catalina.startup.Catalina;
 
 /**
@@ -48,12 +46,22 @@ import org.apache.catalina.startup.Catalina;
  */
 public interface Server extends Lifecycle {
 
+
     // ------------------------------------------------------------- Properties
 
+
     /**
-     * @return the global naming resources.
+     * Return descriptive information about this Server implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
      */
-    public NamingResourcesImpl getGlobalNamingResources();
+    public String getInfo();
+
+
+    /**
+     * Return the global naming resources.
+     */
+    public NamingResources getGlobalNamingResources();
 
 
     /**
@@ -62,17 +70,17 @@ public interface Server extends Lifecycle {
      * @param globalNamingResources The new global naming resources
      */
     public void setGlobalNamingResources
-        (NamingResourcesImpl globalNamingResources);
+        (NamingResources globalNamingResources);
 
 
     /**
-     * @return the global naming resources context.
+     * Return the global naming resources context.
      */
     public javax.naming.Context getGlobalNamingContext();
 
 
     /**
-     * @return the port number we listen to for shutdown commands.
+     * Return the port number we listen to for shutdown commands.
      */
     public int getPort();
 
@@ -86,7 +94,7 @@ public interface Server extends Lifecycle {
 
 
     /**
-     * @return the address on which we listen to for shutdown commands.
+     * Return the address on which we listen to for shutdown commands.
      */
     public String getAddress();
 
@@ -100,7 +108,7 @@ public interface Server extends Lifecycle {
 
 
     /**
-     * @return the shutdown command string we are waiting for.
+     * Return the shutdown command string we are waiting for.
      */
     public String getShutdown();
 
@@ -114,7 +122,7 @@ public interface Server extends Lifecycle {
 
 
     /**
-     * @return the parent class loader for this component. If not set, return
+     * Return the parent class loader for this component. If not set, return
      * {@link #getCatalina()} {@link Catalina#getParentClassLoader()}. If
      * catalina has not been set, return the system class loader.
      */
@@ -130,48 +138,14 @@ public interface Server extends Lifecycle {
 
 
     /**
-     * @return the outer Catalina startup/shutdown component if present.
+     * Return the outer Catalina startup/shutdown component if present.
      */
     public Catalina getCatalina();
 
     /**
      * Set the outer Catalina startup/shutdown component if present.
-     *
-     * @param catalina the outer Catalina component
      */
     public void setCatalina(Catalina catalina);
-
-
-    /**
-     * @return the configured base (instance) directory. Note that home and base
-     * may be the same (and are by default). If this is not set the value
-     * returned by {@link #getCatalinaHome()} will be used.
-     */
-    public File getCatalinaBase();
-
-    /**
-     * Set the configured base (instance) directory. Note that home and base
-     * may be the same (and are by default).
-     *
-     * @param catalinaBase the configured base directory
-     */
-    public void setCatalinaBase(File catalinaBase);
-
-
-    /**
-     * @return the configured home (binary) directory. Note that home and base
-     * may be the same (and are by default).
-     */
-    public File getCatalinaHome();
-
-    /**
-     * Set the configured home (binary) directory. Note that home and base
-     * may be the same (and are by default).
-     *
-     * @param catalinaHome the configured home directory
-     */
-    public void setCatalinaHome(File catalinaHome);
-
 
     // --------------------------------------------------------- Public Methods
 
@@ -191,16 +165,16 @@ public interface Server extends Lifecycle {
 
 
     /**
-     * Find the specified Service
+     * Return the specified Service (if it exists); otherwise return
+     * <code>null</code>.
      *
      * @param name Name of the Service to be returned
-     * @return the specified Service, or <code>null</code> if none exists.
      */
     public Service findService(String name);
 
 
     /**
-     * @return the set of Services defined within this Server.
+     * Return the set of Services defined within this Server.
      */
     public Service[] findServices();
 
@@ -212,11 +186,4 @@ public interface Server extends Lifecycle {
      * @param service The Service to be removed
      */
     public void removeService(Service service);
-
-
-    /**
-     * @return the token necessary for operations on the associated JNDI naming
-     * context.
-     */
-    public Object getNamingToken();
 }

@@ -31,6 +31,7 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.jdbc.pool.JdbcInterceptor;
 /**
  * Abstract class that wraps statements and intercepts query executions.
+ * @author fhanik
  *
  */
 public abstract class AbstractQueryReport extends AbstractCreateStatementInterceptor {
@@ -176,6 +177,7 @@ public abstract class AbstractQueryReport extends AbstractCreateStatementInterce
 
     /**
      * Class to measure query execute time
+     * @author fhanik
      *
      */
     protected class StatementProxy implements InvocationHandler {

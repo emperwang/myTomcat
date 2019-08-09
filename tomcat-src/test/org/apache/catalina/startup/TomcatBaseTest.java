@@ -25,11 +25,6 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -47,28 +42,18 @@ import org.junit.Assert;
 import org.junit.Before;
 
 import org.apache.catalina.Container;
-import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Server;
 import org.apache.catalina.Service;
-import org.apache.catalina.Session;
-import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.AprLifecycleListener;
 import org.apache.catalina.core.StandardServer;
 import org.apache.catalina.session.ManagerBase;
 import org.apache.catalina.session.StandardManager;
-import org.apache.catalina.util.IOTools;
 import org.apache.catalina.valves.AccessLogValve;
-import org.apache.catalina.webresources.StandardRoot;
-import org.apache.coyote.http11.Http11NioProtocol;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.collections.CaseInsensitiveKeyMap;
-import org.apache.tomcat.util.net.TesterSupport;
-import org.apache.tomcat.util.scan.StandardJarScanFilter;
-import org.apache.tomcat.util.scan.StandardJarScanner;
 
 /**
  * Base test case that provides a Tomcat instance for each test - mainly so we
@@ -76,17 +61,10 @@ import org.apache.tomcat.util.scan.StandardJarScanner;
  */
 public abstract class TomcatBaseTest extends LoggingBaseTest {
 
-    /*
-     * Ensures APR Library.initialize() and Library.terminate() don't interfere
-     * with the calls from the Lifecycle listener and trigger a JVM crash
-     */
-    @SuppressWarnings("unused")
-    private static final boolean ignored = TesterSupport.OPENSSL_AVAILABLE;
-
     // Used by parameterized tests. Defined here to reduce duplication.
     protected static final Boolean[] booleans = new Boolean[] { Boolean.FALSE, Boolean.TRUE };
 
-    protected static final int DEFAULT_CLIENT_TIMEOUT_MS = 300_000;
+    protected static final int DEFAULT_CLIENT_TIMEOUT_MS = 300000;
 
     public static final String TEMP_DIR = System.getProperty("java.io.tmpdir");
 
@@ -103,42 +81,6 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
     }
 
     /**
-     * Make the Tomcat instance preconfigured with test/webapp available to
-     * sub-classes.
-     * @param addJstl Should JSTL support be added to the test webapp
-     * @param start   Should the Tomcat instance be started
-     *
-     * @return A Tomcat instance pre-configured with the web application located
-     *         at test/webapp
-     *
-     * @throws LifecycleException If a problem occurs while starting the
-     *                            instance
-     */
-    public Tomcat getTomcatInstanceTestWebapp(boolean addJstl, boolean start)
-            throws LifecycleException {
-        File appDir = new File("test/webapp");
-        Context ctx = tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
-
-        StandardJarScanner scanner = (StandardJarScanner) ctx.getJarScanner();
-        StandardJarScanFilter filter = (StandardJarScanFilter) scanner.getJarScanFilter();
-        filter.setTldSkip(filter.getTldSkip() + ",testclasses");
-        filter.setPluggabilitySkip(filter.getPluggabilitySkip() + ",testclasses");
-
-        if (addJstl) {
-            File lib = new File("webapps/examples/WEB-INF/lib");
-            ctx.setResources(new StandardRoot(ctx));
-            ctx.getResources().createWebResourceSet(
-                    WebResourceRoot.ResourceSetType.POST, "/WEB-INF/lib",
-                    lib.getAbsolutePath(), null, "/");
-        }
-
-        if (start) {
-            tomcat.start();
-        }
-        return tomcat;
-    }
-
-    /*
      * Sub-classes need to know port so they can connect
      */
     public int getPort() {
@@ -217,9 +159,9 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
         // Has a protocol been specified
         String protocol = System.getProperty("tomcat.test.protocol");
 
-        // Use NIO by default starting with Tomcat 8
+        // Use BIO by default
         if (protocol == null) {
-            protocol = Http11NioProtocol.class.getName();
+            protocol = "org.apache.coyote.http11.Http11Protocol";
         }
 
         return protocol;
@@ -265,13 +207,20 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
 
     public static final class RequestDescriptor {
 
-        private final Map<String, String> requestInfo = new HashMap<>();
-        private final Map<String, String> contextInitParameters = new HashMap<>();
-        private final Map<String, String> contextAttributes = new HashMap<>();
-        private final Map<String, String> headers = new CaseInsensitiveKeyMap<>();
-        private final Map<String, String> attributes = new HashMap<>();
-        private final Map<String, String> params = new HashMap<>();
-        private final Map<String, String> sessionAttributes = new HashMap<>();
+        private final Map<String, String> requestInfo =
+            new HashMap<String, String>();
+        private final Map<String, String> contextInitParameters =
+            new HashMap<String, String>();
+        private final Map<String, String> contextAttributes =
+            new HashMap<String, String>();
+        private final Map<String, String> headers =
+            new CaseInsensitiveKeyMap<String>();
+        private final Map<String, String> attributes =
+            new HashMap<String, String>();
+        private final Map<String, String> params =
+            new HashMap<String, String>();
+        private final Map<String, String> sessionAttributes =
+            new HashMap<String, String>();
 
         public Map<String, String> getRequestInfo() {
             return requestInfo;
@@ -410,8 +359,9 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
             String name;
 
             RequestDescriptor request = new RequestDescriptor();
+            String lineSeparator = System.getProperty("line.separator");
 
-            for (String line: body.split(System.lineSeparator())) {
+            for (String line: body.split(lineSeparator)) {
                 n = line.indexOf(": ");
                 if (n > 0) {
                     key = line.substring(0, n);
@@ -465,7 +415,6 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
             Object attribute;
 
             response.setContentType("text/plain");
-            response.setCharacterEncoding("UTF-8");
 
             ServletContext ctx = this.getServletContext();
             HttpSession session = request.getSession(false);
@@ -515,7 +464,7 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
             out.println("REQUEST-CHARACTER-ENCODING: " +
                         request.getCharacterEncoding());
             out.println("REQUEST-CONTENT-LENGTH: " +
-                        request.getContentLengthLong());
+                        request.getContentLength());
             out.println("REQUEST-CONTENT-TYPE: " + request.getContentType());
             out.println("REQUEST-LOCALE: " + request.getLocale());
 
@@ -618,9 +567,34 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
                 throws ServletException, IOException {
             // Beware of clients that try to send the whole request body before
             // reading any of the response. They may cause this test to lock up.
-            try (InputStream is = req.getInputStream();
-                    OutputStream os = resp.getOutputStream()) {
-                IOTools.flow(is, os);
+            byte[] buffer = new byte[8096];
+            int read = 0;
+            InputStream is = null;
+            OutputStream os = null;
+            try {
+                is = req.getInputStream();
+                os = resp.getOutputStream();
+                while (read > -1) {
+                    os.write(buffer, 0, read);
+                    read = is.read(buffer);
+                }
+            } catch (IOException ex) {
+                // Ignore
+            } finally {
+                if (os != null) {
+                    try {
+                        os.close();
+                    } catch (IOException e) {
+                        // Ignore
+                    }
+                }
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (IOException e) {
+                        // Ignore
+                    }
+                }
             }
         }
     }
@@ -703,11 +677,21 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
             is = connection.getErrorStream();
         }
         if (is != null) {
-            try (BufferedInputStream bis = new BufferedInputStream(is)) {
+            BufferedInputStream bis = null;
+            try {
+                bis = new BufferedInputStream(is);
                 byte[] buf = new byte[2048];
                 int rd = 0;
                 while((rd = bis.read(buf)) > 0) {
                     out.append(buf, 0, rd);
+                }
+            } finally {
+                if (bis != null) {
+                    try {
+                        bis.close();
+                    } catch (IOException e) {
+                        // Ignore
+                    }
                 }
             }
         }
@@ -726,36 +710,9 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
         return postUrl(body, path, out, null, resHead);
     }
 
-    public static int postUrl(final byte[] body, String path, ByteChunk out,
+    public static int postUrl(byte[] body, String path, ByteChunk out,
             Map<String, List<String>> reqHead,
             Map<String, List<String>> resHead) throws IOException {
-            BytesStreamer s = new BytesStreamer() {
-            boolean done = false;
-            @Override
-            public byte[] next() {
-                done = true;
-                return body;
-
-            }
-
-            @Override
-            public int getLength() {
-                return body!=null?body.length:0;
-            }
-
-            @Override
-            public int available() {
-                if (done) return 0;
-                else return getLength();
-            }
-        };
-        return postUrl(false,s,path,out,reqHead,resHead);
-    }
-
-
-    public static int postUrl(boolean stream, BytesStreamer streamer, String path, ByteChunk out,
-                Map<String, List<String>> reqHead,
-                Map<String, List<String>> resHead) throws IOException {
 
         URL url = new URL(path);
         HttpURLConnection connection =
@@ -775,22 +732,26 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
                         valueList.toString());
             }
         }
-        if (streamer != null && stream) {
-            if (streamer.getLength()>0) {
-                connection.setFixedLengthStreamingMode(streamer.getLength());
-            } else {
-                connection.setChunkedStreamingMode(1024);
-            }
-        }
-
         connection.connect();
 
         // Write the request body
-        try (OutputStream os = connection.getOutputStream()) {
-            while (streamer != null && streamer.available() > 0) {
-                byte[] next = streamer.next();
-                os.write(next);
-                os.flush();
+        OutputStream os = null;
+        try {
+            os = connection.getOutputStream();
+            if (body != null) {
+                os.write(body, 0, body.length);
+            }
+        } catch (IOException ioe) {
+            // Failed to write the request body. Server may have closed the
+            // connection.
+            ioe.printStackTrace();
+        } finally {
+            if (os != null) {
+                try {
+                    os.close();
+                } catch (IOException ioe) {
+                    // Ignore
+                }
             }
         }
 
@@ -799,29 +760,27 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
             Map<String, List<String>> head = connection.getHeaderFields();
             resHead.putAll(head);
         }
-        InputStream is;
-        if (rc < 400) {
-            is = connection.getInputStream();
-        } else {
-            is = connection.getErrorStream();
-        }
-
-        try (BufferedInputStream bis = new BufferedInputStream(is)) {
-            byte[] buf = new byte[2048];
-            int rd = 0;
-            while((rd = bis.read(buf)) > 0) {
-                out.append(buf, 0, rd);
+        if (rc == HttpServletResponse.SC_OK) {
+            InputStream is = connection.getInputStream();
+            BufferedInputStream bis = null;
+            try {
+                bis = new BufferedInputStream(is);
+                byte[] buf = new byte[2048];
+                int rd = 0;
+                while((rd = bis.read(buf)) > 0) {
+                    out.append(buf, 0, rd);
+                }
+            } finally {
+                if (bis != null) {
+                    try {
+                        bis.close();
+                    } catch (IOException e) {
+                        // Ignore
+                    }
+                }
             }
         }
         return rc;
-    }
-
-    protected static String getStatusCode(String statusLine) {
-        if (statusLine == null || statusLine.length() < 12) {
-            return statusLine;
-        } else {
-            return statusLine.substring(9, 12);
-        }
     }
 
     private static class TomcatWithFastSessionIDs extends Tomcat {
@@ -834,10 +793,10 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
                 Container e = service.getContainer();
                 for (Container h : e.findChildren()) {
                     for (Container c : h.findChildren()) {
-                        Manager m = ((Context) c).getManager();
+                        Manager m = c.getManager();
                         if (m == null) {
                             m = new StandardManager();
-                            ((Context) c).setManager(m);
+                            c.setManager(m);
                         }
                         if (m instanceof ManagerBase) {
                             ((ManagerBase) m).setSecureRandomClass(
@@ -847,60 +806,6 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
                 }
             }
             super.start();
-        }
-    }
-
-
-    public static void recursiveCopy(final Path src, final Path dest)
-            throws IOException {
-
-        Files.walkFileTree(src, new FileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir,
-                    BasicFileAttributes attrs) throws IOException {
-                Files.copy(dir, dest.resolve(src.relativize(dir)));
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(Path file,
-                    BasicFileAttributes attrs) throws IOException {
-                Path destPath = dest.resolve(src.relativize(file));
-                Files.copy(file, destPath);
-                // Make sure that HostConfig thinks all newly copied files have
-                // been modified.
-                Assert.assertTrue("Failed to set last modified for [" + destPath + "]",
-                        destPath.toFile().setLastModified(
-                        System.currentTimeMillis() - 2 * HostConfig.FILE_MODIFICATION_RESOLUTION_MS));
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException ioe)
-                    throws IOException {
-                throw ioe;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException ioe)
-                    throws IOException {
-                // NO-OP
-                return FileVisitResult.CONTINUE;
-            }});
-    }
-
-
-    public static void skipTldsForResourceJars(Context context) {
-        StandardJarScanner scanner = (StandardJarScanner) context.getJarScanner();
-        StandardJarScanFilter filter = (StandardJarScanFilter) scanner.getJarScanFilter();
-        filter.setTldSkip(filter.getTldSkip() + ",resources*.jar");
-    }
-
-
-    public static void forceSessionMaxInactiveInterval(Context context, int newIntervalSecs) {
-        Session[] sessions = context.getManager().findSessions();
-        for (Session session : sessions) {
-            session.setMaxInactiveInterval(newIntervalSecs);
         }
     }
 }

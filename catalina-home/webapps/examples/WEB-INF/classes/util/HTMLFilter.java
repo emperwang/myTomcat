@@ -31,13 +31,11 @@ public final class HTMLFilter {
      * codes in the request URL that is often reported in error messages.
      *
      * @param message The message string to be filtered
-     *
-     * @return the filtered version of the message
      */
     public static String filter(String message) {
 
         if (message == null)
-            return null;
+            return (null);
 
         char content[] = new char[message.length()];
         message.getChars(0, message.length(), content, 0);
@@ -60,7 +58,8 @@ public final class HTMLFilter {
                 result.append(content[i]);
             }
         }
-        return result.toString();
+        return (result.toString());
+
     }
 
 

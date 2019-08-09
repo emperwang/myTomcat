@@ -33,7 +33,6 @@ import org.apache.el.lang.EvaluationContext;
 /**
  * @author Jacob Hookom [jacob@hookom.net]
  */
-@SuppressWarnings("all") // Ignore warnings in generated code
 public interface Node {
 
   /** This method is called after the node has been made the current

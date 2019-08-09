@@ -14,9 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.loader;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,10 +29,11 @@ import java.lang.instrument.IllegalClassFormatException;
 import java.lang.ref.Reference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.Charset;
 import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
@@ -37,43 +42,46 @@ import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import org.apache.catalina.Container;
+import javax.naming.Binding;
+import javax.naming.NameClassPair;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.DirContext;
+
 import org.apache.catalina.Globals;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.LifecycleState;
-import org.apache.catalina.WebResource;
-import org.apache.catalina.WebResourceRoot;
-import org.apache.catalina.webresources.TomcatURLStreamHandlerFactory;
-import org.apache.juli.WebappProperties;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
+import org.apache.naming.JndiPermission;
+import org.apache.naming.resources.ProxyDirContext;
+import org.apache.naming.resources.Resource;
+import org.apache.naming.resources.ResourceAttributes;
 import org.apache.tomcat.InstrumentableClassLoader;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.IntrospectionUtils;
+import org.apache.tomcat.util.buf.UriUtil;
 import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.security.PermissionCheck;
@@ -107,12 +115,15 @@ import org.apache.tomcat.util.security.PermissionCheck;
  * class is contained inside a JAR.
  * <p>
  * <strong>IMPLEMENTATION NOTE</strong> - Local repositories are searched in
- * the order they are added via the initial constructor.
+ * the order they are added via the initial constructor and/or any subsequent
+ * calls to <code>addRepository()</code> or <code>addJar()</code>.
  * <p>
  * <strong>IMPLEMENTATION NOTE</strong> - No check for sealing violations or
  * security is made unless a security manager is present.
  * <p>
- * <strong>IMPLEMENTATION NOTE</strong> - As of 8.0, this class
+ * TODO: Is there any requirement to provide a proper Lifecycle implementation
+ *       rather than the current stubbed implementation?
+ * <strong>IMPLEMENTATION NOTE</strong> - As of 7.0.64/8.0, this class
  * loader implements {@link InstrumentableClassLoader}, permitting web
  * application classes to instrument other classes in the same web
  * application. It does not permit instrumentation of system or container
@@ -122,38 +133,75 @@ import org.apache.tomcat.util.security.PermissionCheck;
  * @author Craig R. McClanahan
  */
 public abstract class WebappClassLoaderBase extends URLClassLoader
-        implements Lifecycle, InstrumentableClassLoader, WebappProperties, PermissionCheck {
+        implements Lifecycle, InstrumentableClassLoader, PermissionCheck {
 
-    private static final Log log = LogFactory.getLog(WebappClassLoaderBase.class);
+    private static final org.apache.juli.logging.Log log =
+            org.apache.juli.logging.LogFactory.getLog(WebappClassLoaderBase.class);
 
+    private static final Charset CHARSET_UTF8 = Charset.forName("UTF-8");
     /**
      * List of ThreadGroup names to ignore when scanning for web application
      * started threads that need to be shut down.
      */
-    private static final List<String> JVM_THREAD_GROUP_NAMES = new ArrayList<>();
+    private static final List<String> JVM_THREAD_GROUP_NAMES =
+        new ArrayList<String>();
 
     private static final String JVM_THREAD_GROUP_SYSTEM = "system";
 
+    private static final String SERVICES_PREFIX = "/META-INF/services/";
+
     private static final String CLASS_FILE_SUFFIX = ".class";
 
+    private static final Manifest MANIFEST_UNKNOWN = new Manifest();
+
+    private static final Method GET_CLASSLOADING_LOCK_METHOD;
+
+    protected static final StringManager sm = StringManager.getManager(Constants.Package);
+
     static {
-        ClassLoader.registerAsParallelCapable();
+        // Register this base class loader as parallel capable on Java 7+ JREs
+        Method getClassLoadingLockMethod = null;
+        try {
+            if (JreCompat.isJre7Available()) {
+                final Method registerParallel =
+                        ClassLoader.class.getDeclaredMethod("registerAsParallelCapable");
+                AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                    @Override
+                    public Void run() {
+                        registerParallel.setAccessible(true);
+                        return null;
+                    }
+                });
+                registerParallel.invoke(null);
+                getClassLoadingLockMethod =
+                        ClassLoader.class.getDeclaredMethod("getClassLoadingLock", String.class);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        GET_CLASSLOADING_LOCK_METHOD = getClassLoadingLockMethod;
         JVM_THREAD_GROUP_NAMES.add(JVM_THREAD_GROUP_SYSTEM);
         JVM_THREAD_GROUP_NAMES.add("RMI Runtime");
     }
 
-    protected class PrivilegedFindClassByName implements PrivilegedAction<Class<?>> {
+
+    protected class PrivilegedFindResourceByName implements PrivilegedAction<ResourceEntry> {
 
         private final String name;
+        private final String path;
+        private final boolean manifestRequired;
 
-        PrivilegedFindClassByName(String name) {
+        PrivilegedFindResourceByName(String name, String path, boolean manifestRequired) {
             this.name = name;
+            this.path = path;
+            this.manifestRequired = manifestRequired;
         }
 
         @Override
-        public Class<?> run() {
-            return findClassInternal(name);
+        public ResourceEntry run() {
+            return findResourceInternal(name, path, manifestRequired);
         }
+
     }
 
 
@@ -172,37 +220,44 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     }
 
 
-    protected final class PrivilegedJavaseGetResource implements PrivilegedAction<URL> {
-
-        private final String name;
-
-        public PrivilegedJavaseGetResource(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public URL run() {
-            return javaseClassLoader.getResource(name);
-        }
-    }
-
-
     // ------------------------------------------------------- Static Variables
 
-    /**
-     * The string manager for this package.
-     */
-    protected static final StringManager sm =
-        StringManager.getManager(Constants.Package);
 
+    /**
+     * The set of trigger classes that will cause a proposed repository not
+     * to be added if this class is visible to the class loader that loaded
+     * this factory class.  Typically, trigger classes will be listed for
+     * components that have been integrated into the JDK for later versions,
+     * but where the corresponding JAR files are required to run on
+     * earlier versions.
+     */
+    protected static final String[] triggers = {
+        "javax.servlet.Servlet", "javax.el.Expression"       // Servlet API
+    };
+
+
+    /**
+     * Set of package names which are not allowed to be loaded from a webapp
+     * class loader without delegating first.
+     */
+    protected static final String[] packageTriggers = {
+    };
+
+
+    /**
+     * Use anti JAR locking code, which does URL rerouting when accessing
+     * resources.
+     */
+    boolean antiJARLocking = false;
 
     // ----------------------------------------------------------- Constructors
+
 
     /**
      * Construct a new ClassLoader with no defined repositories and no
      * parent ClassLoader.
      */
-    protected WebappClassLoaderBase() {
+    public WebappClassLoaderBase() {
 
         super(new URL[0]);
 
@@ -219,7 +274,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 j = j.getParent();
             }
         }
-        this.javaseClassLoader = j;
+        this.j2seClassLoader = j;
 
         securityManager = System.getSecurityManager();
         if (securityManager != null) {
@@ -237,7 +292,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      *
      * @param parent Our parent class loader
      */
-    protected WebappClassLoaderBase(ClassLoader parent) {
+    public WebappClassLoaderBase(ClassLoader parent) {
 
         super(new URL[0], parent);
 
@@ -254,7 +309,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 j = j.getParent();
             }
         }
-        this.javaseClassLoader = j;
+        this.j2seClassLoader = j;
 
         securityManager = System.getSecurityManager();
         if (securityManager != null) {
@@ -265,10 +320,12 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
     // ----------------------------------------------------- Instance Variables
 
+
     /**
-     * Associated web resources for this webapp.
+     * Associated directory context giving access to the resources in this
+     * webapp.
      */
-    protected WebResourceRoot resources = null;
+    protected DirContext resources = null;
 
 
     /**
@@ -278,8 +335,22 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * resources such as property files) and the mapping from binary name to
      * path is unambiguous but the reverse mapping is ambiguous.
      */
-    protected final Map<String, ResourceEntry> resourceEntries =
-            new ConcurrentHashMap<>();
+    protected Map<String, ResourceEntry> resourceEntries =
+            new ConcurrentHashMap<String, ResourceEntry>();
+
+
+    /**
+     * The list of not found resources.
+     */
+    protected HashMap<String, String> notFoundResources =
+        new LinkedHashMap<String, String>() {
+        private static final long serialVersionUID = 1L;
+        @Override
+        protected boolean removeEldestEntry(
+                Map.Entry<String, String> eldest) {
+            return size() > 1000;
+        }
+    };
 
 
     /**
@@ -294,33 +365,117 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     protected boolean delegate = false;
 
 
-    private final HashMap<String,Long> jarModificationTimes = new HashMap<>();
+    /**
+     * Last time a JAR was accessed.
+     */
+    protected long lastJarAccessed = 0L;
+
+    /**
+     * The interval in milliseconds that we can keep jar files open.
+     */
+    protected int jarOpenInterval = 90000;
+
+    /**
+     * The list of local repositories, in the order they should be searched
+     * for locally loaded classes or resources.
+     */
+    protected String[] repositories = new String[0];
+
+
+     /**
+      * Repositories URLs, used to cache the result of getURLs.
+      */
+     protected URL[] repositoryURLs = null;
 
 
     /**
-     * A list of read File Permission's required if this loader is for a web
-     * application context.
+     * Repositories translated as path in the work directory (for Jasper
+     * originally), but which is used to generate fake URLs should getURLs be
+     * called.
      */
-    protected final ArrayList<Permission> permissionList = new ArrayList<>();
+    protected File[] files = new File[0];
 
+
+    /**
+     * The list of JARs, in the order they should be searched
+     * for locally loaded classes or resources.
+     */
+    protected JarFile[] jarFiles = new JarFile[0];
+
+
+    /**
+     * The list of JARs, in the order they should be searched
+     * for locally loaded classes or resources.
+     */
+    protected File[] jarRealFiles = new File[0];
+
+
+    /**
+     * The path which will be monitored for added Jar files.
+     */
+    protected String jarPath = null;
+
+
+    /**
+     * The list of JARs, in the order they should be searched
+     * for locally loaded classes or resources.
+     */
+    protected String[] jarNames = new String[0];
+
+
+    /**
+     * The list of JARs last modified dates, in the order they should be
+     * searched for locally loaded classes or resources.
+     */
+    protected long[] lastModifiedDates = new long[0];
+
+
+    /**
+     * The list of resources which should be checked when checking for
+     * modifications.
+     */
+    protected String[] paths = new String[0];
+
+
+    /**
+     * A list of read File and Jndi Permission's required if this loader
+     * is for a web application context.
+     */
+    protected ArrayList<Permission> permissionList =
+        new ArrayList<Permission>();
+
+
+    /**
+     * Path where resources loaded from JARs will be extracted.
+     */
+    protected File loaderDir = null;
+    protected String canonicalLoaderDir = null;
 
     /**
      * The PermissionCollection for each CodeSource for a web
      * application context.
      */
-    protected final HashMap<String, PermissionCollection> loaderPC = new HashMap<>();
+    protected HashMap<String, PermissionCollection> loaderPC = new HashMap<String, PermissionCollection>();
 
 
     /**
      * Instance of the SecurityManager installed.
      */
-    protected final SecurityManager securityManager;
+    protected SecurityManager securityManager = null;
 
 
     /**
      * The parent class loader.
      */
-    protected final ClassLoader parent;
+    protected ClassLoader parent = null;
+
+
+    /**
+     * The system class loader.
+     * @deprecated Unused. Always null. Will be removed in 8.0.x.
+     */
+    @Deprecated
+    protected ClassLoader system = null;
 
 
     /**
@@ -329,15 +484,35 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * those cases {@link ClassLoader#getParent()} will be called recursively on
      * the system class loader and the last non-null result used.
      */
-    private ClassLoader javaseClassLoader;
+    protected ClassLoader j2seClassLoader;
+
+
+    /**
+     * Has this component been started?
+     */
+    protected boolean started = false;
+
+
+    /**
+     * Has external repositories.
+     */
+    protected boolean hasExternalRepositories = false;
+
+    /**
+     * Search external repositories first
+     */
+    protected boolean searchExternalFirst = false;
+
+    /**
+     * need conversion for properties files
+     */
+    protected boolean needConvert = false;
 
 
     /**
      * All permission.
-     * @deprecated Unused. This will be removed in Tomcat 9.
      */
-    @Deprecated
-    protected final Permission allPermission = new java.security.AllPermission();
+    protected Permission allPermission = new java.security.AllPermission();
 
 
     /**
@@ -346,6 +521,20 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * modularity checks are disabled.
      */
     private boolean clearReferencesRmiTargets = true;
+
+    /**
+     * Should Tomcat attempt to null out any static or final fields from loaded
+     * classes when a web application is stopped as a work around for apparent
+     * garbage collection bugs and application coding errors? There have been
+     * some issues reported with log4j when this option is true. Applications
+     * without memory leaks using recent JVMs should operate correctly with this
+     * option set to <code>false</code>. If not specified, the default value of
+     * <code>false</code> will be used.
+     *
+     * @deprecated This option will be removed in Tomcat 8.5
+     */
+    @Deprecated
+    private boolean clearReferencesStatic = false;
 
     /**
      * Should Tomcat attempt to terminate threads that have been started by the
@@ -366,23 +555,30 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     private boolean clearReferencesStopTimerThreads = false;
 
     /**
-     * Should Tomcat call
-     * {@link org.apache.juli.logging.LogFactory#release(ClassLoader)} when the
-     * class loader is stopped? If not specified, the default value of
-     * <code>true</code> is used. Changing the default setting is likely to lead
-     * to memory leaks and other issues.
+     * Should Tomcat call {@link org.apache.juli.logging.LogFactory#release()}
+     * when the class loader is stopped? If not specified, the default value
+     * of <code>true</code> is used. Changing the default setting is likely to
+     * lead to memory leaks and other issues.
      */
     private boolean clearReferencesLogFactoryRelease = true;
 
     /**
      * If an HttpClient keep-alive timer thread has been started by this web
      * application and is still running, should Tomcat change the context class
-     * loader from the current {@link ClassLoader} to
-     * {@link ClassLoader#getParent()} to prevent a memory leak? Note that the
-     * keep-alive timer thread will stop on its own once the keep-alives all
+     * loader from the current {@link WebappClassLoaderBase} to
+     * {@link WebappClassLoaderBase#parent} to prevent a memory leak? Note that
+     * the keep-alive timer thread will stop on its own once the keep-alives all
      * expire however, on a busy system that might not happen for some time.
      */
     private boolean clearReferencesHttpClientKeepAliveThread = true;
+
+    /**
+     * Name of associated context used with logging and JMX to associate with
+     * the right web application. Particularly useful for the clear references
+     * messages. Defaults to unknown but if standard Tomcat components are used
+     * it will be updated during initialisation from the resources.
+     */
+    private String contextName = "unknown";
 
     /**
      * Should Tomcat attempt to clear references to classes loaded by this class
@@ -403,65 +599,56 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * is not actually used. Importantly, the ClassLoader will never block
      * iterating over the transformers while loading a class.
      */
-    private final List<ClassFileTransformer> transformers = new CopyOnWriteArrayList<>();
-
-
-    /**
-     * Flag that indicates that {@link #addURL(URL)} has been called which
-     * creates a requirement to check the super class when searching for
-     * resources.
-     */
-    private boolean hasExternalRepositories = false;
-
+    private final List<ClassFileTransformer> transformers = new CopyOnWriteArrayList<ClassFileTransformer>();
 
     /**
-     * Repositories managed by this class rather than the super class.
+     * Code base to use for classes loaded from WEB-INF/classes.
      */
-    private List<URL> localRepositories = new ArrayList<>();
-
-
-    private volatile LifecycleState state = LifecycleState.NEW;
-
+    private URL webInfClassesCodeBase = null;
 
     // ------------------------------------------------------------- Properties
 
+
     /**
-     * @return associated resources.
+     * Get associated resources.
      */
-    public WebResourceRoot getResources() {
+    public DirContext getResources() {
+
         return this.resources;
+
     }
 
 
     /**
      * Set associated resources.
-     * @param resources the resources from which the classloader will
-     *     load the classes
      */
-    public void setResources(WebResourceRoot resources) {
+    public void setResources(DirContext resources) {
+
         this.resources = resources;
-    }
 
-
-    /**
-     * @return the context name for this class loader.
-     */
-    public String getContextName() {
-        if (resources == null) {
-            return "Unknown";
-        } else {
-            return resources.getContext().getBaseName();
+        if (resources instanceof ProxyDirContext) {
+            contextName = ((ProxyDirContext) resources).getContextName();
         }
     }
 
 
     /**
+     * Return the context name for this class loader.
+     */
+    public String getContextName() {
+
+        return (this.contextName);
+
+    }
+
+
+    /**
      * Return the "delegate first" flag for this class loader.
-     * @return <code>true</code> if the class lookup will delegate to
-     *   the parent first. The default in Tomcat is <code>false</code>.
      */
     public boolean getDelegate() {
-        return this.delegate;
+
+        return (this.delegate);
+
     }
 
 
@@ -479,67 +666,47 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * @param delegate The new "delegate first" flag
      */
     public void setDelegate(boolean delegate) {
+
         this.delegate = delegate;
+
+    }
+
+    /**
+     * Set the interval to keep all jar files open
+     * @param jarOpenInterval the interval in milliseconds to keep jar files open
+     */
+    public void setJarOpenInterval(int jarOpenInterval) {
+        this.jarOpenInterval = jarOpenInterval;
+    }
+
+    /**
+     * Return the interval to keep all jar files open if no jar is accessed
+     */
+    public int getJarOpenInterval() {
+        return jarOpenInterval;
+    }
+
+    /**
+     * @return Returns the antiJARLocking.
+     */
+    public boolean getAntiJARLocking() {
+        return antiJARLocking;
     }
 
 
     /**
-     * If there is a Java SecurityManager create a read permission for the
-     * target of the given URL as appropriate.
-     *
-     * @param url URL for a file or directory on local system
+     * @param antiJARLocking The antiJARLocking to set.
      */
-    void addPermission(URL url) {
-        if (url == null) {
-            return;
-        }
-        if (securityManager != null) {
-            String protocol = url.getProtocol();
-            if ("file".equalsIgnoreCase(protocol)) {
-                URI uri;
-                File f;
-                String path;
-                try {
-                    uri = url.toURI();
-                    f = new File(uri);
-                    path = f.getCanonicalPath();
-                } catch (IOException | URISyntaxException e) {
-                    log.warn(sm.getString(
-                            "webappClassLoader.addPermisionNoCanonicalFile",
-                            url.toExternalForm()));
-                    return;
-                }
-                if (f.isFile()) {
-                    // Allow the file to be read
-                    addPermission(new FilePermission(path, "read"));
-                } else if (f.isDirectory()) {
-                    addPermission(new FilePermission(path, "read"));
-                    addPermission(new FilePermission(
-                            path + File.separator + "-", "read"));
-                } else {
-                    // File does not exist - ignore (shouldn't happen)
-                }
-            } else {
-                // Unsupported URL protocol
-                log.warn(sm.getString(
-                        "webappClassLoader.addPermisionNoProtocol",
-                        protocol, url.toExternalForm()));
-            }
-        }
+    public void setAntiJARLocking(boolean antiJARLocking) {
+        this.antiJARLocking = antiJARLocking;
     }
-
 
     /**
-     * If there is a Java SecurityManager create a Permission.
-     *
-     * @param permission The permission
+     * @return Returns the searchExternalFirst.
      */
-    void addPermission(Permission permission) {
-        if ((securityManager != null) && (permission != null)) {
-            permissionList.add(permission);
-        }
+    public boolean getSearchExternalFirst() {
+        return searchExternalFirst;
     }
-
 
     public boolean getClearReferencesRmiTargets() {
         return this.clearReferencesRmiTargets;
@@ -552,83 +719,220 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     /**
-     * @return the clearReferencesStopThreads flag for this Context.
+     * @param searchExternalFirst Whether external repositories should be searched first
      */
-    public boolean getClearReferencesStopThreads() {
-        return this.clearReferencesStopThreads;
+    public void setSearchExternalFirst(boolean searchExternalFirst) {
+        this.searchExternalFirst = searchExternalFirst;
     }
 
 
     /**
-     * Set the clearReferencesStopThreads feature for this Context.
+     * If there is a Java SecurityManager create a read FilePermission
+     * or JndiPermission for the file directory path.
      *
-     * @param clearReferencesStopThreads The new flag value
+     * @param filepath file directory path
      */
-    public void setClearReferencesStopThreads(
-            boolean clearReferencesStopThreads) {
-        this.clearReferencesStopThreads = clearReferencesStopThreads;
+    public void addPermission(String filepath) {
+        if (filepath == null) {
+            return;
+        }
+
+        String path = filepath;
+
+        if (securityManager != null) {
+            Permission permission = null;
+            if (path.startsWith("jndi:") || path.startsWith("jar:jndi:")) {
+                if (!path.endsWith("/")) {
+                    path = path + "/";
+                }
+                permission = new JndiPermission(path + "*");
+                addPermission(permission);
+            } else {
+                if (!path.endsWith(File.separator)) {
+                    permission = new FilePermission(path, "read");
+                    addPermission(permission);
+                    path = path + File.separator;
+                }
+                permission = new FilePermission(path + "-", "read");
+                addPermission(permission);
+            }
+        }
     }
 
 
     /**
-     * @return the clearReferencesStopTimerThreads flag for this Context.
-     */
-    public boolean getClearReferencesStopTimerThreads() {
-        return this.clearReferencesStopTimerThreads;
-    }
-
-
-    /**
-     * Set the clearReferencesStopTimerThreads feature for this Context.
+     * If there is a Java SecurityManager create a read FilePermission
+     * or JndiPermission for URL.
      *
-     * @param clearReferencesStopTimerThreads The new flag value
+     * @param url URL for a file or directory on local system
      */
-    public void setClearReferencesStopTimerThreads(
-            boolean clearReferencesStopTimerThreads) {
-        this.clearReferencesStopTimerThreads = clearReferencesStopTimerThreads;
+    public void addPermission(URL url) {
+        if (url != null) {
+            addPermission(url.toString());
+        }
     }
 
 
     /**
-     * @return the clearReferencesLogFactoryRelease flag for this Context.
-     */
-    public boolean getClearReferencesLogFactoryRelease() {
-        return this.clearReferencesLogFactoryRelease;
-    }
-
-
-    /**
-     * Set the clearReferencesLogFactoryRelease feature for this Context.
+     * If there is a Java SecurityManager create a Permission.
      *
-     * @param clearReferencesLogFactoryRelease The new flag value
+     * @param permission The permission
      */
-    public void setClearReferencesLogFactoryRelease(
-            boolean clearReferencesLogFactoryRelease) {
-        this.clearReferencesLogFactoryRelease =
-            clearReferencesLogFactoryRelease;
+    public void addPermission(Permission permission) {
+        if ((securityManager != null) && (permission != null)) {
+            permissionList.add(permission);
+        }
     }
 
 
     /**
-     * @return the clearReferencesHttpClientKeepAliveThread flag for this
-     * Context.
+     * Return the JAR path.
      */
-    public boolean getClearReferencesHttpClientKeepAliveThread() {
-        return this.clearReferencesHttpClientKeepAliveThread;
+    public String getJarPath() {
+
+        return this.jarPath;
+
     }
 
 
     /**
-     * Set the clearReferencesHttpClientKeepAliveThread feature for this
-     * Context.
-     *
-     * @param clearReferencesHttpClientKeepAliveThread The new flag value
+     * Change the Jar path.
      */
-    public void setClearReferencesHttpClientKeepAliveThread(
-            boolean clearReferencesHttpClientKeepAliveThread) {
-        this.clearReferencesHttpClientKeepAliveThread =
-            clearReferencesHttpClientKeepAliveThread;
+    public void setJarPath(String jarPath) {
+
+        this.jarPath = jarPath;
+
     }
+
+
+    /**
+     * Change the work directory.
+     */
+    public void setWorkDir(File workDir) {
+        this.loaderDir = new File(workDir, "loader");
+        try {
+            canonicalLoaderDir = loaderDir.getCanonicalPath();
+            if (!canonicalLoaderDir.endsWith(File.separator)) {
+                canonicalLoaderDir += File.separator;
+            }
+        } catch (IOException ioe) {
+            canonicalLoaderDir = null;
+        }
+    }
+
+     /**
+      * Utility method for use in subclasses.
+      * Must be called before Lifecycle methods to have any effect.
+      *
+      * @deprecated Will be removed in 8.0.x onwards.
+      */
+    @Deprecated
+     protected void setParentClassLoader(ClassLoader pcl) {
+         parent = pcl;
+     }
+
+     /**
+      * Return the clearReferencesStatic flag for this Context.
+      *
+      * @deprecated Will be removed in 8.5
+      */
+     @Deprecated
+     public boolean getClearReferencesStatic() {
+         return (this.clearReferencesStatic);
+     }
+
+
+     /**
+      * Set the clearReferencesStatic feature for this Context.
+      *
+      * @param clearReferencesStatic The new flag value
+      *
+      * @deprecated Will be removed in 8.5
+      */
+     @Deprecated
+     public void setClearReferencesStatic(boolean clearReferencesStatic) {
+         this.clearReferencesStatic = clearReferencesStatic;
+     }
+
+
+     /**
+      * Return the clearReferencesStopThreads flag for this Context.
+      */
+     public boolean getClearReferencesStopThreads() {
+         return (this.clearReferencesStopThreads);
+     }
+
+
+     /**
+      * Set the clearReferencesStopThreads feature for this Context.
+      *
+      * @param clearReferencesStopThreads The new flag value
+      */
+     public void setClearReferencesStopThreads(
+             boolean clearReferencesStopThreads) {
+         this.clearReferencesStopThreads = clearReferencesStopThreads;
+     }
+
+
+     /**
+      * Return the clearReferencesStopTimerThreads flag for this Context.
+      */
+     public boolean getClearReferencesStopTimerThreads() {
+         return (this.clearReferencesStopTimerThreads);
+     }
+
+
+     /**
+      * Set the clearReferencesStopTimerThreads feature for this Context.
+      *
+      * @param clearReferencesStopTimerThreads The new flag value
+      */
+     public void setClearReferencesStopTimerThreads(
+             boolean clearReferencesStopTimerThreads) {
+         this.clearReferencesStopTimerThreads = clearReferencesStopTimerThreads;
+     }
+
+
+     /**
+      * Return the clearReferencesLogFactoryRelease flag for this Context.
+      */
+     public boolean getClearReferencesLogFactoryRelease() {
+         return (this.clearReferencesLogFactoryRelease);
+     }
+
+
+     /**
+      * Set the clearReferencesLogFactoryRelease feature for this Context.
+      *
+      * @param clearReferencesLogFactoryRelease The new flag value
+      */
+     public void setClearReferencesLogFactoryRelease(
+             boolean clearReferencesLogFactoryRelease) {
+         this.clearReferencesLogFactoryRelease =
+             clearReferencesLogFactoryRelease;
+     }
+
+
+     /**
+      * Return the clearReferencesHttpClientKeepAliveThread flag for this
+      * Context.
+      */
+     public boolean getClearReferencesHttpClientKeepAliveThread() {
+         return (this.clearReferencesHttpClientKeepAliveThread);
+     }
+
+
+     /**
+      * Set the clearReferencesHttpClientKeepAliveThread feature for this
+      * Context.
+      *
+      * @param clearReferencesHttpClientKeepAliveThread The new flag value
+      */
+     public void setClearReferencesHttpClientKeepAliveThread(
+             boolean clearReferencesHttpClientKeepAliveThread) {
+         this.clearReferencesHttpClientKeepAliveThread =
+             clearReferencesHttpClientKeepAliveThread;
+     }
 
 
     public boolean getClearReferencesObjectStreamClassCaches() {
@@ -678,6 +982,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         this.transformers.add(transformer);
 
         log.info(sm.getString("webappClassLoader.addTransformer", transformer, getContextName()));
+
     }
 
     /**
@@ -704,88 +1009,318 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
     }
 
+
     protected void copyStateWithoutTransformers(WebappClassLoaderBase base) {
+        base.antiJARLocking = this.antiJARLocking;
         base.resources = this.resources;
+        base.files = this.files;
         base.delegate = this.delegate;
-        base.state = LifecycleState.NEW;
+        base.lastJarAccessed = this.lastJarAccessed;
+        base.repositories = this.repositories;
+        base.jarPath = this.jarPath;
+        base.loaderDir = this.loaderDir;
+        base.canonicalLoaderDir = this.canonicalLoaderDir;
+        base.clearReferencesStatic = this.clearReferencesStatic;
         base.clearReferencesStopThreads = this.clearReferencesStopThreads;
         base.clearReferencesStopTimerThreads = this.clearReferencesStopTimerThreads;
         base.clearReferencesLogFactoryRelease = this.clearReferencesLogFactoryRelease;
         base.clearReferencesHttpClientKeepAliveThread = this.clearReferencesHttpClientKeepAliveThread;
-        base.jarModificationTimes.putAll(this.jarModificationTimes);
+        base.repositoryURLs = this.repositoryURLs.clone();
+        base.jarFiles = this.jarFiles.clone();
+        base.jarRealFiles = this.jarRealFiles.clone();
+        base.jarNames = this.jarNames.clone();
+        base.lastModifiedDates = this.lastModifiedDates.clone();
+        base.paths = this.paths.clone();
+        base.notFoundResources.putAll(this.notFoundResources);
         base.permissionList.addAll(this.permissionList);
         base.loaderPC.putAll(this.loaderPC);
+        base.contextName = this.contextName;
+        base.hasExternalRepositories = this.hasExternalRepositories;
+        base.searchExternalFirst = this.searchExternalFirst;
+        base.jarOpenInterval = this.jarOpenInterval;
     }
+
+
+   /**
+     * Add a new repository to the set of places this ClassLoader can look for
+     * classes to be loaded.
+     *
+     * @param repository Name of a source of classes to be loaded, such as a
+     *  directory pathname, a JAR file pathname, or a ZIP file pathname
+     *
+     * @exception IllegalArgumentException if the specified repository is
+     *  invalid or does not exist
+     */
+    public void addRepository(String repository) {
+
+        // Ignore any of the standard repositories, as they are set up using
+        // either addJar or addRepository
+        if (repository.startsWith("/WEB-INF/lib")
+            || repository.startsWith("/WEB-INF/classes"))
+            return;
+
+        // Add this repository to our underlying class loader
+        try {
+            URL url = new URL(repository);
+            super.addURL(url);
+            hasExternalRepositories = true;
+            repositoryURLs = null;
+        } catch (MalformedURLException e) {
+            IllegalArgumentException iae = new IllegalArgumentException
+                ("Invalid repository: " + repository);
+            iae.initCause(e);
+            throw iae;
+        }
+
+    }
+
+
+    /**
+     * Add a new repository to the set of places this ClassLoader can look for
+     * classes to be loaded.
+     *
+     * @param repository Name of a source of classes to be loaded, such as a
+     *  directory pathname, a JAR file pathname, or a ZIP file pathname
+     *
+     * @exception IllegalArgumentException if the specified repository is
+     *  invalid or does not exist
+     */
+    synchronized void addRepository(String repository, File file) {
+
+        // Note : There should be only one (of course), but I think we should
+        // keep this a bit generic
+
+        if (repository == null)
+            return;
+
+        if (log.isDebugEnabled())
+            log.debug("addRepository(" + repository + ")");
+
+        int i;
+
+        // Add this repository to our internal list
+        String[] result = new String[repositories.length + 1];
+        for (i = 0; i < repositories.length; i++) {
+            result[i] = repositories[i];
+        }
+        result[repositories.length] = repository;
+        repositories = result;
+
+        // Add the file to the list
+        File[] result2 = new File[files.length + 1];
+        for (i = 0; i < files.length; i++) {
+            result2[i] = files[i];
+        }
+        result2[files.length] = file;
+        files = result2;
+
+    }
+
+
+    synchronized void addJar(String jar, JarFile jarFile, File file)
+        throws IOException {
+
+        if (jar == null)
+            return;
+        if (jarFile == null)
+            return;
+        if (file == null)
+            return;
+
+        if (log.isDebugEnabled())
+            log.debug("addJar(" + jar + ")");
+
+        int i;
+
+        if ((jarPath != null) && (jar.startsWith(jarPath))) {
+
+            String jarName = jar.substring(jarPath.length());
+            while (jarName.startsWith("/"))
+                jarName = jarName.substring(1);
+
+            String[] result = new String[jarNames.length + 1];
+            for (i = 0; i < jarNames.length; i++) {
+                result[i] = jarNames[i];
+            }
+            result[jarNames.length] = jarName;
+            jarNames = result;
+
+        }
+
+        try {
+
+            // Register the JAR for tracking
+
+            long lastModified =
+                ((ResourceAttributes) resources.getAttributes(jar))
+                .getLastModified();
+
+            String[] result = new String[paths.length + 1];
+            for (i = 0; i < paths.length; i++) {
+                result[i] = paths[i];
+            }
+            result[paths.length] = jar;
+            paths = result;
+
+            long[] result3 = new long[lastModifiedDates.length + 1];
+            for (i = 0; i < lastModifiedDates.length; i++) {
+                result3[i] = lastModifiedDates[i];
+            }
+            result3[lastModifiedDates.length] = lastModified;
+            lastModifiedDates = result3;
+
+        } catch (NamingException e) {
+            // Ignore
+        }
+
+        // If the JAR currently contains invalid classes, don't actually use it
+        // for classloading
+        if (!validateJarFile(file))
+            return;
+
+        JarFile[] result2 = new JarFile[jarFiles.length + 1];
+        for (i = 0; i < jarFiles.length; i++) {
+            result2[i] = jarFiles[i];
+        }
+        result2[jarFiles.length] = jarFile;
+        jarFiles = result2;
+
+        // Add the file to the list
+        File[] result4 = new File[jarRealFiles.length + 1];
+        for (i = 0; i < jarRealFiles.length; i++) {
+            result4[i] = jarRealFiles[i];
+        }
+        result4[jarRealFiles.length] = file;
+        jarRealFiles = result4;
+    }
+
+
+    /**
+     * Return a String array of the current repositories for this class
+     * loader.  If there are no repositories, a zero-length array is
+     * returned.For security reason, returns a clone of the Array (since
+     * String are immutable).
+     */
+    public String[] findRepositories() {
+
+        return (repositories.clone());
+
+    }
+
 
     /**
      * Have one or more classes or resources been modified so that a reload
      * is appropriate?
-     * @return <code>true</code> if there's been a modification
      */
     public boolean modified() {
 
         if (log.isDebugEnabled())
             log.debug("modified()");
 
-        for (Entry<String,ResourceEntry> entry : resourceEntries.entrySet()) {
-            long cachedLastModified = entry.getValue().lastModified;
-            long lastModified = resources.getClassLoaderResource(
-                    entry.getKey()).getLastModified();
-            if (lastModified != cachedLastModified) {
-                if( log.isDebugEnabled() )
-                    log.debug(sm.getString("webappClassLoader.resourceModified",
-                            entry.getKey(),
-                            new Date(cachedLastModified),
-                            new Date(lastModified)));
-                return true;
+        // Checking for modified loaded resources
+        int length = paths.length;
+
+        // A rare race condition can occur in the updates of the two arrays
+        // It's totally ok if the latest class added is not checked (it will
+        // be checked the next time
+        int length2 = lastModifiedDates.length;
+        if (length > length2)
+            length = length2;
+
+        for (int i = 0; i < length; i++) {
+            try {
+                long lastModified =
+                    ((ResourceAttributes) resources.getAttributes(paths[i]))
+                    .getLastModified();
+                if (lastModified != lastModifiedDates[i]) {
+                    if( log.isDebugEnabled() )
+                        log.debug("  Resource '" + paths[i]
+                                  + "' was modified; Date is now: "
+                                  + new java.util.Date(lastModified) + " Was: "
+                                  + new java.util.Date(lastModifiedDates[i]));
+                    return (true);
+                }
+            } catch (NamingException e) {
+                log.error("    Resource '" + paths[i] + "' is missing");
+                return (true);
             }
         }
+
+        length = jarNames.length;
 
         // Check if JARs have been added or removed
-        WebResource[] jars = resources.listResources("/WEB-INF/lib");
-        // Filter out non-JAR resources
+        if (getJarPath() != null) {
 
-        int jarCount = 0;
-        for (WebResource jar : jars) {
-            if (jar.getName().endsWith(".jar") && jar.isFile() && jar.canRead()) {
-                jarCount++;
-                Long recordedLastModified = jarModificationTimes.get(jar.getName());
-                if (recordedLastModified == null) {
-                    // Jar has been added
-                    log.info(sm.getString("webappClassLoader.jarsAdded",
-                            resources.getContext().getName()));
-                    return true;
+            try {
+                NamingEnumeration<Binding> enumeration =
+                    resources.listBindings(getJarPath());
+                int i = 0;
+                while (enumeration.hasMoreElements() && (i < length)) {
+                    NameClassPair ncPair = enumeration.nextElement();
+                    String name = ncPair.getName();
+                    // Ignore non JARs present in the lib folder
+                    if (!name.endsWith(".jar"))
+                        continue;
+                    if (!name.equals(jarNames[i])) {
+                        // Missing JAR
+                        log.info("    Additional JARs have been added : '"
+                                 + name + "'");
+                        return (true);
+                    }
+                    i++;
                 }
-                if (recordedLastModified.longValue() != jar.getLastModified()) {
-                    // Jar has been changed
-                    log.info(sm.getString("webappClassLoader.jarsModified",
-                            resources.getContext().getName()));
-                    return true;
+                if (enumeration.hasMoreElements()) {
+                    while (enumeration.hasMoreElements()) {
+                        NameClassPair ncPair = enumeration.nextElement();
+                        String name = ncPair.getName();
+                        // Additional non-JAR files are allowed
+                        if (name.endsWith(".jar")) {
+                            // There was more JARs
+                            log.info("    Additional JARs have been added");
+                            return (true);
+                        }
+                    }
+                } else if (i < jarNames.length) {
+                    // There was less JARs
+                    log.info("    Additional JARs have been added");
+                    return (true);
                 }
+            } catch (NamingException e) {
+                if (log.isDebugEnabled())
+                    log.debug("    Failed tracking modifications of '"
+                        + getJarPath() + "'");
+            } catch (ClassCastException e) {
+                log.error("    Failed tracking modifications of '"
+                          + getJarPath() + "' : " + e.getMessage());
             }
-        }
 
-        if (jarCount < jarModificationTimes.size()){
-            log.info(sm.getString("webappClassLoader.jarsRemoved",
-                    resources.getContext().getName()));
-            return true;
         }
-
 
         // No classes have been modified
-        return false;
+        return (false);
+
     }
 
 
+    /**
+     * Render a String representation of this object.
+     */
     @Override
     public String toString() {
 
         StringBuilder sb = new StringBuilder(this.getClass().getSimpleName());
         sb.append("\r\n  context: ");
-        sb.append(getContextName());
+        sb.append(contextName);
         sb.append("\r\n  delegate: ");
         sb.append(delegate);
-        sb.append("\r\n");
+        sb.append("\r\n  repositories:\r\n");
+        if (repositories != null) {
+            for (int i = 0; i < repositories.length; i++) {
+                sb.append("    ");
+                sb.append(repositories[i]);
+                sb.append("\r\n");
+            }
+        }
         if (this.parent != null) {
             sb.append("----------> Parent Classloader:\r\n");
             sb.append(this.parent.toString());
@@ -797,14 +1332,28 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 sb.append(transformer).append("\r\n");
             }
         }
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 
     // ---------------------------------------------------- ClassLoader Methods
 
 
-    // Note: exposed for use by tests
+    /**
+     * Add the specified URL to the classloader.
+     */
+    @Override
+    protected void addURL(URL url) {
+        super.addURL(url);
+        hasExternalRepositories = true;
+        repositoryURLs = null;
+    }
+
+
+    /**
+     * Expose this method for use by the unit tests.
+     */
     protected final Class<?> doDefineClass(String name, byte[] b, int off, int len,
             ProtectionDomain protectionDomain) {
         return super.defineClass(name, b, off, len, protectionDomain);
@@ -814,7 +1363,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * Find the specified class in our local repositories, if possible.  If
      * not found, throw <code>ClassNotFoundException</code>.
      *
-     * @param name The binary name of the class to be loaded
+     * @param name Name of the class to be loaded
      *
      * @exception ClassNotFoundException if the class was not found
      */
@@ -824,7 +1373,10 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         if (log.isDebugEnabled())
             log.debug("    findClass(" + name + ")");
 
-        checkStateForClassLoading(name);
+        // Cannot load anything from local repositories if class loader is stopped
+        if (!started) {
+            throw new ClassNotFoundException(name);
+        }
 
         // (1) Permission to define this class when using a SecurityManager
         if (securityManager != null) {
@@ -848,28 +1400,43 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         try {
             if (log.isTraceEnabled())
                 log.trace("      findClassInternal(" + name + ")");
-            try {
-                if (securityManager != null) {
-                    PrivilegedAction<Class<?>> dp =
-                        new PrivilegedFindClassByName(name);
-                    clazz = AccessController.doPrivileged(dp);
-                } else {
-                    clazz = findClassInternal(name);
+            if (hasExternalRepositories && searchExternalFirst) {
+                try {
+                    clazz = super.findClass(name);
+                } catch(ClassNotFoundException cnfe) {
+                    // Ignore - will search internal repositories next
+                } catch(AccessControlException ace) {
+                    log.warn("WebappClassLoaderBase.findClassInternal(" + name
+                            + ") security exception: " + ace.getMessage(), ace);
+                    throw new ClassNotFoundException(name, ace);
+                } catch (RuntimeException e) {
+                    if (log.isTraceEnabled())
+                        log.trace("      -->RuntimeException Rethrown", e);
+                    throw e;
                 }
-            } catch(AccessControlException ace) {
-                log.warn("WebappClassLoader.findClassInternal(" + name
-                        + ") security exception: " + ace.getMessage(), ace);
-                throw new ClassNotFoundException(name, ace);
-            } catch (RuntimeException e) {
-                if (log.isTraceEnabled())
-                    log.trace("      -->RuntimeException Rethrown", e);
-                throw e;
             }
-            if ((clazz == null) && hasExternalRepositories) {
+            if ((clazz == null)) {
+                try {
+                    clazz = findClassInternal(name);
+                } catch(ClassNotFoundException cnfe) {
+                    if (!hasExternalRepositories || searchExternalFirst) {
+                        throw cnfe;
+                    }
+                } catch(AccessControlException ace) {
+                    log.warn("WebappClassLoaderBase.findClassInternal(" + name
+                            + ") security exception: " + ace.getMessage(), ace);
+                    throw new ClassNotFoundException(name, ace);
+                } catch (RuntimeException e) {
+                    if (log.isTraceEnabled())
+                        log.trace("      -->RuntimeException Rethrown", e);
+                    throw e;
+                }
+            }
+            if ((clazz == null) && hasExternalRepositories && !searchExternalFirst) {
                 try {
                     clazz = super.findClass(name);
                 } catch(AccessControlException ace) {
-                    log.warn("WebappClassLoader.findClassInternal(" + name
+                    log.warn("WebappClassLoaderBase.findClassInternal(" + name
                             + ") security exception: " + ace.getMessage(), ace);
                     throw new ClassNotFoundException(name, ace);
                 } catch (RuntimeException e) {
@@ -903,7 +1470,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
             log.debug("      Loaded by " + cl.toString());
         }
-        return clazz;
+        return (clazz);
 
     }
 
@@ -921,21 +1488,30 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         if (log.isDebugEnabled())
             log.debug("    findResource(" + name + ")");
 
-        checkStateForResourceLoading(name);
-
         URL url = null;
-
         String path = nameToPath(name);
 
-        WebResource resource = resources.getClassLoaderResource(path);
-        if (resource.exists()) {
-            url = resource.getURL();
-            trackLastModified(path, resource);
+        if (hasExternalRepositories && searchExternalFirst)
+            url = super.findResource(name);
+
+        if (url == null) {
+            ResourceEntry entry = resourceEntries.get(path);
+            if (entry == null) {
+                if (securityManager != null) {
+                    PrivilegedAction<ResourceEntry> dp =
+                        new PrivilegedFindResourceByName(name, path, false);
+                    entry = AccessController.doPrivileged(dp);
+                } else {
+                    entry = findResourceInternal(name, path, false);
+                }
+            }
+            if (entry != null) {
+                url = entry.source;
+            }
         }
 
-        if ((url == null) && hasExternalRepositories) {
+        if ((url == null) && hasExternalRepositories && !searchExternalFirst)
             url = super.findResource(name);
-        }
 
         if (log.isDebugEnabled()) {
             if (url != null)
@@ -943,21 +1519,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             else
                 log.debug("    --> Resource not found, returning null");
         }
-        return url;
-    }
+        return (url);
 
-
-    private void trackLastModified(String path, WebResource resource) {
-        if (resourceEntries.containsKey(path)) {
-            return;
-        }
-        ResourceEntry entry = new ResourceEntry();
-        entry.lastModified = resource.getLastModified();
-        synchronized(resourceEntries) {
-            if (!resourceEntries.containsKey(path)) {
-                resourceEntries.put(path, entry);
-            }
-        }
     }
 
 
@@ -976,25 +1539,67 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         if (log.isDebugEnabled())
             log.debug("    findResources(" + name + ")");
 
-        checkStateForResourceLoading(name);
+        //we use a LinkedHashSet instead of a Vector to avoid duplicates with virtualmappings
+        LinkedHashSet<URL> result = new LinkedHashSet<URL>();
 
-        LinkedHashSet<URL> result = new LinkedHashSet<>();
+        int jarFilesLength = jarFiles.length;
+        int repositoriesLength = repositories.length;
 
-        String path = nameToPath(name);
+        int i;
 
-        WebResource[] webResources = resources.getClassLoaderResources(path);
-        for (WebResource webResource : webResources) {
-            if (webResource.exists()) {
-                result.add(webResource.getURL());
+        // Adding the results of a call to the superclass
+        if (hasExternalRepositories && searchExternalFirst) {
+
+            Enumeration<URL> otherResourcePaths = super.findResources(name);
+
+            while (otherResourcePaths.hasMoreElements()) {
+                result.add(otherResourcePaths.nextElement());
+            }
+
+        }
+        // Looking at the repositories
+        for (i = 0; i < repositoriesLength; i++) {
+            try {
+                String fullPath = repositories[i] + name;
+                resources.lookup(fullPath);
+                // Note : Not getting an exception here means the resource was
+                // found
+                try {
+                    result.add(getURI(new File(files[i], name)));
+                } catch (MalformedURLException e) {
+                    // Ignore
+                }
+            } catch (NamingException e) {
+                // Ignore
+            }
+        }
+
+        // Looking at the JAR files
+        synchronized (jarFiles) {
+            if (openJARs()) {
+                for (i = 0; i < jarFilesLength; i++) {
+                    JarEntry jarEntry = jarFiles[i].getJarEntry(name);
+                    if (jarEntry != null) {
+                        try {
+                            String jarFakeUrl = getURI(jarRealFiles[i]).toString();
+                            result.add(UriUtil.buildJarUrl(jarFakeUrl, name));
+                        } catch (MalformedURLException e) {
+                            // Ignore
+                        }
+                    }
+                }
             }
         }
 
         // Adding the results of a call to the superclass
-        if (hasExternalRepositories) {
+        if (hasExternalRepositories && !searchExternalFirst) {
+
             Enumeration<URL> otherResourcePaths = super.findResources(name);
+
             while (otherResourcePaths.hasMoreElements()) {
                 result.add(otherResourcePaths.nextElement());
             }
+
         }
 
         return Collections.enumeration(result);
@@ -1028,47 +1633,59 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
         if (log.isDebugEnabled())
             log.debug("getResource(" + name + ")");
-
-        checkStateForResourceLoading(name);
-
         URL url = null;
 
-        boolean delegateFirst = delegate || filter(name, false);
-
         // (1) Delegate to parent if requested
-        if (delegateFirst) {
+        if (delegate) {
             if (log.isDebugEnabled())
                 log.debug("  Delegating to parent classloader " + parent);
             url = parent.getResource(name);
             if (url != null) {
                 if (log.isDebugEnabled())
                     log.debug("  --> Returning '" + url.toString() + "'");
-                return url;
+                return (url);
             }
         }
 
         // (2) Search local repositories
         url = findResource(name);
         if (url != null) {
+            // Locating the repository for special handling in the case
+            // of a JAR
+            if (antiJARLocking) {
+                String path = nameToPath(name);
+                ResourceEntry entry = resourceEntries.get(path);
+                try {
+                    String repository = entry.codeBase.toString();
+                    if ((repository.endsWith(".jar"))
+                            && (!(name.endsWith(CLASS_FILE_SUFFIX)))) {
+                        // Copy binary content to the work directory if not present
+                        File resourceFile = new File(loaderDir, name);
+                        url = getURI(resourceFile);
+                    }
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
             if (log.isDebugEnabled())
                 log.debug("  --> Returning '" + url.toString() + "'");
-            return url;
+            return (url);
         }
 
         // (3) Delegate to parent unconditionally if not already attempted
-        if (!delegateFirst) {
+        if( !delegate ) {
             url = parent.getResource(name);
             if (url != null) {
                 if (log.isDebugEnabled())
                     log.debug("  --> Returning '" + url.toString() + "'");
-                return url;
+                return (url);
             }
         }
 
         // (4) Resource was not found
         if (log.isDebugEnabled())
             log.debug("  --> Resource not found, returning null");
-        return null;
+        return (null);
 
     }
 
@@ -1081,9 +1698,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
         // Need to combine these enumerations. The order in which the
         // Enumerations are combined depends on how delegation is configured
-        boolean delegateFirst = delegate || filter(name, false);
-
-        if (delegateFirst) {
+        if (delegate) {
             return new CombinedEnumeration(parentResources, localResources);
         } else {
             return new CombinedEnumeration(localResources, parentResources);
@@ -1105,66 +1720,66 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
         if (log.isDebugEnabled())
             log.debug("getResourceAsStream(" + name + ")");
-
-        checkStateForResourceLoading(name);
-
         InputStream stream = null;
 
-        boolean delegateFirst = delegate || filter(name, false);
+        // (0) Check for a cached copy of this resource
+        stream = findLoadedResource(name);
+        if (stream != null) {
+            if (log.isDebugEnabled())
+                log.debug("  --> Returning stream from cache");
+            return (stream);
+        }
 
         // (1) Delegate to parent if requested
-        if (delegateFirst) {
+        if (delegate) {
             if (log.isDebugEnabled())
                 log.debug("  Delegating to parent classloader " + parent);
             stream = parent.getResourceAsStream(name);
             if (stream != null) {
+                // FIXME - cache???
                 if (log.isDebugEnabled())
                     log.debug("  --> Returning stream from parent");
-                return stream;
+                return (stream);
             }
         }
 
         // (2) Search local repositories
         if (log.isDebugEnabled())
             log.debug("  Searching local repositories");
-        String path = nameToPath(name);
-        WebResource resource = resources.getClassLoaderResource(path);
-        if (resource.exists()) {
-            stream = resource.getInputStream();
-            trackLastModified(path, resource);
-        }
-        try {
-            if (hasExternalRepositories && stream == null) {
-                URL url = super.findResource(name);
-                if (url != null) {
-                    stream = url.openStream();
-                }
-            }
-        } catch (IOException e) {
-            // Ignore
-        }
-        if (stream != null) {
+        URL url = findResource(name);
+        if (url != null) {
+            // FIXME - cache???
             if (log.isDebugEnabled())
                 log.debug("  --> Returning stream from local");
-            return stream;
+            stream = findLoadedResource(name);
+            try {
+                if (hasExternalRepositories && (stream == null))
+                    stream = url.openStream();
+            } catch (IOException e) {
+                // Ignore
+            }
+            if (stream != null)
+                return (stream);
         }
 
         // (3) Delegate to parent unconditionally
-        if (!delegateFirst) {
+        if (!delegate) {
             if (log.isDebugEnabled())
                 log.debug("  Delegating to parent classloader unconditionally " + parent);
             stream = parent.getResourceAsStream(name);
             if (stream != null) {
+                // FIXME - cache???
                 if (log.isDebugEnabled())
                     log.debug("  --> Returning stream from parent");
-                return stream;
+                return (stream);
             }
         }
 
         // (4) Resource was not found
         if (log.isDebugEnabled())
             log.debug("  --> Resource not found, returning null");
-        return null;
+        return (null);
+
     }
 
 
@@ -1173,13 +1788,15 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * classes in the same manner as <code>loadClass(String, boolean)</code>
      * with <code>false</code> as the second argument.
      *
-     * @param name The binary name of the class to be loaded
+     * @param name Name of the class to be loaded
      *
      * @exception ClassNotFoundException if the class was not found
      */
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
-        return loadClass(name, false);
+
+        return (loadClass(name, false));
+
     }
 
 
@@ -1203,21 +1820,28 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * <code>resolve</code> flag is <code>true</code>, this method will then
      * call <code>resolveClass(Class)</code> on the resulting Class object.
      *
-     * @param name The binary name of the class to be loaded
+     * @param name Name of the class to be loaded
      * @param resolve If <code>true</code> then resolve the class
      *
      * @exception ClassNotFoundException if the class was not found
      */
+    @SuppressWarnings("sync-override")
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
 
-        synchronized (getClassLoadingLock(name)) {
+        synchronized (getClassLoadingLockInternal(name)) {
             if (log.isDebugEnabled())
                 log.debug("loadClass(" + name + ", " + resolve + ")");
             Class<?> clazz = null;
 
-            // Log access to stopped class loader
-            checkStateForClassLoading(name);
+            // Log access to stopped classloader
+            if (!started) {
+                try {
+                    throw new IllegalStateException();
+                } catch (IllegalStateException e) {
+                    log.info(sm.getString("webappClassLoader.stopped", name), e);
+                }
+            }
 
             // (0) Check our previously loaded local class cache
             clazz = findLoadedClass0(name);
@@ -1226,7 +1850,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     log.debug("  Returning class from cache");
                 if (resolve)
                     resolveClass(clazz);
-                return clazz;
+                return (clazz);
             }
 
             // (0.1) Check our previously loaded class cache
@@ -1236,55 +1860,20 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     log.debug("  Returning class from cache");
                 if (resolve)
                     resolveClass(clazz);
-                return clazz;
+                return (clazz);
             }
 
             // (0.2) Try loading the class with the system class loader, to prevent
-            //       the webapp from overriding Java SE classes. This implements
-            //       SRV.10.7.2
-            String resourceName = binaryNameToPath(name, false);
-
-            ClassLoader javaseLoader = getJavaseClassLoader();
-            boolean tryLoadingFromJavaseLoader;
+            //       the webapp from overriding J2SE classes
             try {
-                // Use getResource as it won't trigger an expensive
-                // ClassNotFoundException if the resource is not available from
-                // the Java SE class loader. However (see
-                // https://bz.apache.org/bugzilla/show_bug.cgi?id=58125 for
-                // details) when running under a security manager in rare cases
-                // this call may trigger a ClassCircularityError.
-                // See https://bz.apache.org/bugzilla/show_bug.cgi?id=61424 for
-                // details of how this may trigger a StackOverflowError
-                // Given these reported errors, catch Throwable to ensure any
-                // other edge cases are also caught
-                URL url;
-                if (securityManager != null) {
-                    PrivilegedAction<URL> dp = new PrivilegedJavaseGetResource(resourceName);
-                    url = AccessController.doPrivileged(dp);
-                } else {
-                    url = javaseLoader.getResource(resourceName);
+                clazz = j2seClassLoader.loadClass(name);
+                if (clazz != null) {
+                    if (resolve)
+                        resolveClass(clazz);
+                    return (clazz);
                 }
-                tryLoadingFromJavaseLoader = (url != null);
-            } catch (Throwable t) {
-                // Swallow all exceptions apart from those that must be re-thrown
-                ExceptionUtils.handleThrowable(t);
-                // The getResource() trick won't work for this class. We have to
-                // try loading it directly and accept that we might get a
-                // ClassNotFoundException.
-                tryLoadingFromJavaseLoader = true;
-            }
-
-            if (tryLoadingFromJavaseLoader) {
-                try {
-                    clazz = javaseLoader.loadClass(name);
-                    if (clazz != null) {
-                        if (resolve)
-                            resolveClass(clazz);
-                        return clazz;
-                    }
-                } catch (ClassNotFoundException e) {
-                    // Ignore
-                }
+            } catch (ClassNotFoundException e) {
+                // Ignore
             }
 
             // (0.5) Permission to access this class when using a SecurityManager
@@ -1296,13 +1885,19 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     } catch (SecurityException se) {
                         String error = "Security Violation, attempt to use " +
                             "Restricted Class: " + name;
-                        log.info(error, se);
+                        if (name.endsWith("BeanInfo")) {
+                            // BZ 57906: suppress logging for calls from
+                            // java.beans.Introspector.findExplicitBeanInfo()
+                            log.debug(error, se);
+                        } else {
+                            log.info(error, se);
+                        }
                         throw new ClassNotFoundException(error, se);
                     }
                 }
             }
 
-            boolean delegateLoad = delegate || filter(name, true);
+            boolean delegateLoad = delegate || filter(name);
 
             // (1) Delegate to our parent if requested
             if (delegateLoad) {
@@ -1315,7 +1910,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                             log.debug("  Loading class from parent");
                         if (resolve)
                             resolveClass(clazz);
-                        return clazz;
+                        return (clazz);
                     }
                 } catch (ClassNotFoundException e) {
                     // Ignore
@@ -1332,7 +1927,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                         log.debug("  Loading class from local repository");
                     if (resolve)
                         resolveClass(clazz);
-                    return clazz;
+                    return (clazz);
                 }
             } catch (ClassNotFoundException e) {
                 // Ignore
@@ -1349,7 +1944,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                             log.debug("  Loading class from parent");
                         if (resolve)
                             resolveClass(clazz);
-                        return clazz;
+                        return (clazz);
                     }
                 } catch (ClassNotFoundException e) {
                     // Ignore
@@ -1361,50 +1956,46 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     }
 
 
-    protected void checkStateForClassLoading(String className) throws ClassNotFoundException {
-        // It is not permitted to load new classes once the web application has
-        // been stopped.
-        try {
-            checkStateForResourceLoading(className);
-        } catch (IllegalStateException ise) {
-            throw new ClassNotFoundException(ise.getMessage(), ise);
+    private Object getClassLoadingLockInternal(String className) {
+        if (JreCompat.isJre7Available() && GET_CLASSLOADING_LOCK_METHOD != null) {
+            try {
+                return GET_CLASSLOADING_LOCK_METHOD.invoke(this, className);
+            } catch (Exception e) {
+                // ignore
+            }
         }
+        return this;
     }
 
-
-    protected void checkStateForResourceLoading(String resource) throws IllegalStateException {
-        // It is not permitted to load resources once the web application has
-        // been stopped.
-        if (!state.isAvailable()) {
-            String msg = sm.getString("webappClassLoader.stopped", resource);
-            IllegalStateException ise = new IllegalStateException(msg);
-            log.info(msg, ise);
-            throw ise;
-        }
-    }
 
     /**
      * Get the Permissions for a CodeSource.  If this instance
      * of WebappClassLoaderBase is for a web application context,
-     * add read FilePermission for the appropriate resources.
+     * add read FilePermission or JndiPermissions for the base
+     * directory (if unpacked),
+     * the context URL, and jar file resources.
      *
      * @param codeSource where the code was loaded from
      * @return PermissionCollection for CodeSource
      */
     @Override
     protected PermissionCollection getPermissions(CodeSource codeSource) {
+
         String codeUrl = codeSource.getLocation().toString();
         PermissionCollection pc;
         if ((pc = loaderPC.get(codeUrl)) == null) {
             pc = super.getPermissions(codeSource);
             if (pc != null) {
-                for (Permission p : permissionList) {
+                Iterator<Permission> perms = permissionList.iterator();
+                while (perms.hasNext()) {
+                    Permission p = perms.next();
                     pc.add(p);
                 }
                 loaderPC.put(codeUrl,pc);
             }
         }
-        return pc;
+        return (pc);
+
     }
 
 
@@ -1415,11 +2006,14 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         }
         Policy currentPolicy = Policy.getPolicy();
         if (currentPolicy != null) {
-            URL contextRootUrl = resources.getResource("/").getCodeBase();
-            CodeSource cs = new CodeSource(contextRootUrl, (Certificate[]) null);
-            PermissionCollection pc = currentPolicy.getPermissions(cs);
-            if (pc.implies(permission)) {
-                return true;
+            ResourceEntry entry = findResourceInternal("/", "/", false);
+            if (entry != null) {
+                CodeSource cs = new CodeSource(
+                        entry.codeBase, (java.security.cert.Certificate[]) null);
+                PermissionCollection pc = currentPolicy.getPermissions(cs);
+                if (pc.implies(permission)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -1427,21 +2021,57 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     /**
-     * {@inheritDoc}
-     * <p>
-     * Note that list of URLs returned by this method may not be complete. The
-     * web application class loader accesses class loader resources via the
-     * {@link WebResourceRoot} which supports the arbitrary mapping of
-     * additional files, directories and contents of JAR files under
-     * WEB-INF/classes. Any such resources will not be included in the URLs
-     * returned here.
+     * Returns the search path of URLs for loading classes and resources.
+     * This includes the original list of URLs specified to the constructor,
+     * along with any URLs subsequently appended by the addURL() method.
+     * @return the search path of URLs for loading classes and resources.
      */
     @Override
     public URL[] getURLs() {
-        ArrayList<URL> result = new ArrayList<>();
-        result.addAll(localRepositories);
-        result.addAll(Arrays.asList(super.getURLs()));
-        return result.toArray(new URL[result.size()]);
+
+        if (repositoryURLs != null) {
+            return repositoryURLs.clone();
+        }
+
+        URL[] external = super.getURLs();
+
+        int filesLength = files.length;
+        int jarFilesLength = jarRealFiles.length;
+        int externalsLength = external.length;
+        int off = 0;
+        int i;
+
+        try {
+
+            URL[] urls = new URL[filesLength + jarFilesLength + externalsLength];
+            if (searchExternalFirst) {
+                for (i = 0; i < externalsLength; i++) {
+                    urls[i] = external[i];
+                }
+                off = externalsLength;
+            }
+            for (i = 0; i < filesLength; i++) {
+                urls[off + i] = getURI(files[i]);
+            }
+            off += filesLength;
+            for (i = 0; i < jarFilesLength; i++) {
+                urls[off + i] = getURI(jarRealFiles[i]);
+            }
+            off += jarFilesLength;
+            if (!searchExternalFirst) {
+                for (i = 0; i < externalsLength; i++) {
+                    urls[off + i] = external[i];
+                }
+            }
+
+            repositoryURLs = urls;
+
+        } catch (MalformedURLException e) {
+            repositoryURLs = new URL[0];
+        }
+
+        return repositoryURLs.clone();
+
     }
 
 
@@ -1487,7 +2117,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      */
     @Override
     public LifecycleState getState() {
-        return state;
+        return LifecycleState.NEW;
     }
 
 
@@ -1502,7 +2132,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
     @Override
     public void init() {
-        state = LifecycleState.INITIALIZED;
+        // NOOP
     }
 
 
@@ -1514,26 +2144,34 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     @Override
     public void start() throws LifecycleException {
 
-        state = LifecycleState.STARTING_PREP;
-
-        WebResource[] classesResources = resources.getResources("/WEB-INF/classes");
-        for (WebResource classes : classesResources) {
-            if (classes.isDirectory() && classes.canRead()) {
-                localRepositories.add(classes.getURL());
-            }
+        started = true;
+        String encoding = null;
+        try {
+            encoding = System.getProperty("file.encoding");
+        } catch (SecurityException e) {
+            return;
         }
-        WebResource[] jars = resources.listResources("/WEB-INF/lib");
-        for (WebResource jar : jars) {
-            if (jar.getName().endsWith(".jar") && jar.isFile() && jar.canRead()) {
-                localRepositories.add(jar.getURL());
-                jarModificationTimes.put(
-                        jar.getName(), Long.valueOf(jar.getLastModified()));
-            }
+        if (encoding.indexOf("EBCDIC")!=-1) {
+            needConvert = true;
         }
 
-        state = LifecycleState.STARTED;
+        for (int i = 0; i < repositories.length; i++) {
+            if (repositories[i].equals("/WEB-INF/classes/")) {
+                try {
+                    webInfClassesCodeBase = files[i].toURI().toURL();
+                } catch (MalformedURLException e) {
+                    // Ignore - leave it as null
+                }
+                break;
+            }
+        }
+
     }
 
+
+    public boolean isStarted() {
+        return started;
+    }
 
     /**
      * Stop the class loader.
@@ -1543,42 +2181,92 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     @Override
     public void stop() throws LifecycleException {
 
-        state = LifecycleState.STOPPING_PREP;
-
         // Clearing references should be done before setting started to
         // false, due to possible side effects
         clearReferences();
 
-        state = LifecycleState.STOPPING;
+        started = false;
 
+        int length = files.length;
+        for (int i = 0; i < length; i++) {
+            files[i] = null;
+        }
+
+        length = jarFiles.length;
+        for (int i = 0; i < length; i++) {
+            try {
+                if (jarFiles[i] != null) {
+                    jarFiles[i].close();
+                }
+            } catch (IOException e) {
+                // Ignore
+            }
+            jarFiles[i] = null;
+        }
+
+        notFoundResources.clear();
         resourceEntries.clear();
-        jarModificationTimes.clear();
         resources = null;
+        repositories = null;
+        repositoryURLs = null;
+        files = null;
+        jarFiles = null;
+        jarRealFiles = null;
+        jarPath = null;
+        jarNames = null;
+        lastModifiedDates = null;
+        paths = null;
+        hasExternalRepositories = false;
+        parent = null;
+        webInfClassesCodeBase = null;
 
         permissionList.clear();
         loaderPC.clear();
 
-        state = LifecycleState.STOPPED;
+        if (loaderDir != null) {
+            deleteDir(loaderDir);
+        }
+
     }
 
 
     @Override
     public void destroy() {
-        state = LifecycleState.DESTROYING;
+        // NOOP
+    }
 
-        try {
-            super.close();
-        } catch (IOException ioe) {
-            log.warn(sm.getString("webappClassLoader.superCloseFail"), ioe);
+
+    /**
+     * Used to periodically signal to the classloader to release
+     * JAR resources.
+     */
+    public void closeJARs(boolean force) {
+        if (jarFiles.length > 0 && (force || jarOpenInterval > 0)) {
+                synchronized (jarFiles) {
+                    if (force || (jarOpenInterval > 0 && System.currentTimeMillis()
+                            > (lastJarAccessed + jarOpenInterval))) {
+                        for (int i = 0; i < jarFiles.length; i++) {
+                            try {
+                                if (jarFiles[i] != null) {
+                                    jarFiles[i].close();
+                                    jarFiles[i] = null;
+                                }
+                            } catch (IOException e) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Failed to close JAR", e);
+                                }
+                            }
+                        }
+                    }
+                }
         }
-        state = LifecycleState.DESTROYED;
     }
 
 
     // ------------------------------------------------------ Protected Methods
 
     protected ClassLoader getJavaseClassLoader() {
-        return javaseClassLoader;
+        return j2seClassLoader;
     }
 
     protected void setJavaseClassLoader(ClassLoader classLoader) {
@@ -1586,7 +2274,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             throw new IllegalArgumentException(
                     sm.getString("webappClassLoader.javaseClassLoaderNull"));
         }
-        javaseClassLoader = classLoader;
+        j2seClassLoader = classLoader;
     }
 
     /**
@@ -1615,6 +2303,12 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             clearReferencesRmiTargets();
         }
 
+        // Null out any static or final fields from loaded classes,
+        // as a workaround for apparent garbage collection bugs
+        if (clearReferencesStatic) {
+            clearReferencesStaticFinal();
+        }
+
          // Clear the IntrospectionUtils cache.
         IntrospectionUtils.clear();
 
@@ -1626,8 +2320,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         // Clear the classloader reference in the VM's bean introspector
         java.beans.Introspector.flushCaches();
 
-        // Clear any custom URLStreamHandlers
-        TomcatURLStreamHandlerFactory.release(this);
     }
 
 
@@ -1650,12 +2342,13 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * If only apps cleaned up after themselves...
      */
     private final void clearReferencesJdbc() {
+        InputStream is = getResourceAsStream(
+                "org/apache/catalina/loader/JdbcLeakPrevention.class");
         // We know roughly how big the class will be (~ 1K) so allow 2k as a
         // starting point
         byte[] classBytes = new byte[2048];
         int offset = 0;
-        try (InputStream is = getResourceAsStream(
-                "org/apache/catalina/loader/JdbcLeakPrevention.class")) {
+        try {
             int read = is.read(classBytes, offset, classBytes.length-offset);
             while (read > -1) {
                 offset += read;
@@ -1670,20 +2363,156 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             Class<?> lpClass =
                 defineClass("org.apache.catalina.loader.JdbcLeakPrevention",
                     classBytes, 0, offset, this.getClass().getProtectionDomain());
-            Object obj = lpClass.getConstructor().newInstance();
-            @SuppressWarnings("unchecked")
+            Object obj = lpClass.newInstance();
+            @SuppressWarnings("unchecked") // clearJdbcDriverRegistrations() returns List<String>
             List<String> driverNames = (List<String>) obj.getClass().getMethod(
                     "clearJdbcDriverRegistrations").invoke(obj);
             for (String name : driverNames) {
-                log.warn(sm.getString("webappClassLoader.clearJdbc",
-                        getContextName(), name));
+                log.error(sm.getString("webappClassLoader.clearJdbc",
+                        contextName, name));
             }
         } catch (Exception e) {
             // So many things to go wrong above...
             Throwable t = ExceptionUtils.unwrapInvocationTargetException(e);
             ExceptionUtils.handleThrowable(t);
             log.warn(sm.getString(
-                    "webappClassLoader.jdbcRemoveFailed", getContextName()), t);
+                    "webappClassLoader.jdbcRemoveFailed", contextName), t);
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException ioe) {
+                    log.warn(sm.getString(
+                            "webappClassLoader.jdbcRemoveStreamError",
+                            contextName), ioe);
+                }
+            }
+        }
+    }
+
+
+    private final void clearReferencesStaticFinal() {
+
+        List<ResourceEntry> values = new ArrayList<ResourceEntry>();
+        values.addAll(resourceEntries.values());
+        Iterator<ResourceEntry> loadedClasses = values.iterator();
+        //
+        // walk through all loaded class to trigger initialization for
+        //    any uninitialized classes, otherwise initialization of
+        //    one class may call a previously cleared class.
+        while(loadedClasses.hasNext()) {
+            ResourceEntry entry = loadedClasses.next();
+            if (entry.loadedClass != null) {
+                Class<?> clazz = entry.loadedClass;
+                try {
+                    Field[] fields = clazz.getDeclaredFields();
+                    for (int i = 0; i < fields.length; i++) {
+                        if(Modifier.isStatic(fields[i].getModifiers())) {
+                            fields[i].get(null);
+                            break;
+                        }
+                    }
+                } catch(Throwable t) {
+                    // Ignore
+                }
+            }
+        }
+        loadedClasses = values.iterator();
+        while (loadedClasses.hasNext()) {
+            ResourceEntry entry = loadedClasses.next();
+            if (entry.loadedClass != null) {
+                Class<?> clazz = entry.loadedClass;
+                try {
+                    Field[] fields = clazz.getDeclaredFields();
+                    for (int i = 0; i < fields.length; i++) {
+                        Field field = fields[i];
+                        int mods = field.getModifiers();
+                        if (field.getType().isPrimitive()
+                                || (field.getName().indexOf('$') != -1)) {
+                            continue;
+                        }
+                        if (Modifier.isStatic(mods)) {
+                            try {
+                                field.setAccessible(true);
+                                if (Modifier.isFinal(mods)) {
+                                    if (!((field.getType().getName().startsWith("java."))
+                                            || (field.getType().getName().startsWith("javax.")))) {
+                                        nullInstance(field.get(null));
+                                    }
+                                } else {
+                                    field.set(null, null);
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Set field " + field.getName()
+                                                + " to null in class " + clazz.getName());
+                                    }
+                                }
+                            } catch (Throwable t) {
+                                ExceptionUtils.handleThrowable(t);
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Could not set field " + field.getName()
+                                            + " to null in class " + clazz.getName(), t);
+                                }
+                            }
+                        }
+                    }
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Could not clean fields for class " + clazz.getName(), t);
+                    }
+                }
+            }
+        }
+
+    }
+
+
+    private void nullInstance(Object instance) {
+        if (instance == null) {
+            return;
+        }
+        Field[] fields = instance.getClass().getDeclaredFields();
+        for (int i = 0; i < fields.length; i++) {
+            Field field = fields[i];
+            int mods = field.getModifiers();
+            if (field.getType().isPrimitive()
+                    || (field.getName().indexOf('$') != -1)) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                if (Modifier.isStatic(mods) && Modifier.isFinal(mods)) {
+                    // Doing something recursively is too risky
+                    continue;
+                }
+                Object value = field.get(instance);
+                if (null != value) {
+                    Class<? extends Object> valueClass = value.getClass();
+                    if (!loadedByThisOrChild(valueClass)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Not setting field " + field.getName() +
+                                    " to null in object of class " +
+                                    instance.getClass().getName() +
+                                    " because the referenced object was of type " +
+                                    valueClass.getName() +
+                                    " which was not loaded by this web application class loader.");
+                        }
+                    } else {
+                        field.set(instance, null);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Set field " + field.getName()
+                                    + " to null in class " + instance.getClass().getName());
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                ExceptionUtils.handleThrowable(t);
+                if (log.isDebugEnabled()) {
+                    log.debug("Could not set field " + field.getName()
+                            + " to null in object instance of class "
+                            + instance.getClass().getName(), t);
+                }
+            }
         }
     }
 
@@ -1691,7 +2520,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     @SuppressWarnings("deprecation") // thread.stop()
     private void clearReferencesThreads() {
         Thread[] threads = getThreads();
-        List<Thread> executorThreadsToStop = new ArrayList<>();
+        List<Thread> executorThreadsToStop = new ArrayList<Thread>();
 
         // Iterate over the set of threads
         for (Thread thread : threads) {
@@ -1703,16 +2532,17 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                         continue;
                     }
 
-                    final String threadName = thread.getName();
-
                     // JVM controlled threads
                     ThreadGroup tg = thread.getThreadGroup();
-                    if (tg != null && JVM_THREAD_GROUP_NAMES.contains(tg.getName())) {
+                    if (tg != null &&
+                            JVM_THREAD_GROUP_NAMES.contains(tg.getName())) {
+
                         // HttpClient keep-alive threads
                         if (clearReferencesHttpClientKeepAliveThread &&
-                                threadName.equals("Keep-Alive-Timer")) {
+                                thread.getName().equals("Keep-Alive-Timer")) {
                             thread.setContextClassLoader(parent);
-                            log.debug(sm.getString("webappClassLoader.checkThreadsHttpClient"));
+                            log.debug(sm.getString(
+                                    "webappClassLoader.checkThreadsHttpClient"));
                         }
 
                         // Don't warn about remaining JVM controlled threads
@@ -1734,11 +2564,11 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     }
 
                     if (isRequestThread(thread)) {
-                        log.warn(sm.getString("webappClassLoader.stackTraceRequestThread",
-                                getContextName(), threadName, getStackTrace(thread)));
+                        log.error(sm.getString("webappClassLoader.warnRequestThread",
+                                contextName, thread.getName()));
                     } else {
-                        log.warn(sm.getString("webappClassLoader.stackTrace",
-                                getContextName(), threadName, getStackTrace(thread)));
+                        log.error(sm.getString("webappClassLoader.warnThread",
+                                contextName, thread.getName()));
                     }
 
                     // Don't try an stop the threads unless explicitly
@@ -1757,9 +2587,11 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                         // "runnable" in IBM JDK
                         // "action" in Apache Harmony
                         Object target = null;
-                        for (String fieldName : new String[] { "target", "runnable", "action" }) {
+                        for (String fieldName : new String[] { "target",
+                                "runnable", "action" }) {
                             try {
-                                Field targetField = thread.getClass().getDeclaredField(fieldName);
+                                Field targetField = thread.getClass()
+                                        .getDeclaredField(fieldName);
                                 targetField.setAccessible(true);
                                 target = targetField.get(thread);
                                 break;
@@ -1770,10 +2602,12 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
                         // "java.util.concurrent" code is in public domain,
                         // so all implementations are similar
-                        if (target != null && target.getClass().getCanonicalName() != null &&
-                                target.getClass().getCanonicalName().equals(
+                        if (target != null &&
+                                target.getClass().getCanonicalName() != null
+                                && target.getClass().getCanonicalName().equals(
                                 "java.util.concurrent.ThreadPoolExecutor.Worker")) {
-                            Field executorField = target.getClass().getDeclaredField("this$0");
+                            Field executorField =
+                                target.getClass().getDeclaredField("this$0");
                             executorField.setAccessible(true);
                             Object executor = executorField.get(target);
                             if (executor instanceof ThreadPoolExecutor) {
@@ -1781,10 +2615,22 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                                 usingExecutor = true;
                             }
                         }
-                    } catch (SecurityException | NoSuchFieldException | IllegalArgumentException |
-                            IllegalAccessException e) {
-                        log.warn(sm.getString("webappClassLoader.stopThreadFail",
-                                thread.getName(), getContextName()), e);
+                    } catch (SecurityException e) {
+                        log.warn(sm.getString(
+                                "webappClassLoader.stopThreadFail",
+                                thread.getName(), contextName), e);
+                    } catch (NoSuchFieldException e) {
+                        log.warn(sm.getString(
+                                "webappClassLoader.stopThreadFail",
+                                thread.getName(), contextName), e);
+                    } catch (IllegalArgumentException e) {
+                        log.warn(sm.getString(
+                                "webappClassLoader.stopThreadFail",
+                                thread.getName(), contextName), e);
+                    } catch (IllegalAccessException e) {
+                        log.warn(sm.getString(
+                                "webappClassLoader.stopThreadFail",
+                                thread.getName(), contextName), e);
                     }
 
                     if (usingExecutor) {
@@ -1897,8 +2743,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 }
             }
 
-            log.warn(sm.getString("webappClassLoader.warnTimerThread",
-                    getContextName(), thread.getName()));
+            log.error(sm.getString("webappClassLoader.warnTimerThread",
+                    contextName, thread.getName()));
 
         } catch (Exception e) {
             // So many things to go wrong above...
@@ -1906,7 +2752,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             ExceptionUtils.handleThrowable(t);
             log.warn(sm.getString(
                     "webappClassLoader.stopTimerThreadFail",
-                    thread.getName(), getContextName()), t);
+                    thread.getName(), contextName), t);
         }
     }
 
@@ -1996,13 +2842,13 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                         }
                         if (keyLoadedByWebapp || valueLoadedByWebapp) {
                             Object[] args = new Object[5];
-                            args[0] = getContextName();
+                            args[0] = contextName;
                             if (key != null) {
                                 args[1] = getPrettyClassName(key.getClass());
                                 try {
                                     args[2] = key.toString();
                                 } catch (Exception e) {
-                                    log.warn(sm.getString(
+                                    log.error(sm.getString(
                                             "webappClassLoader.checkThreadLocalsForLeaks.badKey",
                                             args[1]), e);
                                     args[2] = sm.getString(
@@ -2014,7 +2860,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                                 try {
                                     args[4] = value.toString();
                                 } catch (Exception e) {
-                                    log.warn(sm.getString(
+                                    log.error(sm.getString(
                                             "webappClassLoader.checkThreadLocalsForLeaks.badValue",
                                             args[3]), e);
                                     args[4] = sm.getString(
@@ -2053,14 +2899,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         return name;
     }
 
-    private String getStackTrace(Thread thread) {
-        StringBuilder builder = new StringBuilder();
-        for (StackTraceElement ste : thread.getStackTrace()) {
-            builder.append("\n ").append(ste);
-        }
-        return builder.toString();
-    }
-
     /**
      * @param o object to test, may be null
      * @return <code>true</code> if o has been loaded by the current classloader
@@ -2097,7 +2935,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 }
             } catch (ConcurrentModificationException e) {
                 log.warn(sm.getString(
-                        "webappClassLoader.loadedByThisOrChildFail", clazz.getName(), getContextName()),
+                        "webappClassLoader", clazz.getName(), getContextName()),
                         e);
             }
         }
@@ -2207,11 +3045,19 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
         } catch (ClassNotFoundException e) {
             log.info(sm.getString("webappClassLoader.clearRmiInfo",
-                    getContextName()), e);
-        } catch (SecurityException | NoSuchFieldException | IllegalArgumentException |
-                IllegalAccessException e) {
+                    contextName), e);
+        } catch (SecurityException e) {
             log.warn(sm.getString("webappClassLoader.clearRmiFail",
-                    getContextName()), e);
+                    contextName), e);
+        } catch (NoSuchFieldException e) {
+            log.warn(sm.getString("webappClassLoader.clearRmiFail",
+                    contextName), e);
+        } catch (IllegalArgumentException e) {
+            log.warn(sm.getString("webappClassLoader.clearRmiFail",
+                    contextName), e);
+        } catch (IllegalAccessException e) {
+            log.warn(sm.getString("webappClassLoader.clearRmiFail",
+                    contextName), e);
         } catch (Exception e) {
             JreCompat jreCompat = JreCompat.getInstance();
             if (jreCompat.isInstanceOfInaccessibleObjectException(e)) {
@@ -2220,7 +3066,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 log.warn(sm.getString("webappClassLoader.addExportsRmi"));
             } else {
                 // Re-throw all other exceptions
-                throw e;
+                // Have to wrap this below Java 7
+                throw new RuntimeException(e);
             }
         }
     }
@@ -2231,15 +3078,31 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             Class<?> clazz = Class.forName("java.io.ObjectStreamClass$Caches");
             clearCache(clazz, "localDescs");
             clearCache(clazz, "reflectors");
-        } catch (ReflectiveOperationException | SecurityException | ClassCastException e) {
+        } catch (SecurityException e) {
+            log.warn(sm.getString(
+                    "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
+        } catch (ClassCastException e) {
+            log.warn(sm.getString(
+                    "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
+        } catch (IllegalArgumentException e) {
+            log.warn(sm.getString(
+                    "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
+        } catch (NoSuchFieldException e) {
+            log.warn(sm.getString(
+                    "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
+        } catch (IllegalAccessException e) {
+            log.warn(sm.getString(
+                    "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
+        } catch (ClassNotFoundException e) {
             log.warn(sm.getString(
                     "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
         }
     }
 
 
-    private void clearCache(Class<?> target, String mapName)
-            throws ReflectiveOperationException, SecurityException, ClassCastException {
+    private void clearCache(Class<?> target, String mapName) throws SecurityException,
+            ClassCastException, NoSuchFieldException, IllegalArgumentException,
+            IllegalAccessException {
         Field f = target.getDeclaredField(mapName);
         f.setAccessible(true);
         Map<?,?> map = (Map<?,?>) f.get(null);
@@ -2257,76 +3120,65 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     /**
-     * Find specified class in local repositories.
-     *
-     * @param name The binary name of the class to be loaded
-     *
-     * @return the loaded class, or null if the class isn't found
+     * Used to periodically signal to the classloader to release JAR resources.
      */
-    protected Class<?> findClassInternal(String name) {
-
-        checkStateForResourceLoading(name);
-
-        if (name == null) {
-            return null;
-        }
-        String path = binaryNameToPath(name, true);
-
-        ResourceEntry entry = resourceEntries.get(path);
-        WebResource resource = null;
-
-        if (entry == null) {
-            resource = resources.getClassLoaderResource(path);
-
-            if (!resource.exists()) {
-                return null;
-            }
-
-            entry = new ResourceEntry();
-            entry.lastModified = resource.getLastModified();
-
-            // Add the entry in the local resource repository
-            synchronized (resourceEntries) {
-                // Ensures that all the threads which may be in a race to load
-                // a particular class all end up with the same ResourceEntry
-                // instance
-                ResourceEntry entry2 = resourceEntries.get(path);
-                if (entry2 == null) {
-                    resourceEntries.put(path, entry);
-                } else {
-                    entry = entry2;
+    protected boolean openJARs() {
+        if (started && (jarFiles.length > 0)) {
+            lastJarAccessed = System.currentTimeMillis();
+            if (jarFiles[0] == null) {
+                for (int i = 0; i < jarFiles.length; i++) {
+                    try {
+                        jarFiles[i] = JreCompat.getInstance().jarFileNewInstance(jarRealFiles[i]);
+                    } catch (IOException e) {
+                        log.warn(sm.getString("webappClassLoader.jarOpenFail", jarFiles[i]), e);
+                        closeJARs(true);
+                        return false;
+                    }
                 }
             }
         }
+        return true;
+    }
+
+
+    /**
+     * Find specified class in local repositories.
+     *
+     * @return the loaded class, or null if the class isn't found
+     */
+    protected Class<?> findClassInternal(String name)
+        throws ClassNotFoundException {
+
+        if (!validate(name))
+            throw new ClassNotFoundException(name);
+
+        ResourceEntry entry = null;
+        String path = binaryNameToPath(name, true);
+
+        if (securityManager != null) {
+            PrivilegedAction<ResourceEntry> dp =
+                new PrivilegedFindResourceByName(name, path, true);
+            entry = AccessController.doPrivileged(dp);
+        } else {
+            entry = findResourceInternal(name, path, true);
+        }
+
+        if (entry == null)
+            throw new ClassNotFoundException(name);
 
         Class<?> clazz = entry.loadedClass;
         if (clazz != null)
             return clazz;
 
-        synchronized (getClassLoadingLock(name)) {
+        synchronized (getClassLoadingLockInternal(name)) {
             clazz = entry.loadedClass;
             if (clazz != null)
                 return clazz;
 
-            if (resource == null) {
-                resource = resources.getClassLoaderResource(path);
-            }
+            if (entry.binaryContent == null)
+                throw new ClassNotFoundException(name);
 
-            if (!resource.exists()) {
-                return null;
-            }
-
-            byte[] binaryContent = resource.getContent();
-            if (binaryContent == null) {
-                // Something went wrong reading the class bytes (and will have
-                // been logged at debug level).
-                return null;
-            }
-            Manifest manifest = resource.getManifest();
-            URL codeBase = resource.getCodeBase();
-            Certificate[] certificates = resource.getCertificates();
-
-            if (transformers.size() > 0) {
+            if (this.transformers.size() > 0) {
                 // If the resource is a class just being loaded, decorate it
                 // with any attached transformers
 
@@ -2337,9 +3189,10 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 for (ClassFileTransformer transformer : this.transformers) {
                     try {
                         byte[] transformed = transformer.transform(
-                                this, internalName, null, null, binaryContent);
+                                this, internalName, null, null, entry.binaryContent
+                        );
                         if (transformed != null) {
-                            binaryContent = transformed;
+                            entry.binaryContent = transformed;
                         }
                     } catch (IllegalClassFormatException e) {
                         log.error(sm.getString("webappClassLoader.transformError", name), e);
@@ -2361,10 +3214,12 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 // Define the package (if null)
                 if (pkg == null) {
                     try {
-                        if (manifest == null) {
-                            definePackage(packageName, null, null, null, null, null, null, null);
+                        if (entry.manifest == null) {
+                            definePackage(packageName, null, null, null, null,
+                                    null, null, null);
                         } else {
-                            definePackage(packageName, manifest, codeBase);
+                            definePackage(packageName, entry.manifest,
+                                    entry.codeBase);
                         }
                     } catch (IllegalArgumentException e) {
                         // Ignore: normal error due to dual definition of package
@@ -2379,9 +3234,10 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 if (pkg != null) {
                     boolean sealCheck = true;
                     if (pkg.isSealed()) {
-                        sealCheck = pkg.isSealed(codeBase);
+                        sealCheck = pkg.isSealed(entry.codeBase);
                     } else {
-                        sealCheck = (manifest == null) || !isPackageSealed(packageName, manifest);
+                        sealCheck = (entry.manifest == null)
+                            || !isPackageSealed(packageName, entry.manifest);
                     }
                     if (!sealCheck)
                         throw new SecurityException
@@ -2392,18 +3248,377 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             try {
-                clazz = defineClass(name, binaryContent, 0,
-                        binaryContent.length, new CodeSource(codeBase, certificates));
+                clazz = defineClass(name, entry.binaryContent, 0,
+                        entry.binaryContent.length,
+                        new CodeSource(entry.codeBase, entry.certificates));
             } catch (UnsupportedClassVersionError ucve) {
                 throw new UnsupportedClassVersionError(
                         ucve.getLocalizedMessage() + " " +
                         sm.getString("webappClassLoader.wrongVersion",
                                 name));
             }
+            // Now the class has been defined, clear the elements of the local
+            // resource cache that are no longer required.
             entry.loadedClass = clazz;
+            entry.binaryContent = null;
+            entry.codeBase = null;
+            entry.manifest = null;
+            entry.certificates = null;
+            // Retain entry.source in case of a getResourceAsStream() call on
+            // the class file after the class has been defined.
         }
 
         return clazz;
+
+    }
+
+    /**
+     * Find specified resource in local repositories.
+     *
+     * @return the loaded resource, or null if the resource isn't found
+     */
+    protected ResourceEntry findResourceInternal(File file, String path){
+        ResourceEntry entry = new ResourceEntry();
+        try {
+            entry.source = getURI(new File(file, path));
+            String sourceString = entry.source.toString();
+            if (sourceString.startsWith(webInfClassesCodeBase.toString()) &&
+                    sourceString.endsWith(CLASS_FILE_SUFFIX)) {
+                entry.codeBase = webInfClassesCodeBase;
+            } else {
+                entry.codeBase = entry.source;
+            }
+        } catch (MalformedURLException e) {
+            return null;
+        }
+        return entry;
+    }
+
+
+    /**
+     * Find specified resource in local repositories.
+     *
+     * @return the loaded resource, or null if the resource isn't found
+     */
+    protected ResourceEntry findResourceInternal(final String name, final String path,
+            final boolean manifestRequired) {
+
+        if (!started) {
+            log.info(sm.getString("webappClassLoader.stopped", name));
+            return null;
+        }
+
+        if ((name == null) || (path == null))
+            return null;
+
+        JarEntry jarEntry = null;
+        // Need to skip the leading / to find resources in JARs
+        String jarEntryPath = path.substring(1);
+
+        ResourceEntry entry = resourceEntries.get(path);
+        if (entry != null) {
+            if (manifestRequired && entry.manifest == MANIFEST_UNKNOWN) {
+                // This resource was added to the cache when a request was made
+                // for the resource that did not need the manifest. Now the
+                // manifest is required, the cache entry needs to be updated.
+                synchronized (jarFiles) {
+                    if (openJARs()) {
+                        for (int i = 0; i < jarFiles.length; i++) {
+
+                            jarEntry = jarFiles[i].getJarEntry(jarEntryPath);
+
+                            if (jarEntry != null) {
+                                try {
+                                    entry.manifest = jarFiles[i].getManifest();
+                                } catch (IOException ioe) {
+                                    // Ignore
+                                }
+                                break;
+                            }
+                         }
+                     }
+                }
+            }
+            return entry;
+        }
+
+        int contentLength = -1;
+        InputStream binaryStream = null;
+        boolean isClassResource = path.endsWith(CLASS_FILE_SUFFIX);
+        boolean isCacheable = isClassResource;
+        if (!isCacheable) {
+             isCacheable = path.startsWith(SERVICES_PREFIX);
+        }
+
+        int jarFilesLength = jarFiles.length;
+        int repositoriesLength = repositories.length;
+
+        int i;
+
+        Resource resource = null;
+
+        boolean fileNeedConvert = false;
+
+        for (i = 0; (entry == null) && (i < repositoriesLength); i++) {
+            try {
+
+                String fullPath = repositories[i] + path;
+
+                Object lookupResult = resources.lookup(fullPath);
+                if (lookupResult instanceof Resource) {
+                    resource = (Resource) lookupResult;
+                }
+
+                // Note : Not getting an exception here means the resource was
+                // found
+
+                ResourceAttributes attributes =
+                    (ResourceAttributes) resources.getAttributes(fullPath);
+                contentLength = (int) attributes.getContentLength();
+                String canonicalPath = attributes.getCanonicalPath();
+                if (canonicalPath != null) {
+                    // we create the ResourceEntry based on the information returned
+                    // by the DirContext rather than just using the path to the
+                    // repository. This allows to have smart DirContext implementations
+                    // that "virtualize" the docbase (e.g. Eclipse WTP)
+                    entry = findResourceInternal(new File(canonicalPath), "");
+                } else {
+                    // probably a resource not in the filesystem (e.g. in a
+                    // packaged war)
+                    entry = findResourceInternal(files[i], path);
+                }
+                entry.lastModified = attributes.getLastModified();
+
+                if (resource != null) {
+
+
+                    try {
+                        binaryStream = resource.streamContent();
+                    } catch (IOException e) {
+                        return null;
+                    }
+
+                    if (needConvert) {
+                        if (path.endsWith(".properties")) {
+                            fileNeedConvert = true;
+                        }
+                    }
+
+                    // Register the full path for modification checking
+                    // Note: Only syncing on a 'constant' object is needed
+                    synchronized (allPermission) {
+
+                        int j;
+
+                        long[] result2 =
+                            new long[lastModifiedDates.length + 1];
+                        for (j = 0; j < lastModifiedDates.length; j++) {
+                            result2[j] = lastModifiedDates[j];
+                        }
+                        result2[lastModifiedDates.length] = entry.lastModified;
+                        lastModifiedDates = result2;
+
+                        String[] result = new String[paths.length + 1];
+                        for (j = 0; j < paths.length; j++) {
+                            result[j] = paths[j];
+                        }
+                        result[paths.length] = fullPath;
+                        paths = result;
+
+                    }
+
+                }
+
+            } catch (NamingException e) {
+                // Ignore
+            }
+        }
+
+        if ((entry == null) && (notFoundResources.containsKey(name)))
+            return null;
+
+        synchronized (jarFiles) {
+
+            try {
+                if (!openJARs()) {
+                    return null;
+                }
+                for (i = 0; (entry == null) && (i < jarFilesLength); i++) {
+
+                    jarEntry = jarFiles[i].getJarEntry(jarEntryPath);
+
+                    if (jarEntry != null) {
+
+                        entry = new ResourceEntry();
+                        try {
+                            entry.codeBase = getURI(jarRealFiles[i]);
+                            entry.source =
+                                    UriUtil.buildJarUrl(entry.codeBase.toString(), jarEntryPath);
+                            entry.lastModified = jarRealFiles[i].lastModified();
+                        } catch (MalformedURLException e) {
+                            return null;
+                        }
+                        contentLength = (int) jarEntry.getSize();
+                        try {
+                            if (manifestRequired) {
+                                entry.manifest = jarFiles[i].getManifest();
+                            } else {
+                                entry.manifest = MANIFEST_UNKNOWN;
+                            }
+                            binaryStream = jarFiles[i].getInputStream(jarEntry);
+                        } catch (IOException e) {
+                            return null;
+                        }
+
+                        // Extract resources contained in JAR to the workdir
+                        if (antiJARLocking && !(path.endsWith(CLASS_FILE_SUFFIX))) {
+                            byte[] buf = new byte[1024];
+                            File resourceFile = new File(loaderDir, jarEntry.getName());
+                            if (!resourceFile.exists()) {
+                                Enumeration<JarEntry> entries = jarFiles[i].entries();
+                                while (entries.hasMoreElements()) {
+                                    JarEntry jarEntry2 =  entries.nextElement();
+                                    if (!(jarEntry2.isDirectory()) &&
+                                            (!jarEntry2.getName().endsWith(CLASS_FILE_SUFFIX))) {
+                                        resourceFile = new File(loaderDir, jarEntry2.getName());
+                                        try {
+                                            if (!resourceFile.getCanonicalPath().startsWith(
+                                                    canonicalLoaderDir)) {
+                                                throw new IllegalArgumentException(
+                                                        sm.getString("webappClassLoader.illegalJarPath",
+                                                                jarEntry2.getName()));
+                                            }
+                                        } catch (IOException ioe) {
+                                            throw new IllegalArgumentException(
+                                                    sm.getString("webappClassLoader.validationErrorJarPath",
+                                                            jarEntry2.getName()), ioe);
+                                        }
+                                        File parentFile = resourceFile.getParentFile();
+                                        if (!parentFile.mkdirs() && !parentFile.exists()) {
+                                            // Ignore the error (like the IOExceptions below)
+                                        }
+                                        FileOutputStream os = null;
+                                        InputStream is = null;
+                                        try {
+                                            is = jarFiles[i].getInputStream(jarEntry2);
+                                            os = new FileOutputStream(resourceFile);
+                                            while (true) {
+                                                int n = is.read(buf);
+                                                if (n <= 0) {
+                                                    break;
+                                                }
+                                                os.write(buf, 0, n);
+                                            }
+                                            resourceFile.setLastModified(jarEntry2.getTime());
+                                        } catch (IOException e) {
+                                            // Ignore
+                                        } finally {
+                                            try {
+                                                if (is != null) {
+                                                    is.close();
+                                                }
+                                            } catch (IOException e) {
+                                                // Ignore
+                                            }
+                                            try {
+                                                if (os != null) {
+                                                    os.close();
+                                                }
+                                            } catch (IOException e) {
+                                                // Ignore
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (entry == null) {
+                    synchronized (notFoundResources) {
+                        notFoundResources.put(name, name);
+                    }
+                    return null;
+                }
+
+                /* Only cache the binary content if there is some content
+                 * available one of the following is true:
+                 * a) It is a class file since the binary content is only cached
+                 *    until the class has been loaded
+                 *    or
+                 * b) The file needs conversion to address encoding issues (see
+                 *    below)
+                 *    or
+                 * c) The resource is a service provider configuration file located
+                 *    under META=INF/services
+                 *
+                 * In all other cases do not cache the content to prevent
+                 * excessive memory usage if large resources are present (see
+                 * https://bz.apache.org/bugzilla/show_bug.cgi?id=53081).
+                 */
+                if (binaryStream != null && (isCacheable || fileNeedConvert)) {
+
+                    byte[] binaryContent = new byte[contentLength];
+
+                    int pos = 0;
+                    try {
+                        while (true) {
+                            int n = binaryStream.read(binaryContent, pos,
+                                                      binaryContent.length - pos);
+                            if (n <= 0)
+                                break;
+                            pos += n;
+                        }
+                    } catch (IOException e) {
+                        log.error(sm.getString("webappClassLoader.readError", name), e);
+                        return null;
+                    }
+                    if (fileNeedConvert) {
+                        // Workaround for certain files on platforms that use
+                        // EBCDIC encoding, when they are read through FileInputStream.
+                        // See commit message of rev.303915 for details
+                        // http://svn.apache.org/viewvc?view=revision&revision=303915
+                        String str = new String(binaryContent,0,pos);
+                        try {
+                            binaryContent = str.getBytes(CHARSET_UTF8);
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    }
+                    entry.binaryContent = binaryContent;
+
+                    // The certificates are only available after the JarEntry
+                    // associated input stream has been fully read
+                    if (jarEntry != null) {
+                        entry.certificates = jarEntry.getCertificates();
+                    }
+
+                }
+            } finally {
+                if (binaryStream != null) {
+                    try {
+                        binaryStream.close();
+                    } catch (IOException e) { /* Ignore */}
+                }
+            }
+        }
+
+        // Add the entry in the local resource repository
+        synchronized (resourceEntries) {
+            // Ensures that all the threads which may be in a race to load
+            // a particular class all end up with the same ResourceEntry
+            // instance
+            ResourceEntry entry2 = resourceEntries.get(path);
+            if (entry2 == null) {
+                resourceEntries.put(path, entry);
+            } else {
+                entry = entry2;
+            }
+        }
+
+        return entry;
+
     }
 
 
@@ -2434,10 +3649,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     /**
      * Returns true if the specified package name is sealed according to the
      * given manifest.
-     *
-     * @param name Path name to check
-     * @param man Associated manifest
-     * @return <code>true</code> if the manifest associated says it is sealed
      */
     protected boolean isPackageSealed(String name, Manifest man) {
 
@@ -2458,22 +3669,47 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     /**
+     * Finds the resource with the given name if it has previously been
+     * loaded and cached by this class loader, and return an input stream
+     * to the resource data.  If this resource has not been cached, return
+     * <code>null</code>.
+     *
+     * @param name Name of the resource to return
+     */
+    protected InputStream findLoadedResource(String name) {
+        String path = nameToPath(name);
+        ResourceEntry entry = resourceEntries.get(path);
+        if (entry != null) {
+            if (entry.binaryContent != null)
+                return new ByteArrayInputStream(entry.binaryContent);
+            else {
+                try {
+                    return entry.source.openStream();
+                } catch (IOException ioe) {
+                    // Ignore
+                }
+            }
+        }
+        return null;
+
+    }
+
+
+    /**
      * Finds the class with the given name if it has previously been
      * loaded and cached by this class loader, and return the Class object.
      * If this class has not been cached, return <code>null</code>.
      *
-     * @param name The binary name of the resource to return
-     * @return a loaded class
+     * @param name Name of the resource to return
      */
     protected Class<?> findLoadedClass0(String name) {
-
         String path = binaryNameToPath(name, true);
-
         ResourceEntry entry = resourceEntries.get(path);
         if (entry != null) {
             return entry.loadedClass;
         }
-        return null;
+        return (null);  // FIXME - findLoadedResource()
+
     }
 
 
@@ -2500,162 +3736,187 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * Filter classes.
      *
      * @param name class name
-     * @param isClassName <code>true</code> if name is a class name,
-     *                <code>false</code> if name is a resource name
-     * @return <code>true</code> if the class should be filtered
+     * @return true if the class should be filtered
      */
-    protected boolean filter(String name, boolean isClassName) {
+    protected boolean filter(String name) {
 
         if (name == null)
             return false;
 
-        char ch;
-        if (name.startsWith("javax")) {
-            /* 5 == length("javax") */
-            if (name.length() == 5) {
-                return false;
-            }
-            ch = name.charAt(5);
-            if (isClassName && ch == '.') {
-                /* 6 == length("javax.") */
-                if (name.startsWith("servlet.jsp.jstl.", 6)) {
-                    return false;
-                }
-                if (name.startsWith("el.", 6) ||
-                    name.startsWith("servlet.", 6) ||
-                    name.startsWith("websocket.", 6) ||
-                    name.startsWith("security.auth.message.", 6)) {
-                    return true;
-                }
-            } else if (!isClassName && ch == '/') {
-                /* 6 == length("javax/") */
-                if (name.startsWith("servlet/jsp/jstl/", 6)) {
-                    return false;
-                }
-                if (name.startsWith("el/", 6) ||
-                    name.startsWith("servlet/", 6) ||
-                    name.startsWith("websocket/", 6) ||
-                    name.startsWith("security/auth/message/", 6)) {
-                    return true;
-                }
-            }
-        } else if (name.startsWith("org")) {
-            /* 3 == length("org") */
-            if (name.length() == 3) {
-                return false;
-            }
-            ch = name.charAt(3);
-            if (isClassName && ch == '.') {
-                /* 4 == length("org.") */
-                if (name.startsWith("apache.", 4)) {
-                    /* 11 == length("org.apache.") */
-                    if (name.startsWith("tomcat.jdbc.", 11)) {
-                        return false;
-                    }
-                    if (name.startsWith("el.", 11) ||
-                        name.startsWith("catalina.", 11) ||
-                        name.startsWith("jasper.", 11) ||
-                        name.startsWith("juli.", 11) ||
-                        name.startsWith("tomcat.", 11) ||
-                        name.startsWith("naming.", 11) ||
-                        name.startsWith("coyote.", 11)) {
-                        return true;
-                    }
-                }
-            } else if (!isClassName && ch == '/') {
-                /* 4 == length("org/") */
-                if (name.startsWith("apache/", 4)) {
-                    /* 11 == length("org/apache/") */
-                    if (name.startsWith("tomcat/jdbc/", 11)) {
-                        return false;
-                    }
-                    if (name.startsWith("el/", 11) ||
-                        name.startsWith("catalina/", 11) ||
-                        name.startsWith("jasper/", 11) ||
-                        name.startsWith("juli/", 11) ||
-                        name.startsWith("tomcat/", 11) ||
-                        name.startsWith("naming/", 11) ||
-                        name.startsWith("coyote/", 11)) {
-                        return true;
-                    }
-                }
-            }
+        // Looking up the package
+        String packageName = null;
+        int pos = name.lastIndexOf('.');
+        if (pos != -1)
+            packageName = name.substring(0, pos);
+        else
+            return false;
+
+        for (int i = 0; i < packageTriggers.length; i++) {
+            if (packageName.startsWith(packageTriggers[i]))
+                return true;
         }
+
         return false;
+
     }
 
 
     /**
-     * Filter classes.
+     * Validate a classname. As per SRV.9.7.2, we must restrict loading of
+     * classes from J2SE (java.*) and most classes of the servlet API
+     * (javax.servlet.*). That should enhance robustness and prevent a number
+     * of user error (where an older version of servlet.jar would be present
+     * in /WEB-INF/lib).
      *
      * @param name class name
-     * @return <code>true</code> if the class should be filtered
-     * @deprecated Use {@link #filter(String, boolean)} This will be removed in
-     *             Tomcat 9
+     * @return true if the name is valid
      */
-    @Deprecated
-    protected boolean filter(String name) {
-        return filter(name, true) || filter(name, false);
-    }
+    protected boolean validate(String name) {
 
-
-    @Override
-    protected void addURL(URL url) {
-        super.addURL(url);
-        hasExternalRepositories = true;
-    }
-
-
-    @Override
-    public String getWebappName() {
-        return getContextName();
-    }
-
-
-    @Override
-    public String getHostName() {
-        if (resources != null) {
-            Container host = resources.getContext().getParent();
-            if (host != null) {
-                return host.getName();
-            }
+        // Need to be careful with order here
+        if (name == null) {
+            // Can't load a class without a name
+            return false;
         }
-        return null;
+        if (name.startsWith("java.")) {
+            // Must never load java.* classes
+            return false;
+        }
+        if (name.startsWith("javax.servlet.jsp.jstl")) {
+            // OK for web apps to package JSTL
+            return true;
+        }
+        if (name.startsWith("javax.servlet.")) {
+            // Web apps should never package any other Servlet or JSP classes
+            return false;
+        }
+        if (name.startsWith("javax.el")) {
+            // Must never load javax.el.* classes
+            return false;
+        }
+
+        // Assume everything else is OK
+        return true;
+
     }
 
 
-    @Override
-    public String getServiceName() {
-        if (resources != null) {
-            Container host = resources.getContext().getParent();
-            if (host != null) {
-                Container engine = host.getParent();
-                if (engine != null) {
-                    return engine.getName();
+    /**
+     * Check the specified JAR file, and return <code>true</code> if it does
+     * not contain any of the trigger classes.
+     *
+     * @param file  The JAR file to be checked
+     *
+     * @exception IOException if an input/output error occurs
+     */
+    protected boolean validateJarFile(File file)
+        throws IOException {
+
+        if (triggers == null)
+            return (true);
+
+        JarFile jarFile = null;
+        try {
+            jarFile = JreCompat.getInstance().jarFileNewInstance(file);
+            for (int i = 0; i < triggers.length; i++) {
+                Class<?> clazz = null;
+                try {
+                    if (parent != null) {
+                        clazz = parent.loadClass(triggers[i]);
+                    } else {
+                        clazz = Class.forName(triggers[i]);
+                    }
+                } catch (Exception e) {
+                    clazz = null;
+                }
+                if (clazz == null)
+                    continue;
+                String name = triggers[i].replace('.', '/') + CLASS_FILE_SUFFIX;
+                if (log.isDebugEnabled())
+                    log.debug(" Checking for " + name);
+                JarEntry jarEntry = jarFile.getJarEntry(name);
+                if (jarEntry != null) {
+                    log.info("validateJarFile(" + file +
+                        ") - jar not loaded. See Servlet Spec 3.0, "
+                        + "section 10.7.2. Offending class: " + name);
+                    return false;
+                }
+            }
+            return true;
+        } finally {
+            if (jarFile != null) {
+                try {
+                    jarFile.close();
+                } catch (IOException ioe) {
+                    // Ignore
                 }
             }
         }
-        return null;
     }
 
 
-    @Override
-    public boolean hasLoggingConfig() {
-        if (Globals.IS_SECURITY_ENABLED) {
-            Boolean result = AccessController.doPrivileged(new PrivilegedHasLoggingConfig());
-            return result.booleanValue();
-        } else {
-            return findResource("logging.properties") != null;
+    /**
+     * Get URL.
+     * @deprecated Use {@link #getURI(File)} instead
+     */
+    @Deprecated
+    protected URL getURL(File file, boolean encoded)
+        throws MalformedURLException {
+
+        File realFile = file;
+        try {
+            realFile = realFile.getCanonicalFile();
+        } catch (IOException e) {
+            // Ignore
         }
+        if(encoded) {
+            return getURI(realFile);
+        }
+
+        return realFile.toURI().toURL();
     }
 
 
-    private class PrivilegedHasLoggingConfig implements PrivilegedAction<Boolean> {
+    /**
+     * Get the URI for the given file.
+     */
+    protected URL getURI(File file)
+        throws MalformedURLException {
 
-        @Override
-        public Boolean run() {
-            return Boolean.valueOf(findResource("logging.properties") != null);
+
+        File realFile = file;
+        try {
+            realFile = realFile.getCanonicalFile();
+        } catch (IOException e) {
+            // Ignore
         }
+        return realFile.toURI().toURL();
+
+    }
+
+
+    /**
+     * Delete the specified directory, including all of its contents and
+     * subdirectories recursively.
+     *
+     * @param dir File object representing the directory to be deleted
+     */
+    protected static void deleteDir(File dir) {
+
+        String files[] = dir.list();
+        if (files == null) {
+            files = new String[0];
+        }
+        for (int i = 0; i < files.length; i++) {
+            File file = new File(dir, files[i]);
+            if (file.isDirectory()) {
+                deleteDir(file);
+            } else {
+                file.delete();
+            }
+        }
+        dir.delete();
+
     }
 
 

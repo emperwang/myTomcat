@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
  Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -23,7 +23,6 @@
   <!-- Anything in J2SE is OK but need to list javax by package as not
        all javax packages are in J2SE -->
   <allow pkg="java"/>
-  <allow pkg="javax.crypto"/>
   <allow class="javax.imageio.ImageIO"/>
   <allow pkg="javax.management"/>
   <allow pkg="javax.naming"/>
@@ -67,10 +66,6 @@
       <allow pkg="org.apache.catalina.ha"/>
       <allow pkg="org.apache.catalina.tribes"/>
     </subpackage>
-    <subpackage name="storeconfig">
-      <allow pkg="org.apache.catalina.ha"/>
-      <allow pkg="org.apache.catalina.tribes"/>
-    </subpackage>
     <subpackage name="tribes">
       <disallow pkg="javax.annotation"/>
       <disallow pkg="javax.ejb"/>
@@ -87,7 +82,6 @@
     <allow pkg="javax.servlet"/>
     <allow pkg="org.apache.coyote"/>
     <allow pkg="org.apache.juli"/>
-    <allow pkg="org.apache.tomcat"/>
     <allow pkg="org.apache.tomcat.jni"/>
     <allow pkg="org.apache.tomcat.util"/>
   </subpackage>
@@ -130,29 +124,30 @@
     </subpackage>
     <subpackage name="dbcp">
       <allow pkg="org.apache.juli"/>
-      <subpackage name="dbcp2">
-        <allow pkg="org.apache.tomcat.dbcp.dbcp2"/>
-        <allow pkg="org.apache.tomcat.dbcp.pool2"/>
+      <subpackage name="dbcp">
+        <allow pkg="org.apache.tomcat.dbcp.dbcp"/>
+        <allow pkg="org.apache.tomcat.dbcp.jocl"/>
+        <allow pkg="org.apache.tomcat.dbcp.pool"/>
+        <allow pkg="org.apache.tomcat.util.compat"/>
+        <subpackage name="managed">
+          <allow pkg="javax.transaction"/>
+        </subpackage>
       </subpackage>
-      <subpackage name="pool2">
+      <subpackage name="pool">
         <subpackage name="impl">
-          <allow pkg="org.apache.tomcat.dbcp.pool2"/>
+          <allow pkg="org.apache.tomcat.dbcp.pool"/>
         </subpackage>
       </subpackage>
     </subpackage>
-    <subpackage name="jni">
-      <subpackage name="socket">
-        <allow pkg="org.apache.tomcat.jni"/>
-      </subpackage>
-    </subpackage>
+    <subpackage name="jni"/>
     <subpackage name="util">
       <allow pkg="org.apache.juli"/>
       <allow pkg="org.apache.tomcat.jni"/>
       <allow pkg="org.apache.tomcat.util"/>
-      <disallow pkg="org.apache.tomcat.util.scan"/>
-      <subpackage name="descriptor">
-        <allow pkg="org.apache.tomcat.util.scan"/>
-        <allow pkg="org.apache.tomcat" exact-match="true"/>
+      <disallow pkg="org.apache.util.scan"/>
+      <subpackage name="compat">
+        <allow pkg="javax.annotation"/>
+        <disallow pkg="org.apache.tomcat.util.net"/>
       </subpackage>
       <subpackage name="scan">
         <allow pkg="org.apache.tomcat" exact-match="true"/>
@@ -160,6 +155,10 @@
     </subpackage>
     <subpackage name="websocket">
       <allow pkg="javax.websocket"/>
+      <!-- Require to access HTTP Upgrade API -->
+      <allow pkg="org.apache.catalina.connector"/>
+      <!-- The Servlet 3.1 API replacement classes are in this package -->
+      <allow pkg="org.apache.coyote.http11.upgrade"/>
       <allow pkg="org.apache.juli"/>
       <allow pkg="org.apache.tomcat"/>
       <allow pkg="org.apache.tomcat.util"/>
@@ -171,7 +170,6 @@
       </subpackage>
       <subpackage name="server">
         <allow pkg="javax.servlet"/>
-        <allow pkg="org.apache.coyote.http11.upgrade"/>
         <allow pkg="org.apache.tomcat.websocket"/>
       </subpackage>
     </subpackage>

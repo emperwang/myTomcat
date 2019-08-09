@@ -19,6 +19,7 @@ package org.apache.catalina.tribes.group;
 import org.apache.catalina.tribes.ErrorHandler;
 
 /**
+ * @author Filip Hanik
  * @version 1.0
  */
 public class InterceptorPayload  {

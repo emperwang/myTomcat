@@ -18,7 +18,6 @@ package javax.servlet.http;
 
 import java.io.Serializable;
 import java.text.MessageFormat;
-import java.util.BitSet;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -48,44 +47,35 @@ import java.util.ResourceBundle;
  * cache pages that use cookies created with this class. This class does not
  * support the cache control defined with HTTP 1.1.
  * <p>
- * This class supports both the RFC 2109 and the RFC 6265 specifications.
- * By default, cookies are created using RFC 6265.
+ * This class supports both the Version 0 (by Netscape) and Version 1 (by RFC
+ * 2109) cookie specifications. By default, cookies are created using Version 0
+ * to ensure the best interoperability.
  */
 public class Cookie implements Cloneable, Serializable {
 
-    private static final CookieNameValidator validation;
-    static {
-        boolean strictNaming;
-        String prop = System.getProperty("org.apache.tomcat.util.http.ServerCookie.STRICT_NAMING");
-        if (prop != null) {
-            strictNaming = Boolean.parseBoolean(prop);
-        } else {
-            strictNaming = Boolean.getBoolean("org.apache.catalina.STRICT_SERVLET_COMPLIANCE");
-        }
-
-        if (strictNaming) {
-            validation = new RFC2109Validator();
-        }
-        else {
-            validation = new RFC6265Validator();
-        }
-    }
-
     private static final long serialVersionUID = 1L;
 
-    private final String name;
-    private String value;
+    private static final String LSTRING_FILE = "javax.servlet.http.LocalStrings";
+    private static ResourceBundle lStrings = ResourceBundle.getBundle(LSTRING_FILE);
 
-    private int version = 0; // ;Version=1 ... means RFC 2109 style
+    //
+    // The value of the cookie itself.
+    //
+
+    private String name; // NAME= ... "$Name" style is reserved
+    private String value; // value of NAME
 
     //
     // Attributes encoded in the header's cookie fields.
     //
+
     private String comment; // ;Comment=VALUE ... describes cookie's use
+    // ;Discard ... implied by maxAge < 0
     private String domain; // ;Domain=VALUE ... domain that sees cookie
     private int maxAge = -1; // ;Max-Age=VALUE ... cookies auto-expire
     private String path; // ;Path=VALUE ... URLs that see the cookie
     private boolean secure; // ;Secure ... e.g. use SSL
+    private int version = 0; // ;Version=1 ... means RFC 2109++ style
     private boolean httpOnly; // Not in cookie specs, but supported by browsers
 
     /**
@@ -116,7 +106,29 @@ public class Cookie implements Cloneable, Serializable {
      * @see #setVersion
      */
     public Cookie(String name, String value) {
-        validation.validate(name);
+        if (name == null || name.length() == 0) {
+            throw new IllegalArgumentException(
+                    lStrings.getString("err.cookie_name_blank"));
+        }
+        if (!isToken(name) ||
+                name.equalsIgnoreCase("Comment") // rfc2019
+                ||
+                name.equalsIgnoreCase("Discard") // 2019++
+                ||
+                name.equalsIgnoreCase("Domain") ||
+                name.equalsIgnoreCase("Expires") // (old cookies)
+                ||
+                name.equalsIgnoreCase("Max-Age") // rfc2019
+                || name.equalsIgnoreCase("Path") ||
+                name.equalsIgnoreCase("Secure") ||
+                name.equalsIgnoreCase("Version") || name.startsWith("$")) {
+            String errMsg = lStrings.getString("err.cookie_name_is_token");
+            Object[] errArgs = new Object[1];
+            errArgs[0] = name;
+            errMsg = MessageFormat.format(errMsg, errArgs);
+            throw new IllegalArgumentException(errMsg);
+        }
+
         this.name = name;
         this.value = value;
     }
@@ -342,6 +354,88 @@ public class Cookie implements Cloneable, Serializable {
         version = v;
     }
 
+    // Note -- disabled for now to allow full Netscape compatibility
+    // from RFC 2068, token special case characters
+    //
+    // private static final String tspecials = "()<>@,;:\\\"/[]?={} \t";
+
+    private static final String tspecials = ",; ";
+    private static final String tspecials2NoSlash = "()<>@,;:\\\"[]?={} \t";
+    private static final String tspecials2WithSlash = tspecials2NoSlash + "/";
+    private static final String tspecials2;
+
+    /**
+     * If set to true, we parse cookies strictly according to the servlet,
+     * cookie and HTTP specs by default.
+     */
+    private static final boolean STRICT_SERVLET_COMPLIANCE;
+
+    /**
+     * If set to true, the <code>/</code> character will be treated as a
+     * separator. Default is usually false. If STRICT_SERVLET_COMPLIANCE==true
+     * then default is true. Explicitly setting always takes priority.
+     */
+    private static final boolean FWD_SLASH_IS_SEPARATOR;
+
+    /**
+     * If set to true, enforce the cookie naming rules in the spec that require
+     * no separators in the cookie name. Default is usually false. If
+     * STRICT_SERVLET_COMPLIANCE==true then default is true. Explicitly setting
+     * always takes priority.
+     */
+    private static final boolean STRICT_NAMING;
+
+    static {
+        STRICT_SERVLET_COMPLIANCE = Boolean.parseBoolean(
+                System.getProperty(
+                        "org.apache.catalina.STRICT_SERVLET_COMPLIANCE",
+                        "false"));
+
+        String fwdSlashIsSeparator = System.getProperty(
+                "org.apache.tomcat.util.http.ServerCookie.FWD_SLASH_IS_SEPARATOR");
+        if (fwdSlashIsSeparator == null) {
+            FWD_SLASH_IS_SEPARATOR = STRICT_SERVLET_COMPLIANCE;
+        } else {
+            FWD_SLASH_IS_SEPARATOR = Boolean.parseBoolean(fwdSlashIsSeparator);
+        }
+
+        if (FWD_SLASH_IS_SEPARATOR) {
+            tspecials2 = tspecials2WithSlash;
+        } else {
+            tspecials2 = tspecials2NoSlash;
+        }
+
+        String strictNaming = System.getProperty(
+                "org.apache.tomcat.util.http.ServerCookie.STRICT_NAMING");
+        if (strictNaming == null) {
+            STRICT_NAMING = STRICT_SERVLET_COMPLIANCE;
+        } else {
+            STRICT_NAMING = Boolean.parseBoolean(strictNaming);
+        }
+
+    }
+
+    /**
+     * Tests a string and returns true if the string counts as a reserved token
+     * in the Java language.
+     * @param possibleToken the <code>String</code> to be tested
+     * @return <code>true</code> if the <code>String</code> is a reserved token;
+     * <code>false</code> if it is not
+     */
+    private boolean isToken(String possibleToken) {
+        int len = possibleToken.length();
+
+        for (int i = 0; i < len; i++) {
+            char c = possibleToken.charAt(i);
+
+            if (c < 0x20 || c >= 0x7f || tspecials.indexOf(c) != -1 ||
+                    (STRICT_NAMING && tspecials2.indexOf(c) != -1)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Overrides the standard <code>java.lang.Object.clone</code> method to
      * return a copy of this cookie.
@@ -351,7 +445,7 @@ public class Cookie implements Cloneable, Serializable {
         try {
             return super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(e.getMessage());
         }
     }
 
@@ -377,77 +471,5 @@ public class Cookie implements Cloneable, Serializable {
      */
     public boolean isHttpOnly() {
         return httpOnly;
-    }
-}
-
-
-class CookieNameValidator {
-    private static final String LSTRING_FILE = "javax.servlet.http.LocalStrings";
-    protected static final ResourceBundle lStrings = ResourceBundle.getBundle(LSTRING_FILE);
-
-    protected final BitSet allowed;
-
-    protected CookieNameValidator(String separators) {
-        allowed = new BitSet(128);
-        allowed.set(0x20, 0x7f); // any CHAR except CTLs or separators
-        for (int i = 0; i < separators.length(); i++) {
-            char ch = separators.charAt(i);
-            allowed.clear(ch);
-        }
-    }
-
-    void validate(String name) {
-        if (name == null || name.length() == 0) {
-            throw new IllegalArgumentException(lStrings.getString("err.cookie_name_blank"));
-        }
-        if (!isToken(name)) {
-            String errMsg = lStrings.getString("err.cookie_name_is_token");
-            throw new IllegalArgumentException(MessageFormat.format(errMsg, name));
-        }
-    }
-
-    private boolean isToken(String possibleToken) {
-        int len = possibleToken.length();
-
-        for (int i = 0; i < len; i++) {
-            char c = possibleToken.charAt(i);
-            if (!allowed.get(c)) {
-                return false;
-            }
-        }
-        return true;
-    }
-}
-
-class RFC6265Validator extends CookieNameValidator {
-    private static final String RFC2616_SEPARATORS = "()<>@,;:\\\"/[]?={} \t";
-
-    RFC6265Validator() {
-        super(RFC2616_SEPARATORS);
-    }
-}
-
-class RFC2109Validator extends RFC6265Validator {
-    RFC2109Validator() {
-        // special treatment to allow for FWD_SLASH_IS_SEPARATOR property
-        boolean allowSlash;
-        String prop = System.getProperty("org.apache.tomcat.util.http.ServerCookie.FWD_SLASH_IS_SEPARATOR");
-        if (prop != null) {
-            allowSlash = !Boolean.parseBoolean(prop);
-        } else {
-            allowSlash = !Boolean.getBoolean("org.apache.catalina.STRICT_SERVLET_COMPLIANCE");
-        }
-        if (allowSlash) {
-            allowed.set('/');
-        }
-    }
-
-    @Override
-    void validate(String name) {
-        super.validate(name);
-        if (name.charAt(0) == '$') {
-            String errMsg = lStrings.getString("err.cookie_name_is_token");
-            throw new IllegalArgumentException(MessageFormat.format(errMsg, name));
-        }
     }
 }

@@ -40,6 +40,8 @@ import org.apache.tomcat.util.res.StringManager;
  * Implementation of <code>LifecycleListener</code> that will init and
  * and destroy APR.
  *
+ * @author Remy Maucherat
+ * @author Filip Hanik
  * @since 4.1
  */
 public class AprLifecycleListener
@@ -52,7 +54,7 @@ public class AprLifecycleListener
      * so that, in normal (non-error) cases, init() related log messages appear
      * at the expected point in the lifecycle.
      */
-    private static final List<String> initInfoLogMessages = new ArrayList<>(3);
+    private static final List<String> initInfoLogMessages = new ArrayList<String>(3);
 
     /**
      * The string manager for this package.
@@ -63,10 +65,9 @@ public class AprLifecycleListener
 
     // ---------------------------------------------- Constants
 
-
     protected static final int TCN_REQUIRED_MAJOR = 1;
-    protected static final int TCN_REQUIRED_MINOR = 2;
-    protected static final int TCN_REQUIRED_PATCH = 14;
+    protected static final int TCN_REQUIRED_MINOR = 1;
+    protected static final int TCN_REQUIRED_PATCH = 32;
     protected static final int TCN_RECOMMENDED_MINOR = 2;
     protected static final int TCN_RECOMMENDED_PV = 23;
 
@@ -77,9 +78,9 @@ public class AprLifecycleListener
     protected static String SSLRandomSeed = "builtin";
     protected static boolean sslInitialized = false;
     protected static boolean aprInitialized = false;
+    @Deprecated
+    protected static boolean sslAvailable = false;
     protected static boolean aprAvailable = false;
-    protected static boolean useAprConnector = false;
-    protected static boolean useOpenSSL = true;
     protected static boolean fipsModeActive = false;
 
     /**
@@ -177,6 +178,7 @@ public class AprLifecycleListener
         aprAvailable = false;
         aprInitialized = false;
         sslInitialized = false; // Well we cleaned the pool in terminate.
+        sslAvailable = false; // Well we cleaned the pool in terminate.
         fipsModeActive = false;
     }
 
@@ -253,11 +255,6 @@ public class AprLifecycleListener
                 Boolean.valueOf(Library.APR_HAS_SENDFILE),
                 Boolean.valueOf(Library.APR_HAS_SO_ACCEPTFILTER),
                 Boolean.valueOf(Library.APR_HAS_RANDOM)));
-
-        initInfoLogMessages.add(sm.getString("aprListener.config",
-                Boolean.valueOf(useAprConnector),
-                Boolean.valueOf(useOpenSSL)));
-
         aprAvailable = true;
     }
 
@@ -347,6 +344,8 @@ public class AprLifecycleListener
         }
 
         log.info(sm.getString("aprListener.initializedOpenSSL", SSL.versionString()));
+
+        sslAvailable = true;
     }
 
     public String getSSLEngine() {
@@ -400,25 +399,4 @@ public class AprLifecycleListener
     public boolean isFIPSModeActive() {
         return fipsModeActive;
     }
-
-    public void setUseAprConnector(boolean useAprConnector) {
-        if (useAprConnector != AprLifecycleListener.useAprConnector) {
-            AprLifecycleListener.useAprConnector = useAprConnector;
-        }
-    }
-
-    public static boolean getUseAprConnector() {
-        return useAprConnector;
-    }
-
-    public void setUseOpenSSL(boolean useOpenSSL) {
-        if (useOpenSSL != AprLifecycleListener.useOpenSSL) {
-            AprLifecycleListener.useOpenSSL = useOpenSSL;
-        }
-    }
-
-    public static boolean getUseOpenSSL() {
-        return useOpenSSL;
-    }
-
 }

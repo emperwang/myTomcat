@@ -16,14 +16,18 @@
  */
 package org.apache.tomcat.websocket.pojo;
 
+import javax.servlet.ServletContextEvent;
 import javax.websocket.ClientEndpoint;
+import javax.websocket.DeploymentException;
+import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig.Configurator;
 
-import org.apache.tomcat.websocket.server.TesterEndpointConfig;
+import org.apache.tomcat.websocket.server.Constants;
+import org.apache.tomcat.websocket.server.WsContextListener;
 
 public class TesterUtil {
 
-    public static class ServerConfigListener extends TesterEndpointConfig {
+    public static class ServerConfigListener extends WsContextListener {
 
         private static Class<?> pojoClazz;
 
@@ -31,10 +35,17 @@ public class TesterUtil {
             ServerConfigListener.pojoClazz = pojoClazz;
         }
 
-
         @Override
-        protected Class<?> getEndpointClass() {
-            return pojoClazz;
+        public void contextInitialized(ServletContextEvent sce) {
+            super.contextInitialized(sce);
+            ServerContainer sc =
+                    (ServerContainer) sce.getServletContext().getAttribute(
+                            Constants.SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE);
+            try {
+                sc.addEndpoint(pojoClazz);
+            } catch (DeploymentException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 

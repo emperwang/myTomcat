@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -45,7 +45,7 @@
   <section name="Downloading">
   <p>
     To download the extras components open the
-    <download>Tomcat download page</download>
+    <a href="http://tomcat.apache.org/download-70.cgi">Tomcat download page</a>
     and select "Browse" from the Quick Navigation Links. The extras components
     can be found in bin/extras.
   </p>

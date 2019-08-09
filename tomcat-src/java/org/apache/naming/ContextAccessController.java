@@ -30,13 +30,13 @@ public class ContextAccessController {
     /**
      * Catalina context names on which writing is not allowed.
      */
-    private static final Hashtable<Object,Object> readOnlyContexts = new Hashtable<>();
+    private static final Hashtable<Object,Object> readOnlyContexts = new Hashtable<Object,Object>();
 
 
     /**
      * Security tokens repository.
      */
-    private static final Hashtable<Object,Object> securityTokens = new Hashtable<>();
+    private static final Hashtable<Object,Object> securityTokens = new Hashtable<Object,Object>();
 
 
     // --------------------------------------------------------- Public Methods

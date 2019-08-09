@@ -48,6 +48,7 @@ import org.apache.catalina.tribes.tipis.LazyReplicatedMap;
 /**
  * Example of how the lazy replicated map works, also shows how the BackupManager
  * works in a Tomcat cluster
+ * @author fhanik
  * @version 1.1
  */
 public class MapDemo implements ChannelListener, MembershipListener{
@@ -69,7 +70,8 @@ public class MapDemo implements ChannelListener, MembershipListener{
      */
     public MapDemo(Channel channel, String mapName ) {
         //instantiate the replicated map
-        map = new LazyReplicatedMap<>(null, channel, 5000, mapName, null);
+        map = new LazyReplicatedMap<String,StringBuilder>(null, channel, 5000,
+                mapName, null);
         //create a gui, name it with the member name of this JVM
         table = SimpleTableDemo.createAndShowGUI(map,channel.getLocalMember(false).getName());
         //add ourself as a listener for messages
@@ -131,6 +133,11 @@ public class MapDemo implements ChannelListener, MembershipListener{
                            ChannelCreator.usage());
     }
 
+    /**
+     * Main method
+     * @param args
+     * @throws Exception
+     */
     @SuppressWarnings("unused")
     public static void main(String[] args) throws Exception {
         long start = System.currentTimeMillis();
@@ -411,7 +418,7 @@ public class MapDemo implements ChannelListener, MembershipListener{
             dataModel.getValueAt(-1,-1);
         }
 
-        public static final Random random = new Random();
+        public static Random random = new Random();
         public static String random(int count, int start, int end, boolean letters, boolean numbers,
                                     char[] chars ) {
             if (count == 0) {
@@ -489,7 +496,7 @@ public class MapDemo implements ChannelListener, MembershipListener{
             System.out.println("--------------------------");
         }
 
-        /*
+        /**
          * Create the GUI and show it.  For thread safety,
          * this method should be invoked from the
          * event-dispatching thread.

@@ -40,7 +40,22 @@ import javax.servlet.http.HttpServletResponseWrapper;
  */
 class ApplicationHttpResponse extends HttpServletResponseWrapper {
 
+
     // ----------------------------------------------------------- Constructors
+
+
+    /**
+     * Construct a new wrapped response around the specified servlet response.
+     *
+     * @param response The servlet response being wrapped
+     */
+    @Deprecated
+    public ApplicationHttpResponse(HttpServletResponse response) {
+
+        this(response, false);
+
+    }
+
 
     /**
      * Construct a new wrapped response around the specified servlet response.
@@ -68,7 +83,15 @@ class ApplicationHttpResponse extends HttpServletResponseWrapper {
     protected boolean included = false;
 
 
+    /**
+     * Descriptive information about this implementation.
+     */
+    protected static final String info =
+        "org.apache.catalina.core.ApplicationHttpResponse/1.0";
+
+
     // ------------------------------------------------ ServletResponse Methods
+
 
     /**
      * Disallow <code>reset()</code> calls on a included response.
@@ -87,8 +110,7 @@ class ApplicationHttpResponse extends HttpServletResponseWrapper {
 
 
     /**
-     * Disallow <code>setContentLength(int)</code> calls on an included
-     * response.
+     * Disallow <code>setContentLength()</code> calls on an included response.
      *
      * @param len The new content length
      */
@@ -97,21 +119,6 @@ class ApplicationHttpResponse extends HttpServletResponseWrapper {
 
         if (!included)
             getResponse().setContentLength(len);
-
-    }
-
-
-    /**
-     * Disallow <code>setContentLengthLong(long)</code> calls on an included
-     * response.
-     *
-     * @param len The new content length
-     */
-    @Override
-    public void setContentLengthLong(long len) {
-
-        if (!included)
-            getResponse().setContentLengthLong(len);
 
     }
 
@@ -348,6 +355,28 @@ class ApplicationHttpResponse extends HttpServletResponseWrapper {
 
     // -------------------------------------------------------- Package Methods
 
+
+    /**
+     * Return descriptive information about this implementation.
+     */
+    public String getInfo() {
+
+        return (info);
+
+    }
+
+
+    /**
+     * Return the included flag for this response.
+     */
+    @Deprecated
+    boolean isIncluded() {
+
+        return (this.included);
+
+    }
+
+
     /**
      * Set the included flag for this response.
      *
@@ -370,4 +399,6 @@ class ApplicationHttpResponse extends HttpServletResponseWrapper {
         super.setResponse(response);
 
     }
+
+
 }

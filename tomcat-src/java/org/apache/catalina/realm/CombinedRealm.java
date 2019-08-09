@@ -48,33 +48,29 @@ public class CombinedRealm extends RealmBase {
     /**
      * The list of Realms contained by this Realm.
      */
-    protected final List<Realm> realms = new LinkedList<>();
+    protected List<Realm> realms = new LinkedList<Realm>();
 
     /**
      * Descriptive information about this Realm implementation.
-     * @deprecated This will be removed in Tomcat 9 onwards.
      */
-    @Deprecated
     protected static final String name = "CombinedRealm";
 
     /**
      * Add a realm to the list of realms that will be used to authenticate
      * users.
-     * @param theRealm realm which should be wrapped by the combined realm
      */
     public void addRealm(Realm theRealm) {
         realms.add(theRealm);
 
         if (log.isDebugEnabled()) {
-            sm.getString("combinedRealm.addRealm",
-                    theRealm.getClass().getName(),
+            sm.getString("combinedRealm.addRealm", theRealm.getInfo(),
                     Integer.toString(realms.size()));
         }
     }
 
 
     /**
-     * @return the set of Realms that this Realm is wrapping
+     * Return the set of Realms that this Realm is wrapping
      */
     public ObjectName[] getRealms() {
         ObjectName[] result = new ObjectName[realms.size()];
@@ -87,12 +83,6 @@ public class CombinedRealm extends RealmBase {
         return result;
     }
 
-    /**
-     * @return the list of Realms contained by this Realm.
-     */
-    public Realm[] getNestedRealms() {
-        return realms.toArray(new Realm[0]);
-    }
 
     /**
      * Return the Principal associated with the specified username, which
@@ -115,8 +105,7 @@ public class CombinedRealm extends RealmBase {
 
         for (Realm realm : realms) {
             if (log.isDebugEnabled()) {
-                log.debug(sm.getString("combinedRealm.authStart", username,
-                        realm.getClass().getName()));
+                log.debug(sm.getString("combinedRealm.authStart", username, realm.getInfo()));
             }
 
             authenticatedUser = realm.authenticate(username, clientDigest, nonce,
@@ -124,13 +113,11 @@ public class CombinedRealm extends RealmBase {
 
             if (authenticatedUser == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("combinedRealm.authFail", username,
-                            realm.getClass().getName()));
+                    log.debug(sm.getString("combinedRealm.authFail", username, realm.getInfo()));
                 }
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("combinedRealm.authSuccess",
-                            username, realm.getClass().getName()));
+                    log.debug(sm.getString("combinedRealm.authSuccess", username, realm.getInfo()));
                 }
                 break;
             }
@@ -188,21 +175,18 @@ public class CombinedRealm extends RealmBase {
 
         for (Realm realm : realms) {
             if (log.isDebugEnabled()) {
-                log.debug(sm.getString("combinedRealm.authStart", username,
-                        realm.getClass().getName()));
+                log.debug(sm.getString("combinedRealm.authStart", username, realm.getInfo()));
             }
 
             authenticatedUser = realm.authenticate(username, credentials);
 
             if (authenticatedUser == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("combinedRealm.authFail", username,
-                            realm.getClass().getName()));
+                    log.debug(sm.getString("combinedRealm.authFail", username, realm.getInfo()));
                 }
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("combinedRealm.authSuccess",
-                            username, realm.getClass().getName()));
+                    log.debug(sm.getString("combinedRealm.authSuccess", username, realm.getInfo()));
                 }
                 break;
             }
@@ -254,7 +238,7 @@ public class CombinedRealm extends RealmBase {
                     // If realm doesn't start can't authenticate against it
                     iter.remove();
                     log.error(sm.getString("combinedRealm.realmStartFail",
-                            realm.getClass().getName()), e);
+                            realm.getInfo()), e);
                 }
             }
         }
@@ -324,21 +308,18 @@ public class CombinedRealm extends RealmBase {
 
         for (Realm realm : realms) {
             if (log.isDebugEnabled()) {
-                log.debug(sm.getString("combinedRealm.authStart", username,
-                        realm.getClass().getName()));
+                log.debug(sm.getString("combinedRealm.authStart", username, realm.getInfo()));
             }
 
             authenticatedUser = realm.authenticate(certs);
 
             if (authenticatedUser == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("combinedRealm.authFail", username,
-                            realm.getClass().getName()));
+                    log.debug(sm.getString("combinedRealm.authFail", username, realm.getInfo()));
                 }
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("combinedRealm.authSuccess",
-                            username, realm.getClass().getName()));
+                    log.debug(sm.getString("combinedRealm.authSuccess", username, realm.getInfo()));
                 }
                 break;
             }
@@ -368,7 +349,7 @@ public class CombinedRealm extends RealmBase {
             for (Realm realm : realms) {
                 if (log.isDebugEnabled()) {
                     log.debug(sm.getString("combinedRealm.authStart",
-                            username, realm.getClass().getName()));
+                            username, realm.getInfo()));
                 }
 
                 authenticatedUser = realm.authenticate(gssContext, storeCreds);
@@ -376,12 +357,12 @@ public class CombinedRealm extends RealmBase {
                 if (authenticatedUser == null) {
                     if (log.isDebugEnabled()) {
                         log.debug(sm.getString("combinedRealm.authFail",
-                                username, realm.getClass().getName()));
+                                username, realm.getInfo()));
                     }
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug(sm.getString("combinedRealm.authSuccess",
-                                username, realm.getClass().getName()));
+                                username, realm.getInfo()));
                     }
                     break;
                 }
@@ -394,7 +375,6 @@ public class CombinedRealm extends RealmBase {
     }
 
     @Override
-    @Deprecated
     protected String getName() {
         return name;
     }
@@ -419,17 +399,6 @@ public class CombinedRealm extends RealmBase {
                     sm.getString("combinedRealm.getPrincipal"));
         log.error(sm.getString("combinedRealm.unexpectedMethod"), uoe);
         throw uoe;
-    }
-
-
-    @Override
-    public boolean isAvailable() {
-        for (Realm realm : realms) {
-            if (!realm.isAvailable()) {
-                return false;
-            }
-        }
-        return true;
     }
 
 }

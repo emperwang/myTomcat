@@ -17,6 +17,7 @@
 package org.apache.catalina.security;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Set;
 
@@ -25,7 +26,6 @@ import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.buf.StringUtils;
 import org.apache.tomcat.util.res.StringManager;
 
 public class SecurityListener implements LifecycleListener {
@@ -43,7 +43,7 @@ public class SecurityListener implements LifecycleListener {
     /**
      * The list of operating system users not permitted to run Tomcat.
      */
-    private final Set<String> checkedOsUsers = new HashSet<>();
+    private Set<String> checkedOsUsers = new HashSet<String>();
 
     /**
      * The minimum umask that must be configured for the operating system user
@@ -97,7 +97,18 @@ public class SecurityListener implements LifecycleListener {
      * @return  A comma separated list of operating system user names.
      */
     public String getCheckedOsUsers() {
-        return StringUtils.join(checkedOsUsers);
+        if (checkedOsUsers.size() == 0) {
+            return "";
+        }
+
+        StringBuilder result = new StringBuilder();
+        Iterator<String> iter = checkedOsUsers.iterator();
+        result.append(iter.next());
+        while (iter.hasNext()) {
+            result.append(',');
+            result.append(iter.next());
+        }
+        return result.toString();
     }
 
 
@@ -160,7 +171,7 @@ public class SecurityListener implements LifecycleListener {
             }
         }
         if (umask == null) {
-            if (Constants.CRLF.equals(System.lineSeparator())) {
+            if (Constants.CRLF.equals(Constants.LINE_SEP)) {
                 // Probably running on Windows so no umask
                 if (log.isDebugEnabled()) {
                     log.debug(sm.getString("SecurityListener.checkUmaskSkip"));

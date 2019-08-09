@@ -36,12 +36,12 @@ import javax.servlet.ServletException;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
+import org.apache.catalina.deploy.FilterDef;
 import org.apache.catalina.security.SecurityUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.InstanceManager;
 import org.apache.tomcat.util.ExceptionUtils;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
 import org.apache.tomcat.util.log.SystemLogHandler;
 import org.apache.tomcat.util.modeler.Registry;
 import org.apache.tomcat.util.modeler.Util;
@@ -120,7 +120,7 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
     /**
      * The Context with which we are associated.
      */
-    private final transient Context context;
+    private transient Context context = null;
 
 
     /**
@@ -152,11 +152,11 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
      */
     @Override
     public String getFilterName() {
-        return filterDef.getFilterName();
+        return (filterDef.getFilterName());
     }
 
     /**
-     * @return The class of the filter we are configuring.
+     * Return the class of the filter we are configuring.
      */
     public String getFilterClass() {
         return filterDef.getFilterClass();
@@ -174,7 +174,7 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
 
         Map<String,String> map = filterDef.getParameterMap();
         if (map == null) {
-            return null;
+            return (null);
         }
 
         return map.get(name);
@@ -214,13 +214,15 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("ApplicationFilterConfig[");
         sb.append("name=");
         sb.append(filterDef.getFilterName());
         sb.append(", filterClass=");
         sb.append(filterDef.getFilterClass());
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
     // --------------------------------------------------------- Public Methods
@@ -255,7 +257,7 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
 
         // Return the existing filter instance, if any
         if (this.filter != null)
-            return this.filter;
+            return (this.filter);
 
         // Identify the class loader we will be using
         String filterClass = filterDef.getFilterClass();
@@ -263,7 +265,7 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
 
         initFilter();
 
-        return this.filter;
+        return (this.filter);
 
     }
 
@@ -291,7 +293,9 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
      * Return the filter definition we are configured for.
      */
     FilterDef getFilterDef() {
-        return this.filterDef;
+
+        return (this.filterDef);
+
     }
 
     /**
@@ -374,10 +378,10 @@ public final class ApplicationFilterConfig implements FilterConfig, Serializable
         }
         if (context instanceof StandardContext) {
             StandardContext standardContext = (StandardContext) context;
-            onameStr = domain + ":j2eeType=Filter,WebModule=" + webMod +
-                    ",name=" + filterName + ",J2EEApplication=" +
-                    standardContext.getJ2EEApplication() + ",J2EEServer=" +
-                    standardContext.getJ2EEServer();
+            onameStr = domain + ":j2eeType=Filter,name=" + filterName +
+                 ",WebModule=" + webMod + ",J2EEApplication=" +
+                 standardContext.getJ2EEApplication() + ",J2EEServer=" +
+                 standardContext.getJ2EEServer();
         } else {
             onameStr = domain + ":j2eeType=Filter,name=" + filterName +
                  ",WebModule=" + webMod;

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -569,7 +569,7 @@
         <p>
         Not reading the additional data will free the request processing thread
         more quickly. Unfortunately most HTTP clients will not read the response
-        if they cannot write the full request.</p>
+        if they can not write the full request.</p>
         <p>The default is <code>true</code>, so additional data will be
         read.</p>
         <p>Note if an error occurs during the request processing that triggers
@@ -683,6 +683,7 @@
         penalty.</p>
       </attribute>
 
+
     </attributes>
 
   </subsection>
@@ -708,12 +709,65 @@
         </p>
       </attribute>
 
+      <attribute name="aliases" required="false">
+        <p>This attribute provides a list of external locations from which to
+        load resources for this context. The list of aliases should be of
+        the form <code>"/aliasPath1=docBase1,/aliasPath2=docBase2"</code> where
+        <code>aliasPathN</code> must include a leading '/' and
+        <code>docBaseN</code> must be an absolute path to either a .war file or
+        a directory.</p>
+        <p>Whitespace is permitted around both the <code>,</code> and
+        <code>=</code> delimiters, and will be trimmed. Therefore, an aliases
+        attribute with the value <code>"/aliasPath1 = docBase1,<br/>
+        /aliasPath2= docBase2"</code> is equivalent to
+        <code>"/aliasPath1=docBase1,/aliasPath2=docBase2"</code></p>
+        <p>A resource will be searched for in the first <code>docBaseN</code>
+        for which <code>aliasPathN</code> is a leading path segment of the
+        resource. If there is no such alias, then the resource will be searched
+        in the usual way.</p>
+        <p>Using '/' as an aliasPath is not allowed. Consider using
+        <code>docBase</code> instead.</p>
+        <p>These external locations will not be emptied if the context
+        is un-deployed.</p>
+        <p>A more powerful feature (for development only) is
+        <a href="#Virtual_webapp">Virtual webapp</a>.</p>
+      </attribute>
+
+      <attribute name="allowLinking" required="false">
+        <p>If the value of this flag is <code>true</code>, symlinks will be
+        allowed inside the web application, pointing to resources inside or
+        outside the web application base path. If not specified, the default
+        value of the flag is <code>false</code>.</p>
+        <p><b>NOTE: This flag MUST NOT be set to true on the Windows platform
+        (or any other OS which does not have a case sensitive filesystem),
+        as it will disable case sensitivity checks, allowing JSP source code
+        disclosure, among other security problems.</b></p>
+      </attribute>
+
+      <attribute name="antiJARLocking" required="false">
+        <p>If true, the Tomcat classloader will take extra measures to avoid
+        JAR file locking when resources are accessed inside JARs through URLs.
+        This will impact startup time of applications, but could prove to be
+        useful on platforms or configurations where file locking can occur.
+        If not specified, the default value is <code>false</code>.</p>
+
+        <p><code>antiJARLocking</code> is a subset of
+        <code>antiResourceLocking</code> and therefore, to prevent duplicate
+        work and possible issues, only one of these attributes should be set
+        to <code>true</code> at any one time.</p>
+      </attribute>
+
       <attribute name="antiResourceLocking" required="false">
         <p>If true, Tomcat will prevent any file locking.
         This will significantly impact startup time of applications,
         but allows full webapp hot deploy and undeploy on platforms
         or configurations where file locking can occur.
         If not specified, the default value is <code>false</code>.</p>
+
+        <p><code>antiJARLocking</code> is a subset of
+        <code>antiResourceLocking</code> and therefore, to prevent duplicate
+        work and possible issues, only one of these attributes should be set
+        to <code>true</code> at any one time.</p>
 
         <p>Please note that setting this to <code>true</code> has some side
         effects, including the disabling of JSP reloading in a running server:
@@ -728,15 +782,42 @@
         appBase for its Host.</p>
       </attribute>
 
+      <attribute name="cacheMaxSize" required="false">
+        <p>Maximum size of the static resource cache in kilobytes.
+        If not specified, the default value is <code>10240</code>
+        (10 megabytes).</p>
+      </attribute>
+
+      <attribute name="cacheObjectMaxSize" required="false">
+        <p>Maximum size of the static resource that will be placed in the cache.
+        If not specified, the default value is <code>512</code>
+        (512 kilobytes). If this value is greater than
+        <code>cacheMaxSize/20</code> it will be reduced to
+        <code>cacheMaxSize/20</code>.</p>
+      </attribute>
+
+      <attribute name="cacheTTL" required="false">
+        <p>Amount of time in milliseconds between cache entries revalidation.
+        If not specified, the default value is <code>5000</code>
+        (5 seconds).</p>
+      </attribute>
+
+      <attribute name="cachingAllowed" required="false">
+        <p>If the value of this flag is <code>true</code>, the cache for static
+        resources will be used. If not specified, the default value
+        of the flag is <code>true</code>.</p>
+      </attribute>
+
       <attribute name="clearReferencesHttpClientKeepAliveThread" required="false">
         <p>If <code>true</code> and an <code>sun.net.www.http.HttpClient</code>
         keep-alive timer thread has been started by this web application and is
         still running, Tomcat will change the context class loader for that
-        thread from the web application class loader to the parent of the web
-        application class loader to prevent a memory leak. Note that the
-        keep-alive timer thread will stop on its own once the keep-alives all
-        expire however, on a busy system that might not happen for some time. If
-        not specified, the default value of <code>true</code> will be used.</p>
+        thread from the current <code>WebappClassLoader</code> to
+        <code>WebappClassLoader#parent</code> to prevent a memory leak. Note
+        that the keep-alive timer thread will stop on its own once the
+        keep-alives all expire however, on a busy system that might not happen
+        for some time. If not specified, the default value of
+        <code>true</code> will be used.</p>
       </attribute>
 
       <attribute name="clearReferencesObjectStreamClassCaches" required="false">
@@ -759,6 +840,19 @@
         when running on Java 9 and above. Applications without memory leaks
         should operate correctly with this attribute set to <code>false</code>.
         If not specified, the default value of <code>true</code> will be used.</p>
+      </attribute>
+
+      <attribute name="clearReferencesStatic" required="false">
+        <p>If <code>true</code>, Tomcat attempts to null out any static or final
+        fields from loaded classes when a web application is stopped as a work
+        around for apparent garbage collection bugs and application coding
+        errors. There have been some issues reported with log4j when this
+        is <code>true</code>. Applications without memory leaks using recent
+        JVMs should operate correctly with this attribute set to
+        <code>false</code>. If not specified, the default value of
+        <code>false</code> will be used.</p>
+        <p>This attribute has been deprecated and will be removed in Tomcat
+        8.5.</p>
       </attribute>
 
       <attribute name="clearReferencesStopThreads" required="false">
@@ -818,6 +912,12 @@
         be used.</p>
       </attribute>
 
+      <attribute name="processTlds" required="false">
+        <p>Whether the context should process TLDs on startup.  The default
+        is true.  The false setting is intended for special cases
+        that know in advance TLDs are not part of the webapp.</p>
+      </attribute>
+
       <attribute name="renewThreadsWhenStoppingContext" required="false">
         <p>If <code>true</code>, when this context is stopped, Tomcat renews all
         the threads from the thread pool that was used to serve this context.
@@ -874,8 +974,6 @@
   by nesting a corresponding element inside your <strong>Context</strong>
   element:</p>
   <ul>
-  <li><a href="cookie-processor.html"><strong>Cookie Processor</strong></a> -
-      Configure parsing and generation of HTTP cookie headers.</li>
   <li><a href="loader.html"><strong>Loader</strong></a> -
       Configure the web application class loader that will be used to load
       servlet and bean classes for this web application.  Normally, the
@@ -898,13 +996,6 @@
       specified static resource of the web application for updates, and will
       reload the web application if it is updated. The content of this element
       must be a string.</li>
-  <li><a href="jar-scanner.html"><strong>JarScanner</strong></a> -
-      Configure the Jar Scanner that will be used to scan the web application
-      for JAR files and directories of class files. It is typically used during
-      web application start to identify configuration files such as TLDs o
-      web-fragment.xml files that must be processed as part of the web
-      application initialisation.  Normally, the default Jar Scanner
-      configuration will be sufficient.</li>
   </ul>
 
 </section>
@@ -939,7 +1030,7 @@
 <source><![CDATA[<Context>
   ...
   <Valve className="org.apache.catalina.valves.AccessLogValve"
-         prefix="localhost_access_log" suffix=".txt"
+         prefix="localhost_access_log." suffix=".txt"
          pattern="common"/>
   ...
 </Context>]]></source>
@@ -1207,14 +1298,10 @@
         it is no longer required. This is intended to speed up clean-up of
         resources that would otherwise happen as part of garbage collection.
         This attribute is ignored if the <code>singleton</code> attribute is
-        false.</p>
-        <p>For <code>javax.sql.DataSource</code> and
-        <code>javax.sql.XADataSource</code> resources that implement
-        <code>AutoCloseable</code> such as Apache Commons DBCP 2 and the default
-        Apache Tomcat connection pool, this attribute is defaults to
-        <code>close</code>. This may be disabled by setting the attribute to the
-        empty string. For all other resource types no default is defined and no
-        close method will be called by default.</p>
+        false. If not specified, no default is defined and no close method will
+        be called.</p>
+        <p>For Apache Commons DBCP 1.x and Apache Tomcat JDBC connection pools
+        you can use <code>closeMethod="close"</code>.</p>
       </attribute>
 
       <attribute name="description" required="false">
@@ -1302,8 +1389,8 @@
        two additional attributes to allow a shared data source to be used with different credentials.
        When these two additional attributes are used in combination with the <code>javax.sql.DataSource</code>
        type, different contexts can share a global data source with different credentials.
-       Under the hood, what happens is that a call to <a href="http://docs.oracle.com/javase/7/docs/api/javax/sql/DataSource.html#getConnection()"><code>getConnection()</code></a>
-       is simply translated to a call <a href="http://docs.oracle.com/javase/7/docs/api/javax/sql/DataSource.html#getConnection(java.lang.String,%20java.lang.String)">
+       Under the hood, what happens is that a call to <a href="http://docs.oracle.com/javase/6/docs/api/javax/sql/DataSource.html#getConnection()"><code>getConnection()</code></a>
+       is simply translated to a call <a href="http://docs.oracle.com/javase/6/docs/api/javax/sql/DataSource.html#getConnection(java.lang.String,%20java.lang.String)">
        <code>getConnection(username, password)</code></a> on the global data source. This is an easy way to get code to be transparent to what schemas are being used,
        yet be able to control connections (or pools) in the global configuration.
     </p>
@@ -1325,7 +1412,7 @@
     <p>Shared Data Source Example:</p>
     <p><strong>Warning:</strong> This feature works only if the global DataSource
 supports <code>getConnection(username, password)</code> method.
-<a href="https://commons.apache.org/dbcp/">Apache Commons DBCP 2</a> pool that
+<a href="https://commons.apache.org/dbcp/">Apache Commons DBCP</a> pool that
 Tomcat uses by default does not support it. See its Javadoc for
 <code>BasicDataSource</code> class.
 <a href="../jdbc-pool.html">Apache Tomcat JDBC pool</a> does support it,
@@ -1392,6 +1479,85 @@ for details.</p>
 
   </subsection>
 
+  <subsection name="Virtual webapp">
+    <p>During development it may be more productive to avoid copying files (static
+    resources, JSPs, classes, jars...) and configure tomcat to use files from their
+    source locations. To do that, several customisations of the context configuration are
+    required:</p>
+    <ul>
+      <li>The <code>VirtualDirContext</code> implementation of
+      <a href="resources.html">Resources</a></li>
+      <li>The <code>VirtualWebappLoader</code> implementation of
+      <a href="loader.html">Loader</a></li>
+      <li><code>scanAllDirectories="true"</code> on the <a href="jar-scanner.html">JarScanner</a></li>
+    </ul>
+    <p>To illustrate this feature, here is an example of a standard maven webapp source tree:</p>
+
+<source>mywebapp/
+         src/
+             main/
+                  java/
+                  resources/
+                  webapp/
+                         WEB-INF/
+                                 classes/
+         target/
+                classes/
+</source>
+
+    <p>To deploy such an application (assuming it also uses the log4j maven artefact),
+    the context configuration looks like:</p>
+
+<source wrapped="true"><![CDATA[<Context path="/mywebapp" docBase="/Users/theuser/mywebapp/src/main/webapp">
+  <Resources className="org.apache.naming.resources.VirtualDirContext"
+    extraResourcePaths="/WEB-INF/classes=/Users/theuser/mywebapp/target/classes" />
+  <Loader className="org.apache.catalina.loader.VirtualWebappLoader"
+    virtualClasspath="/Users/theuser/mywebapp/target/classes;/Users/theuser/.m2/repository/log4j/log4j/1.2.15/log4j-1.2.15.jar" />
+  <JarScanner scanAllDirectories="true" />
+</Context>
+]]></source>
+
+    <p>Here is another example where the webapp serves pictures under /pictures and movies
+    under /movies and also depends on another maven project mylib that would normally
+    produce a jar to be packaged in WEB-INF/lib:</p>
+
+<source>mylib/
+      src/
+          main/
+               java/
+               resources/
+                         META-INF/
+                                  resources/
+      target/
+             classes/
+mymovies/
+mypictures/
+mywebapp/
+         src/
+             main/
+                  java/
+                  resources/
+                  webapp/
+                         WEB-INF/
+                                 classes/
+         target/
+                classes/
+</source>
+
+    <p>The configuration is:</p>
+
+<source wrapped="true"><![CDATA[<Context path="/mywebapp" docBase="/Users/theuser/mywebapp/src/main/webapp">
+  <Resources className="org.apache.naming.resources.VirtualDirContext"
+    extraResourcePaths="/WEB-INF/classes=/Users/theuser/mywebapp/target/classes,/pictures=/Users/theuser/mypictures,/movies=/Users/theuser/mymovies" />
+  <Loader className="org.apache.catalina.loader.VirtualWebappLoader"
+   virtualClasspath="/Users/theuser/mywebapp/target/classes;/Users/theuser/mylib/target/classes;/Users/theuser/.m2/repository/log4j/log4j/1.2.15/log4j-1.2.15.jar" />
+  <JarScanner scanAllDirectories="true" />
+</Context>
+]]></source>
+
+    <p>Note that resources in mylib/target/classes/META-INF/resources/ are mapped to / as
+    required by servlet 3 specification.</p>
+  </subsection>
 </section>
 
 

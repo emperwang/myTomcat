@@ -31,6 +31,7 @@ import java.util.ResourceBundle;
  * of this class must implement the <code>java.io.OutputStream.write(int)</code>
  * method.
  *
+ * @author Various
  * @see ServletResponse
  */
 public abstract class ServletOutputStream extends OutputStream {
@@ -276,34 +277,4 @@ public abstract class ServletOutputStream extends OutputStream {
     public void println(double d) throws IOException {
         println(String.valueOf(d));
     }
-
-    /**
-     * Checks if a non-blocking write will succeed. If this returns
-     * <code>false</code>, it will cause a callback to
-     * {@link WriteListener#onWritePossible()} when the buffer has emptied. If
-     * this method returns <code>false</code> no further data must be written
-     * until the contain calls {@link WriteListener#onWritePossible()}.
-     *
-     * @return <code>true</code> if data can be written, else <code>false</code>
-     *
-     * @since Servlet 3.1
-     */
-    public abstract boolean isReady();
-
-    /**
-     * Sets the {@link WriteListener} for this {@link ServletOutputStream} and
-     * thereby switches to non-blocking IO. It is only valid to switch to
-     * non-blocking IO within async processing or HTTP upgrade processing.
-     *
-     * @param listener  The non-blocking IO write listener
-     *
-     * @throws IllegalStateException    If this method is called if neither
-     *                                  async nor HTTP upgrade is in progress or
-     *                                  if the {@link WriteListener} has already
-     *                                  been set
-     * @throws NullPointerException     If listener is null
-     *
-     * @since Servlet 3.1
-     */
-    public abstract void setWriteListener(javax.servlet.WriteListener listener);
 }

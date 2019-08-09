@@ -66,13 +66,13 @@ public class TestSendFile extends TomcatBaseTest {
             for (int i = 0; i < ITERATIONS; i++) {
                 WritingServlet servlet = new WritingServlet(files[i]);
                 Tomcat.addServlet(root, "servlet" + i, servlet);
-                root.addServletMappingDecoded("/servlet" + i, "servlet" + i);
+                root.addServletMapping("/servlet" + i, "servlet" + i);
             }
 
             tomcat.start();
 
             ByteChunk bc = new ByteChunk();
-            Map<String, List<String>> respHeaders = new HashMap<>();
+            Map<String, List<String>> respHeaders = new HashMap<String, List<String>>();
             for (int i = 0; i < ITERATIONS; i++) {
                 long start = System.currentTimeMillis();
                 int rc = getUrl("http://localhost:" + getPort() + "/servlet" + i, bc, null,
@@ -86,7 +86,7 @@ public class TestSendFile extends TomcatBaseTest {
             }
         } finally {
             for (File f : files) {
-                Assert.assertTrue("Failed to clean up [" + f + "]", f.delete());
+                f.delete();
             }
         }
     }
@@ -94,7 +94,11 @@ public class TestSendFile extends TomcatBaseTest {
     public File generateFile(String dir, String suffix, int size) throws IOException {
         String name = "testSendFile-" + System.currentTimeMillis() + suffix + ".txt";
         File f = new File(dir, name);
-        try (FileWriter fw = new FileWriter(f, false); BufferedWriter w = new BufferedWriter(fw);) {
+        FileWriter fw = null;
+        BufferedWriter w = null;
+        try  {
+            fw = new FileWriter(f, false);
+            w = new BufferedWriter(fw);
             int defSize = 8192;
             while (size > 0) {
                 int bytes = Math.min(size, defSize);
@@ -104,6 +108,13 @@ public class TestSendFile extends TomcatBaseTest {
                 size = size - bytes;
             }
             w.flush();
+        } finally {
+            if (w != null) {
+                w.close();
+            }
+            if (fw != null) {
+                fw.close();
+            }
         }
         System.out
                 .println("Created file:" + f.getAbsolutePath() + " with " + f.length() + " bytes.");
@@ -128,14 +139,16 @@ public class TestSendFile extends TomcatBaseTest {
 
             resp.setContentType("'application/octet-stream");
             resp.setCharacterEncoding("ISO-8859-1");
-            resp.setContentLengthLong(f.length());
+            resp.setContentLength((int) f.length());
             if (Boolean.TRUE.equals(req.getAttribute(Globals.SENDFILE_SUPPORTED_ATTR))) {
                 req.setAttribute(Globals.SENDFILE_FILENAME_ATTR, f.getAbsolutePath());
                 req.setAttribute(Globals.SENDFILE_FILE_START_ATTR, Long.valueOf(0));
                 req.setAttribute(Globals.SENDFILE_FILE_END_ATTR, Long.valueOf(f.length()));
             } else {
                 byte[] c = new byte[8192];
-                try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(f))) {
+                BufferedInputStream in = null;
+                try {
+                    in = new BufferedInputStream(new FileInputStream(f));
                     int len = 0;
                     int written = 0;
                     long start = System.currentTimeMillis();
@@ -148,6 +161,10 @@ public class TestSendFile extends TomcatBaseTest {
                     } while (len > 0);
                     System.out.println("Server Wrote " + written + " bytes in "
                             + (System.currentTimeMillis() - start) + " ms.");
+                } finally {
+                    if (in != null) {
+                        in.close();
+                    }
                 }
             }
         }
@@ -161,7 +178,7 @@ public class TestSendFile extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", TEMP_DIR);
         File file = generateFile(TEMP_DIR, "", EXPECTED_CONTENT_LENGTH);
         Tomcat.addServlet(ctx, "test", new Bug60409Servlet(file));
-        ctx.addServletMappingDecoded("/", "test");
+        ctx.addServletMapping("/", "test");
 
         tomcat.start();
 
@@ -170,7 +187,7 @@ public class TestSendFile extends TomcatBaseTest {
                 + "=true", bc, null);
 
         CountDownLatch latch = new CountDownLatch(2);
-        List<Throwable> exceptions = new ArrayList<>();
+        List<Throwable> exceptions = new ArrayList<Throwable>();
         new Thread(
                 new RequestExecutor("http://localhost:" + getPort() + "/test/", latch, exceptions))
                         .start();
@@ -199,13 +216,11 @@ public class TestSendFile extends TomcatBaseTest {
             if (Boolean.valueOf(req.getParameter(Globals.SENDFILE_SUPPORTED_ATTR)).booleanValue()) {
                 resp.setContentType("'application/octet-stream");
                 resp.setCharacterEncoding("ISO-8859-1");
-                resp.setContentLengthLong(file.length());
+                resp.setContentLength((int) file.length());
                 req.setAttribute(Globals.SENDFILE_FILENAME_ATTR, file.getAbsolutePath());
                 req.setAttribute(Globals.SENDFILE_FILE_START_ATTR, Long.valueOf(0));
                 req.setAttribute(Globals.SENDFILE_FILE_END_ATTR, Long.valueOf(file.length()));
-                if (!file.delete()) {
-                    throw new ServletException("Failed to delete [" + file + "]");
-                }
+                file.delete();
             } else {
                 byte[] c = new byte[1024];
                 Random rd = new Random();

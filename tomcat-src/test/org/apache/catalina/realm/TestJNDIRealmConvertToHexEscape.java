@@ -31,7 +31,7 @@ public class TestJNDIRealmConvertToHexEscape {
 
     @Parameterized.Parameters(name = "{index}: in[{0}], out[{1}]")
     public static Collection<Object[]> parameters() {
-        List<Object[]> parameterSets = new ArrayList<>();
+        List<Object[]> parameterSets = new ArrayList<Object[]>();
 
         parameterSets.add(new String[] { "none", "none" });
         parameterSets.add(new String[] { "\\", "\\" });

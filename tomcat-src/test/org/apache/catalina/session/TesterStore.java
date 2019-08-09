@@ -30,8 +30,8 @@ import org.apache.catalina.Store;
 class TesterStore implements Store {
 
     private Manager manager;
-    private Map<String, Session> sessions = new HashMap<>();
-    private List<String> savedIds = new ArrayList<>();
+    private Map<String, Session> sessions = new HashMap<String, Session>();
+    private List<String> savedIds = new ArrayList<String>();
 
     List<String> getSavedIds() {
         return savedIds;
@@ -58,7 +58,7 @@ class TesterStore implements Store {
 
     @Override
     public String[] keys() throws IOException {
-        return new ArrayList<>(sessions.keySet()).toArray(new String[] {});
+        return new ArrayList<String>(sessions.keySet()).toArray(new String[] {});
     }
 
     @Override
@@ -86,5 +86,9 @@ class TesterStore implements Store {
         savedIds.add(session.getId());
     }
 
+    @Override
+    public String getInfo() {
+        return null;
+    }
 }
 

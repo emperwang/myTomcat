@@ -22,6 +22,7 @@ package org.apache.catalina.tribes;
  *
  * <p>Description: The listener to be registered with the ChannelReceiver, internal Tribes component</p>
  *
+ * @author Filip Hanik
  * @version 1.0
  */
 
@@ -34,4 +35,11 @@ public interface MessageListener {
     public void messageReceived(ChannelMessage msg);
 
     public boolean accept(ChannelMessage msg);
+
+    @Override
+    public boolean equals(Object listener);
+
+    @Override
+    public int hashCode();
+
 }

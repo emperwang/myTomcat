@@ -44,6 +44,7 @@ import java.io.Serializable;
  * <br>
  *
  *
+ * @author Filip Hanik
  * @version 1.0
  */
 public interface ReplicatedMapEntry extends Serializable {
@@ -64,19 +65,18 @@ public interface ReplicatedMapEntry extends Serializable {
 
     /**
      * Returns a diff and sets the dirty map to false
-     * @return Serialized diff data
-     * @throws IOException IO error serializing
+     * @return byte[]
+     * @throws IOException
      */
     public byte[] getDiff() throws IOException;
 
 
     /**
      * Applies a diff to an existing object.
-     * @param diff Serialized diff data
-     * @param offset Array offset
-     * @param length Array length
-     * @throws IOException IO error deserializing
-     * @throws ClassNotFoundException Serialization error
+     * @param diff byte[]
+     * @param offset int
+     * @param length int
+     * @throws IOException
      */
     public void applyDiff(byte[] diff, int offset, int length) throws IOException, ClassNotFoundException;
 
@@ -119,13 +119,13 @@ public interface ReplicatedMapEntry extends Serializable {
     public void setVersion(long version);
 
     /**
-     * @return the last replicate time.
+     * Return the last replicate time.
      */
     public long getLastTimeReplicated();
 
     /**
      * Set the last replicate time.
-     * @param lastTimeReplicated New timestamp
+     * @param lastTimeReplicated
      */
     public void setLastTimeReplicated(long lastTimeReplicated);
 

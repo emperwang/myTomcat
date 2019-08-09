@@ -31,11 +31,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.catalina.Context;
-import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.catalina.webresources.StandardRoot;
 import org.apache.tomcat.util.buf.ByteChunk;
 
 public class TestStandardContextAliases extends TomcatBaseTest {
@@ -44,27 +41,21 @@ public class TestStandardContextAliases extends TomcatBaseTest {
     public void testDirContextAliases() throws Exception {
         Tomcat tomcat = getTomcatInstance();
 
-        // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
+        // Must have a real docBase - just use temp
+        StandardContext ctx = (StandardContext)
+            tomcat.addContext("", System.getProperty("java.io.tmpdir"));
 
         File lib = new File("webapps/examples/WEB-INF/lib");
-        ctx.setResources(new StandardRoot(ctx));
-        ctx.getResources().createWebResourceSet(
-                WebResourceRoot.ResourceSetType.POST, "/WEB-INF/lib",
-                lib.getAbsolutePath(), null, "/");
-
+        ctx.setAliases("/WEB-INF/lib=" + lib.getCanonicalPath());
 
         Tomcat.addServlet(ctx, "test", new TestServlet());
-        ctx.addServletMappingDecoded("/", "test");
+        ctx.addServletMapping("/", "test");
 
         tomcat.start();
 
         ByteChunk res = getUrl("http://localhost:" + getPort() + "/");
 
         String result = res.toString();
-        if (result == null) {
-            result = "";
-        }
 
         Assert.assertTrue(result.indexOf("00-PASS") > -1);
         Assert.assertTrue(result.indexOf("01-PASS") > -1);

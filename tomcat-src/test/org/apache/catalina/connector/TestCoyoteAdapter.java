@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletException;
@@ -36,8 +35,8 @@ import org.apache.catalina.Wrapper;
 import org.apache.catalina.startup.SimpleHttpClient;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
+import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.buf.MessageBytes;
 
 public class TestCoyoteAdapter extends TomcatBaseTest {
 
@@ -50,7 +49,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
             sb.append("0123456789ABCDEF");
         }
         TEXT_8K = sb.toString();
-        BYTES_8K = TEXT_8K.getBytes(StandardCharsets.UTF_8);
+        BYTES_8K = TEXT_8K.getBytes(B2CConverter.UTF_8);
     }
     @Test
     public void testPathParmsRootNone() throws Exception {
@@ -115,7 +114,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", docBase.getAbsolutePath());
 
         Tomcat.addServlet(ctx, "servlet", new PathParamServlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -136,7 +135,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new PathParamServlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -189,7 +188,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
         Context ctx = tomcat.addContext("/testapp", null);
 
         Tomcat.addServlet(ctx, "servlet", new PathParamServlet());
-        ctx.addServletMappingDecoded("*.txt", "servlet");
+        ctx.addServletMapping("*.txt", "servlet");
 
         tomcat.start();
 
@@ -240,7 +239,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
 
         PathInfoServlet servlet = new PathInfoServlet();
         Tomcat.addServlet(ctx, "servlet", servlet);
-        ctx.addServletMappingDecoded("/*", "servlet");
+        ctx.addServletMapping("/*", "servlet");
 
         tomcat.start();
 
@@ -255,7 +254,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
 
         private static final long serialVersionUID = 1L;
 
-        private volatile String pathInfo = null;
+        private String pathInfo = null;
 
         public String getPathInfo() {
             return pathInfo;
@@ -265,8 +264,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
         protected void doGet(HttpServletRequest req, HttpServletResponse resp)
                 throws ServletException, IOException {
 
-            // Not thread safe. Concurrent requests to this servlet will
-            // over-write all the results but the last processed.
+            // Not thread safe
             pathInfo = req.getPathInfo();
         }
     }
@@ -283,7 +281,7 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
         AsyncServlet servlet = new AsyncServlet();
         Wrapper w = Tomcat.addServlet(ctx, "async", servlet);
         w.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/async", "async");
+        ctx.addServletMapping("/async", "async");
 
         tomcat.start();
 
@@ -322,28 +320,6 @@ public class TestCoyoteAdapter extends TomcatBaseTest {
 
         Assert.assertTrue(servlet.isCompleted());
     }
-
-    @Test
-    public void testNormalize01() {
-        doTestNormalize("/foo/../bar", "/bar");
-    }
-
-    private void doTestNormalize(String input, String expected) {
-        MessageBytes mb = MessageBytes.newInstance();
-        byte[] b = input.getBytes(StandardCharsets.UTF_8);
-        mb.setBytes(b, 0, b.length);
-
-        boolean result = CoyoteAdapter.normalize(mb);
-        mb.toString();
-
-        if (expected == null) {
-            Assert.assertFalse(result);
-        } else {
-            Assert.assertTrue(result);
-            Assert.assertEquals(expected, mb.toString());
-        }
-    }
-
 
     private class AsyncServlet extends HttpServlet {
 

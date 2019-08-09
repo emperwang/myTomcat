@@ -37,7 +37,7 @@
 #                   containing some jars in order to allow replacement of APIs
 #                   created outside of the JCP (i.e. DOM and SAX from W3C).
 #                   It can also be used to update the XML parser implementation.
-#                   This is only supported for Java <= 8.
+#                   Note that Java 9 no longer supports this feature.
 #                   Defaults to $CATALINA_HOME/endorsed.
 # -----------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ fi
 if [ ! -z "$CLASSPATH" ] ; then
   CLASSPATH="$CLASSPATH":
 fi
-CLASSPATH="$CLASSPATH""$CATALINA_HOME"/bin/bootstrap.jar:"$CATALINA_HOME"/bin/tomcat-juli.jar:"$CATALINA_HOME"/lib/servlet-api.jar:"$CATALINA_HOME"/lib/tomcat-util.jar
+CLASSPATH="$CLASSPATH""$CATALINA_HOME"/bin/bootstrap.jar:"$CATALINA_HOME"/bin/tomcat-juli.jar:"$CATALINA_HOME"/lib/servlet-api.jar
 
 # For Cygwin, switch paths to Windows format before running java
 if $cygwin; then

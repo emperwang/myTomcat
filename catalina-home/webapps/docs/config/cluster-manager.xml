@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -76,6 +76,31 @@
         Set to <code>true</code> if you wish to have session listeners notified
         when session attributes are being replicated or removed across Tomcat
         nodes in the cluster.
+      </attribute>
+      <attribute name="expireSessionsOnShutdown" required="false">
+        When a web application is being shutdown, Tomcat issues an expire call
+        to each session to notify all the listeners. If you wish for all
+        sessions to expire on all nodes when a shutdown occurs on one node, set
+        this value to <code>true</code>. Default value is <code>false</code>.
+      </attribute>
+      <attribute name="maxInactiveInterval" required="false">
+        <p><strong>Deprecated</strong>: This should be configured via the
+        Context.</p>
+        <p>The initial maximum time interval, in seconds,
+        between client requests before a session is invalidated. A negative value
+        will result in sessions never timing out. If the attribute is not provided,
+        a default of 1800 seconds (30 minutes) is used.</p>
+        <p>This attribute provides the initial value whenever a
+        new session is created, but the interval may be dynamically
+        varied by a servlet via the
+        <code>setMaxInactiveInterval</code> method of the <code>HttpSession</code> object.</p>
+      </attribute>
+      <attribute name="sessionIdLength" required="false">
+       <p>The length of session ids created by this Manager, measured in bytes,
+        excluding subsequent conversion to a hexadecimal string and
+        excluding any JVM route information used for load balancing.
+        The default is 16. You should set the length on a nested
+        <strong>SessionIdGenerator</strong> element instead.</p>
       </attribute>
       <attribute name="processExpiresFrequency" required="false">
         <p>Frequency of the session expiration, and related manager operations.

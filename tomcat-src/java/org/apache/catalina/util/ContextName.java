@@ -23,7 +23,7 @@ import java.util.Locale;
  * conversions between baseName, path and version take place.
  */
 public final class ContextName {
-    public static final String ROOT_NAME = "ROOT";
+    private static final String ROOT_NAME = "ROOT";
     private static final String VERSION_MARKER = "##";
     private static final String FWD_SLASH_REPLACEMENT = "#";
 
@@ -31,6 +31,19 @@ public final class ContextName {
     private final String path;
     private final String version;
     private final String name;
+
+    /**
+     * Creates an instance from a context name, display name, base name,
+     * directory name, WAR name or context.xml name.
+     *
+     * @param name  The name to use as the basis for this object
+     *
+     * @deprecated  Use {@link ContextName#ContextName(String, boolean)}
+     */
+    @Deprecated
+    public ContextName(String name) {
+        this(name, true);
+    }
 
 
     /**

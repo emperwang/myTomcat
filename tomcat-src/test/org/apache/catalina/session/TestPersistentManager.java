@@ -48,7 +48,7 @@ public class TestPersistentManager {
         Context context = new TesterContext();
         context.setParent(host);
 
-        manager.setContext(context);
+        manager.setContainer(context);
 
         manager.setMaxActiveSessions(2);
         manager.setMinIdleSwap(0);
@@ -106,21 +106,18 @@ public class TestPersistentManager {
         };
         context.setParent(host);
 
-        Request req = new Request() {
-            @Override
-            public Context getContext() {
-                return context;
-            }
-        };
+        Request req = new Request();
+        req.setContext(context);
         req.setRequestedSessionId("invalidSession");
         HttpServletRequest request = new RequestFacade(req);
         requestCachingSessionListener.request = request;
 
-        manager.setContext(context);
+        manager.setContainer(context);
 
         manager.start();
 
         Assert.assertNull(request.getSession(false));
+        EasyMock.verify(mockStore);
         Assert.assertEquals(1, sessionExpireCounter.get());
 
     }

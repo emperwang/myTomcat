@@ -18,10 +18,9 @@
 package org.apache.coyote.http11.filters;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
+import org.apache.coyote.OutputBuffer;
 import org.apache.coyote.Response;
-import org.apache.coyote.http11.HttpOutputBuffer;
 import org.apache.coyote.http11.OutputFilter;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.HexUtils;
@@ -35,8 +34,20 @@ public class ChunkedOutputFilter implements OutputFilter {
 
 
     // -------------------------------------------------------------- Constants
-    private static final byte[] END_CHUNK_BYTES = {(byte) '0', (byte) '\r', (byte) '\n',
-            (byte) '\r', (byte) '\n'};
+    /**
+     * End chunk.
+     */
+    protected static final ByteChunk END_CHUNK = new ByteChunk();
+
+
+    // ----------------------------------------------------- Static Initializer
+
+
+    static {
+        byte[] END_CHUNK_BYTES = {(byte) '0', (byte) '\r', (byte) '\n',
+                                  (byte) '\r', (byte) '\n'};
+        END_CHUNK.setBytes(END_CHUNK_BYTES, 0, END_CHUNK_BYTES.length);
+    }
 
 
     // ------------------------------------------------------------ Constructor
@@ -46,8 +57,9 @@ public class ChunkedOutputFilter implements OutputFilter {
      * Default constructor.
      */
     public ChunkedOutputFilter() {
-        chunkHeader.put(8, (byte) '\r');
-        chunkHeader.put(9, (byte) '\n');
+        chunkLength = new byte[10];
+        chunkLength[8] = (byte) '\r';
+        chunkLength[9] = (byte) '\n';
     }
 
 
@@ -57,19 +69,19 @@ public class ChunkedOutputFilter implements OutputFilter {
     /**
      * Next buffer in the pipeline.
      */
-    protected HttpOutputBuffer buffer;
+    protected OutputBuffer buffer;
+
+
+    /**
+     * Buffer used for chunk length conversion.
+     */
+    protected byte[] chunkLength = new byte[10];
 
 
     /**
      * Chunk header.
      */
-    protected final ByteBuffer chunkHeader = ByteBuffer.allocate(10);
-
-
-    /**
-     * End chunk.
-     */
-    protected final ByteBuffer endChunk = ByteBuffer.wrap(END_CHUNK_BYTES);
+    protected ByteChunk chunkHeader = new ByteChunk();
 
 
     // ------------------------------------------------------------- Properties
@@ -77,13 +89,15 @@ public class ChunkedOutputFilter implements OutputFilter {
 
     // --------------------------------------------------- OutputBuffer Methods
 
+
     /**
-     * @deprecated Unused. Will be removed in Tomcat 9. Use
-     *             {@link #doWrite(ByteBuffer)}
+     * Write some bytes.
+     *
+     * @return number of bytes written by the filter
      */
-    @Deprecated
     @Override
-    public int doWrite(ByteChunk chunk) throws IOException {
+    public int doWrite(ByteChunk chunk, Response res)
+        throws IOException {
 
         int result = chunk.getLength();
 
@@ -91,55 +105,24 @@ public class ChunkedOutputFilter implements OutputFilter {
             return 0;
         }
 
-        int pos = calculateChunkHeader(result);
-
-        chunkHeader.position(pos + 1).limit(chunkHeader.position() + 9 - pos);
-        buffer.doWrite(chunkHeader);
-
-        buffer.doWrite(chunk);
-
-        chunkHeader.position(8).limit(10);
-        buffer.doWrite(chunkHeader);
-
-        return result;
-
-    }
-
-
-    @Override
-    public int doWrite(ByteBuffer chunk) throws IOException {
-
-        int result = chunk.remaining();
-
-        if (result <= 0) {
-            return 0;
-        }
-
-        int pos = calculateChunkHeader(result);
-
-        chunkHeader.position(pos + 1).limit(chunkHeader.position() + 9 - pos);
-        buffer.doWrite(chunkHeader);
-
-        buffer.doWrite(chunk);
-
-        chunkHeader.position(8).limit(10);
-        buffer.doWrite(chunkHeader);
-
-        return result;
-
-    }
-
-
-    private int calculateChunkHeader(int len) {
         // Calculate chunk header
         int pos = 7;
-        int current = len;
+        int current = result;
         while (current > 0) {
             int digit = current % 16;
             current = current / 16;
-            chunkHeader.put(pos--, HexUtils.getHex(digit));
+            chunkLength[pos--] = HexUtils.getHex(digit);
         }
-        return pos;
+        chunkHeader.setBytes(chunkLength, pos + 1, 9 - pos);
+        buffer.doWrite(chunkHeader, res);
+
+        buffer.doWrite(chunk, res);
+
+        chunkHeader.setBytes(chunkLength, 8, 2);
+        buffer.doWrite(chunkHeader, res);
+
+        return result;
+
     }
 
 
@@ -151,35 +134,46 @@ public class ChunkedOutputFilter implements OutputFilter {
 
     // --------------------------------------------------- OutputFilter Methods
 
+
+    /**
+     * Some filters need additional parameters from the response. All the
+     * necessary reading can occur in that method, as this method is called
+     * after the response header processing is complete.
+     */
     @Override
     public void setResponse(Response response) {
         // NOOP: No need for parameters from response in this filter
     }
 
 
+    /**
+     * Set the next buffer in the filter pipeline.
+     */
     @Override
-    public void setBuffer(HttpOutputBuffer buffer) {
+    public void setBuffer(OutputBuffer buffer) {
         this.buffer = buffer;
     }
 
 
+    /**
+     * End the current request. It is acceptable to write extra bytes using
+     * buffer.doWrite during the execution of this method.
+     */
     @Override
-    public void flush() throws IOException {
-        // No data buffered in this filter. Flush next buffer.
-        buffer.flush();
-    }
+    public long end()
+        throws IOException {
 
-
-    @Override
-    public void end() throws IOException {
         // Write end chunk
-        buffer.doWrite(endChunk);
-        endChunk.position(0).limit(endChunk.capacity());
+        buffer.doWrite(END_CHUNK, null);
 
-        buffer.end();
+        return 0;
+
     }
 
 
+    /**
+     * Make the filter ready to process the next request.
+     */
     @Override
     public void recycle() {
         // NOOP: Nothing to recycle

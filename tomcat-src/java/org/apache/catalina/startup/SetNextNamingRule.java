@@ -19,7 +19,7 @@
 package org.apache.catalina.startup;
 
 import org.apache.catalina.Context;
-import org.apache.catalina.deploy.NamingResourcesImpl;
+import org.apache.catalina.deploy.NamingResources;
 import org.apache.tomcat.util.IntrospectionUtils;
 import org.apache.tomcat.util.digester.Rule;
 
@@ -65,13 +65,13 @@ public class SetNextNamingRule extends Rule {
     /**
      * The method name to call on the parent object.
      */
-    protected final String methodName;
+    protected String methodName = null;
 
 
     /**
      * The Java class name of the parameter type expected by the method.
      */
-    protected final String paramType;
+    protected String paramType = null;
 
 
     // --------------------------------------------------------- Public Methods
@@ -93,11 +93,11 @@ public class SetNextNamingRule extends Rule {
         Object child = digester.peek(0);
         Object parent = digester.peek(1);
 
-        NamingResourcesImpl namingResources = null;
+        NamingResources namingResources = null;
         if (parent instanceof Context) {
             namingResources = ((Context) parent).getNamingResources();
         } else {
-            namingResources = (NamingResourcesImpl) parent;
+            namingResources = (NamingResources) parent;
         }
 
         // Call the specified method
@@ -112,13 +112,15 @@ public class SetNextNamingRule extends Rule {
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("SetNextRule[");
         sb.append("methodName=");
         sb.append(methodName);
         sb.append(", paramType=");
         sb.append(paramType);
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 

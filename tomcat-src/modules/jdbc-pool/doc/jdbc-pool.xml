@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -128,7 +128,7 @@
   </subsection>
   <subsection name="Inside the Apache Tomcat Container">
     <p>
-      The Tomcat Connection pool is configured as a resource described in <a href="http://tomcat.apache.org/tomcat-8.5-doc/jndi-datasource-examples-howto.html" target="_blank">The Tomcat JDBC documentation</a>
+      The Tomcat Connection pool is configured as a resource described in <a href="http://tomcat.apache.org/tomcat-7.0-doc/jndi-datasource-examples-howto.html" target="_blank">The Tomcat JDBC documentation</a>
       With the only difference being that you have to specify the <code>factory</code> attribute and set the value to
       <code>org.apache.tomcat.jdbc.pool.DataSourceFactory</code>
     </p>
@@ -167,25 +167,6 @@
       <attribute name="type" required="true">
         <p>Type should always be <code>javax.sql.DataSource</code> or <code>javax.sql.XADataSource</code></p>
         <p>Depending on the type a <code>org.apache.tomcat.jdbc.pool.DataSource</code> or a <code>org.apache.tomcat.jdbc.pool.XADataSource</code> will be created.</p>
-      </attribute>
-    </attributes>
-  </subsection>
-
-  <subsection name="System Properties">
-    <p>System properties are JVM wide, affect all pools created in the JVM</p>
-    <attributes>
-      <attribute name="org.apache.tomcat.jdbc.pool.onlyAttemptCurrentClassLoader" required="false">
-        <p>(boolean) Controls classloading of dynamic classes, such as
-           JDBC drivers, interceptors and validators. If set to
-           <code>false</code>, default value, the pool will first attempt
-           to load using the current loader (i.e. the class loader that
-           loaded the pool classes) and if class loading fails attempt to
-           load using the thread context loader. Set this value to
-           <code>true</code>, if you wish to remain backwards compatible
-           with Apache Tomcat 8.0.8 and earlier, and only attempt the
-           current loader.
-           If not set then the default value is <code>false</code>.
-        </p>
       </attribute>
     </attributes>
   </subsection>
@@ -463,17 +444,11 @@
     </attribute>
 
     <attribute name="maxAge" required="false">
-      <p>(long) Time in milliseconds to keep this connection. This attribute
-         works both when returning connection and when borrowing connection.
-         When a connection is borrowed from the pool, the pool will check to see
-         if the <code>now - time-when-connected > maxAge</code> has been reached
-         , and if so, it reconnects before borrow it. When a connection is
-         returned to the pool, the pool will check to see if the
-         <code>now - time-when-connected > maxAge</code> has been reached, and
-         if so, it closes the connection rather than returning it to the pool.
-         The default value is <code>0</code>, which implies that connections
-         will be left open and no age check will be done upon borrowing from the
-         pool and returning the connection to the pool.</p>
+      <p>(long) Time in milliseconds to keep this connection. When a connection is returned to the pool,
+         the pool will check to see if the <code>now - time-when-connected > maxAge</code> has been reached,
+         and if so, it closes the connection rather than returning it to the pool.
+         The default value is <code>0</code>, which implies that connections will be left open and no age check
+         will be done upon returning the connection to the pool.</p>
     </attribute>
 
     <attribute name="useEquals" required="false">
@@ -606,7 +581,7 @@
     </p>
   </subsection>
   <subsection name="org.apache.tomcat.jdbc.pool.JdbcInterceptor">
-    <p>Abstract base class for all interceptors, cannot be instantiated.</p>
+    <p>Abstract base class for all interceptors, can not be instantiated.</p>
     <attributes>
       <attribute name="useEquals" required="false">
         <p>(boolean) Set to true if you wish the <code>ProxyConnection</code> class to use <code>String.equals</code> and set to <code>false</code>
@@ -629,13 +604,6 @@
        and closes these statements when the connection is returned to the pool.
     </p>
     <attributes>
-      <attribute name="trace" required="false">
-        <p>(boolean as String) Enable tracing of unclosed statements.
-           When enabled and a connection is closed, and statements are not closed,
-           the interceptor will log all stack traces.
-           The default value is <code>false</code>.
-        </p>
-      </attribute>
     </attributes>
   </subsection>
   <subsection name="org.apache.tomcat.jdbc.pool.interceptor.StatementCache">
@@ -704,16 +672,6 @@
            The default value is <code>1000</code>.
         </p>
       </attribute>
-      <attribute name="logSlow" required="false">
-        <p>(boolean as String) Set to <code>true</code> if you wish to log slow queries.
-            The default value is <code>true</code>.
-        </p>
-      </attribute>
-      <attribute name="logFailed" required="false">
-        <p>(boolean as String) Set to <code>true</code> if you wish to log failed queries.
-            The default value is <code>false</code>.
-        </p>
-      </attribute>
     </attributes>
   </subsection>
   <subsection name="org.apache.tomcat.jdbc.pool.interceptor.SlowQueryReportJmx">
@@ -752,7 +710,7 @@
 </section>
 
 <section name="Code Example">
-  <p>Other examples of Tomcat configuration for JDBC usage can be found <a href="https://tomcat.apache.org/tomcat-8.5-doc/jndi-datasource-examples-howto.html">in the Tomcat documentation</a>. </p>
+  <p>Other examples of Tomcat configuration for JDBC usage can be found <a href="https://tomcat.apache.org/tomcat-7.0-doc/jndi-datasource-examples-howto.html">in the Tomcat documentation</a>. </p>
   <subsection name="Plain Ol' Java">
     <p>Here is a simple example of how to create and use a data source.</p>
 <source><![CDATA[  import java.sql.Connection;
@@ -959,7 +917,7 @@
 
 <section name="Building">
   <p>We build the JDBC pool code with 1.6, but it is backwards compatible down to 1.5 for runtime environment. For unit test, we use 1.6 and higher</p>
-  <p>Other examples of Tomcat configuration for JDBC usage can be found <a href="https://tomcat.apache.org/tomcat-8.5-doc/jndi-datasource-examples-howto.html">in the Tomcat documentation</a>. </p>
+  <p>Other examples of Tomcat configuration for JDBC usage can be found <a href="https://tomcat.apache.org/tomcat-7.0-doc/jndi-datasource-examples-howto.html">in the Tomcat documentation</a>. </p>
   <subsection name="Building from source">
     <p>Building is pretty simple. The pool has a dependency on <code>tomcat-juli.jar</code> and in case you want the <code>SlowQueryReportJmx</code></p>
 <source><![CDATA[  javac -classpath tomcat-juli.jar \

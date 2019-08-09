@@ -29,7 +29,7 @@ public class TestVary {
 
     @Test
     public void testAll() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestVary("*", expected);
     }
@@ -37,7 +37,7 @@ public class TestVary {
 
     @Test
     public void testSingle() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("host");
         doTestVary("Host", expected);
     }
@@ -45,7 +45,7 @@ public class TestVary {
 
     @Test
     public void testMultiple() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -69,7 +69,7 @@ public class TestVary {
 
     @Test
     public void testMultipleWithInvalidStart() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -79,7 +79,7 @@ public class TestVary {
 
     @Test
     public void testMultipleWithInvalidMiddle() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -89,7 +89,7 @@ public class TestVary {
 
     @Test
     public void testMultipleWithInvalidEnd() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -99,7 +99,7 @@ public class TestVary {
 
     @Test
     public void testMultipleWithInvalidStart2() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -109,7 +109,7 @@ public class TestVary {
 
     @Test
     public void testMultipleWithInvalidMiddle2() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -119,7 +119,7 @@ public class TestVary {
 
     @Test
     public void testMultipleWithInvalidEnd2() throws IOException {
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("host");
@@ -129,7 +129,7 @@ public class TestVary {
 
     private void doTestVary(String input, Set<String> expected) throws IOException {
         StringReader reader = new StringReader(input);
-        Set<String> result = new HashSet<>();
+        Set<String> result = new HashSet<String>();
         Vary.parseVary(reader, result);
         Assert.assertEquals(expected, result);
     }

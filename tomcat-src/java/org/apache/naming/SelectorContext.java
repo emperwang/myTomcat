@@ -94,19 +94,19 @@ public class SelectorContext implements Context {
     /**
      * Environment.
      */
-    protected final Hashtable<String,Object> env;
+    protected Hashtable<String,Object> env;
 
 
     /**
      * The string manager for this package.
      */
-    protected static final StringManager sm = StringManager.getManager(SelectorContext.class);
+    protected static final StringManager sm = StringManager.getManager(Constants.Package);
 
 
     /**
      * Request for an initial context.
      */
-    protected final boolean initialContext;
+    protected boolean initialContext = false;
 
 
     // --------------------------------------------------------- Public Methods
@@ -146,7 +146,7 @@ public class SelectorContext implements Context {
      *
      * @param name the name of the object to look up
      * @return the object bound to name
-     * @throws NamingException if a naming exception is encountered
+     * @exception NamingException if a naming exception is encountered
      */
     @Override
     public Object lookup(String name)

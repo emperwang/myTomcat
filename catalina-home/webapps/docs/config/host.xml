@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -141,7 +141,7 @@
         and all its child containers. A host will use background processing to
         perform live web application deployment related tasks. If not
         specified, the default value for this attribute is -1, which means
-        the host will rely on the background processing setting of its parent
+        the host will rely on the background processing thread of its parent
         engine.</p>
       </attribute>
 
@@ -192,10 +192,7 @@
         have a name that matches the <code>defaultHost</code> setting for that
         Engine.  See <a href="#Host_Name_Aliases">Host Name Aliases</a> for
         information on how to assign more than one network name to the same
-        virtual host. If the name takes the form of <code>*.domainname</code>
-        (e.g. <code>*.apache.org</code>) then it will be treated as a match for
-        any host in that domain unless a host that has an exactly matching name
-        is found.</p>
+        virtual host.</p>
       </attribute>
 
       <attribute name="startStopThreads" required="false">
@@ -284,21 +281,10 @@
         placed in the <code>appBase</code> directory as web application
         archive (WAR) files to be unpacked into a corresponding disk directory
         structure, <code>false</code> to run such web applications directly
-        from a WAR file. See
+        from a WAR file. WAR files located outside of the Host's
+        <strong>appBase</strong> will not be expanded. See
         <a href="#Automatic_Application_Deployment">Automatic Application
         Deployment</a> for more information.</p>
-        <p>Note: If Tomcat expands the WAR file then it will add a file
-        (<code>/META-INF/war-tracking</code>) to the unpacked directory
-        structure which it uses to detect changes in the WAR file while Tomcat
-        is not running. Any such change will trigger the deletion of the
-        expanded directory and the deployment of the updated WAR file when
-        Tomcat next starts.</p>
-        <p>Note: Running with this option set to <code>false</code> will incur
-        a performance penalty. To avoid a significant performance penalty, the
-        web application should be configured such that class scanning for
-        Servlet 3.0+ pluggability features is not required. Users may also wish
-        to consider the <strong>ExtractingRoot</strong>
-        <a href="resources.html">Resources</a> implementation.</p>
       </attribute>
 
       <attribute name="workDir" required="false">
@@ -372,7 +358,7 @@
 <source><![CDATA[<Host name="localhost" ...>
   ...
   <Valve className="org.apache.catalina.valves.AccessLogValve"
-         prefix="localhost_access_log" suffix=".txt"
+         prefix="localhost_access_log." suffix=".txt"
          pattern="common"/>
   ...
 </Host>]]></source>
@@ -490,10 +476,6 @@
     <p>In order for this strategy to be effective, all of the network names
     involved must be registered in your DNS server to resolve to the
     same computer that is running this instance of Catalina.</p>
-
-    <p>Aliases may also use the wildcard form (<code>*.domainname</code>)
-       permitted for the <strong>name</strong> attribute of a
-       <strong>Host</strong>.</p>
 
   </subsection>
 

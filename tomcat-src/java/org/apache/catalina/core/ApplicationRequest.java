@@ -87,7 +87,8 @@ class ApplicationRequest extends ServletRequestWrapper {
      * The request attributes for this request.  This is initialized from the
      * wrapped request, but updates are allowed.
      */
-    protected final HashMap<String, Object> attributes = new HashMap<>();
+    protected HashMap<String, Object> attributes =
+        new HashMap<String, Object>();
 
 
     // ------------------------------------------------- ServletRequest Methods
@@ -102,7 +103,7 @@ class ApplicationRequest extends ServletRequestWrapper {
     public Object getAttribute(String name) {
 
         synchronized (attributes) {
-            return attributes.get(name);
+            return (attributes.get(name));
         }
 
     }
@@ -199,9 +200,9 @@ class ApplicationRequest extends ServletRequestWrapper {
 
         for (int i = 0; i < specials.length; i++) {
             if (specials[i].equals(name))
-                return true;
+                return (true);
         }
-        return false;
+        return (false);
 
     }
 

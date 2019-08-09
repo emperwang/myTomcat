@@ -76,7 +76,7 @@ public class AsyncChannelWrapperSecure implements AsyncChannelWrapper {
 
     @Override
     public Future<Integer> read(ByteBuffer dst) {
-        WrapperFuture<Integer,Void> future = new WrapperFuture<>();
+        WrapperFuture<Integer,Void> future = new WrapperFuture<Integer, Void>();
 
         if (!reading.compareAndSet(false, true)) {
             throw new IllegalStateException(sm.getString(
@@ -95,7 +95,7 @@ public class AsyncChannelWrapperSecure implements AsyncChannelWrapper {
             CompletionHandler<Integer,B> handler) {
 
         WrapperFuture<Integer,B> future =
-                new WrapperFuture<>(handler, attachment);
+                new WrapperFuture<Integer, B>(handler, attachment);
 
         if (!reading.compareAndSet(false, true)) {
             throw new IllegalStateException(sm.getString(
@@ -110,7 +110,7 @@ public class AsyncChannelWrapperSecure implements AsyncChannelWrapper {
     @Override
     public Future<Integer> write(ByteBuffer src) {
 
-        WrapperFuture<Long,Void> inner = new WrapperFuture<>();
+        WrapperFuture<Long,Void> inner = new WrapperFuture<Long, Void>();
 
         if (!writing.compareAndSet(false, true)) {
             throw new IllegalStateException(sm.getString(
@@ -132,7 +132,7 @@ public class AsyncChannelWrapperSecure implements AsyncChannelWrapper {
             CompletionHandler<Long,B> handler) {
 
         WrapperFuture<Long,B> future =
-                new WrapperFuture<>(handler, attachment);
+                new WrapperFuture<Long, B>(handler, attachment);
 
         if (!writing.compareAndSet(false, true)) {
             throw new IllegalStateException(sm.getString(
@@ -157,7 +157,7 @@ public class AsyncChannelWrapperSecure implements AsyncChannelWrapper {
     @Override
     public Future<Void> handshake() throws SSLException {
 
-        WrapperFuture<Void,Void> wFuture = new WrapperFuture<>();
+        WrapperFuture<Void,Void> wFuture = new WrapperFuture<Void, Void>();
 
         Thread t = new WebSocketSslHandshakeThread(wFuture);
         t.start();
@@ -333,8 +333,7 @@ public class AsyncChannelWrapperSecure implements AsyncChannelWrapper {
                     future.fail(new IllegalStateException(sm.getString(
                             "asyncChannelWrapperSecure.wrongStateRead")));
                 }
-            } catch (RuntimeException | ReadBufferOverflowException | SSLException | EOFException |
-                    ExecutionException | InterruptedException e) {
+            } catch (Exception e) {
                 reading.set(false);
                 future.fail(e);
             }

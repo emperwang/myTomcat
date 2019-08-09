@@ -20,22 +20,15 @@ import java.security.PrivilegedAction;
 
 public class PrivilegedSetTccl implements PrivilegedAction<Void> {
 
-    private final ClassLoader cl;
-    private final Thread t;
+    private ClassLoader cl;
 
     public PrivilegedSetTccl(ClassLoader cl) {
-        this(Thread.currentThread(), cl);
-    }
-
-    public PrivilegedSetTccl(Thread t, ClassLoader cl) {
-        this.t = t;
         this.cl = cl;
     }
 
-
     @Override
     public Void run() {
-        t.setContextClassLoader(cl);
+        Thread.currentThread().setContextClassLoader(cl);
         return null;
     }
 }

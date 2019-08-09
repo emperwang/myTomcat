@@ -25,6 +25,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.naming.directory.DirContext;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -35,14 +36,16 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.Lifecycle;
+import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
+import org.apache.catalina.deploy.WebXml;
 import org.apache.catalina.startup.Constants;
 import org.apache.catalina.startup.ContextConfig;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.catalina.util.IOTools;
+import org.apache.naming.resources.ProxyDirContext;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.WebXml;
 
 public class TestStandardContextResources extends TomcatBaseTest {
 
@@ -64,7 +67,7 @@ public class TestStandardContextResources extends TomcatBaseTest {
     public void testResources() throws Exception {
         Tomcat tomcat = getTomcatInstance();
 
-        File appDir = new File("test/webapp-fragments");
+        File appDir = new File("test/webapp-3.0-fragments");
         // app dir is relative to server home
         Context ctx = tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
 
@@ -102,7 +105,7 @@ public class TestStandardContextResources extends TomcatBaseTest {
         Tomcat tomcat = getTomcatInstance();
 
         // app dir is relative to server home
-        File appDir = new File("test/webapp-fragments");
+        File appDir = new File("test/webapp-3.0-fragments");
 
         // Need to cast to be able to set StandardContext specific attribute
         StandardContext ctxt = (StandardContext)
@@ -128,16 +131,28 @@ public class TestStandardContextResources extends TomcatBaseTest {
     @Test
     public void testResourcesAbsoluteOrdering() throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        File appDir = new File("test/webapp-fragments");
 
-        AbsoluteOrderContextConfig absoluteOrderConfig = new AbsoluteOrderContextConfig();
-
+        File appDir = new File("test/webapp-3.0-fragments");
         // app dir is relative to server home
         StandardContext ctx = (StandardContext) tomcat.addWebapp(null, "/test",
-                appDir.getAbsolutePath(), (LifecycleListener) absoluteOrderConfig);
-
+                appDir.getAbsolutePath());
+        LifecycleListener[] listener = ctx.findLifecycleListeners();
+        Assert.assertEquals(3,listener.length);
+        Assert.assertTrue(listener[1] instanceof ContextConfig);
+        ContextConfig config = new ContextConfig() {
+            @Override
+            protected WebXml createWebXml() {
+                WebXml wxml = new WebXml();
+                wxml.addAbsoluteOrdering("resources");
+                wxml.addAbsoluteOrdering("resources2");
+                return wxml;
+            }
+        };
+        // prevent it from looking ( if it finds one - it'll have dup error )
+        config.setDefaultWebXml(Constants.NoDefaultWebXml);
+        listener[1] = config;
         Tomcat.addServlet(ctx, "getresource", new GetResourceServlet());
-        ctx.addServletMappingDecoded("/getresource", "getresource");
+        ctx.addServletMapping("/getresource", "getresource");
 
         tomcat.start();
         assertPageContains("/test/getresource?path=/resourceF.jsp",
@@ -149,18 +164,29 @@ public class TestStandardContextResources extends TomcatBaseTest {
         Assert.assertEquals(Arrays.asList("resources.jar", "resources2.jar"), ctx
                 .getServletContext().getAttribute(ServletContext.ORDERED_LIBS));
 
-        tomcat.getHost().removeChild(ctx);
-        tomcat.getHost().stop();
+        ctx.stop();
 
-        // change ordering
-        absoluteOrderConfig.swap();
-
-        ctx = (StandardContext) tomcat.addWebapp(null, "/test",
-                appDir.getAbsolutePath(), (LifecycleListener) absoluteOrderConfig);
+        LifecycleListener[] listener1 = ctx.findLifecycleListeners();
+        // change ordering and reload
+        ContextConfig config1 = new ContextConfig() {
+            @Override
+            protected WebXml createWebXml() {
+                WebXml wxml = new WebXml();
+                wxml.addAbsoluteOrdering("resources2");
+                wxml.addAbsoluteOrdering("resources");
+                return wxml;
+            }
+        };
+        // prevent it from looking ( if it finds one - it'll have dup error )
+        config1.setDefaultWebXml(Constants.NoDefaultWebXml);
+        listener1[1] = config1;
+        // Need to init since context won't call init
+        config1.lifecycleEvent(
+                new LifecycleEvent(ctx, Lifecycle.AFTER_INIT_EVENT, null));
         Tomcat.addServlet(ctx, "getresource", new GetResourceServlet());
-        ctx.addServletMappingDecoded("/getresource", "getresource");
+        ctx.addServletMapping("/getresource", "getresource");
 
-        tomcat.getHost().start();
+        ctx.start();
 
         assertPageContains("/test/getresource?path=/resourceF.jsp",
         "<p>resourceF.jsp in resources2.jar</p>");
@@ -172,48 +198,17 @@ public class TestStandardContextResources extends TomcatBaseTest {
                 .getServletContext().getAttribute(ServletContext.ORDERED_LIBS));
     }
 
-
-    public static class AbsoluteOrderContextConfig extends ContextConfig {
-
-        private boolean swap = false;
-
-        public AbsoluteOrderContextConfig() {
-            super();
-            // Prevent it from looking (if it finds one - it'll have dup error)
-            setDefaultWebXml(Constants.NoDefaultWebXml);
-        }
-
-        @Override
-        protected WebXml createWebXml() {
-            WebXml wxml = new WebXml();
-            if (swap) {
-                wxml.addAbsoluteOrdering("resources2");
-                wxml.addAbsoluteOrdering("resources");
-            } else {
-                wxml.addAbsoluteOrdering("resources");
-                wxml.addAbsoluteOrdering("resources2");
-            }
-            return wxml;
-        }
-
-        protected void swap() {
-            swap = !swap;
-        }
-    }
-
-
     @Test
     public void testResources2() throws Exception {
         Tomcat tomcat = getTomcatInstance();
 
-        File appDir = new File("test/webapp-fragments");
+        File appDir = new File("test/webapp-3.0-fragments");
         // app dir is relative to server home
         StandardContext ctx = (StandardContext) tomcat.addWebapp(null, "/test",
                 appDir.getAbsolutePath());
-        skipTldsForResourceJars(ctx);
 
         Tomcat.addServlet(ctx, "getresource", new GetResourceServlet());
-        ctx.addServletMappingDecoded("/getresource", "getresource");
+        ctx.addServletMapping("/getresource", "getresource");
 
         tomcat.start();
 
@@ -230,6 +225,36 @@ public class TestStandardContextResources extends TomcatBaseTest {
         assertPageContains("/test/getresource?path=/folder/resourceE.jsp",
                 "<p>resourceE.jsp in the web application</p>");
     }
+
+
+    @Test
+    public void testResourceCaching() throws Exception {
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir = new File("test/webapp-3.0-fragments");
+        // app dir is relative to server home
+        StandardContext ctx = (StandardContext) tomcat.addWebapp(
+                null, "/test", appDir.getAbsolutePath());
+        ctx.setCachingAllowed(false);
+
+        tomcat.start();
+
+        DirContext resources = ctx.getResources();
+
+        Assert.assertTrue(resources instanceof ProxyDirContext);
+
+        ProxyDirContext proxyResources = (ProxyDirContext) resources;
+
+        // Caching should be disabled
+        Assert.assertNull(proxyResources.getCache());
+
+        ctx.stop();
+        ctx.start();
+
+        // Caching should still be disabled
+        Assert.assertNull(proxyResources.getCache());
+    }
+
 
     /**
      * A servlet that prints the requested resource. The path to the requested
@@ -254,9 +279,16 @@ public class TestStandardContextResources extends TomcatBaseTest {
                 return;
             }
 
-            try (InputStream input = url.openStream();
-                    OutputStream output = resp.getOutputStream()) {
-                IOTools.flow(input, output);
+            InputStream input = url.openStream();
+            OutputStream output = resp.getOutputStream();
+            try {
+                byte[] buffer = new byte[4000];
+                for (int len; (len = input.read(buffer)) > 0;) {
+                    output.write(buffer, 0, len);
+                }
+            } finally {
+                input.close();
+                output.close();
             }
         }
     }

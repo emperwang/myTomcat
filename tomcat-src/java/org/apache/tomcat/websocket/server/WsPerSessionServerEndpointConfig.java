@@ -35,7 +35,7 @@ class WsPerSessionServerEndpointConfig implements ServerEndpointConfig {
 
     private final ServerEndpointConfig perEndpointConfig;
     private final Map<String,Object> perSessionUserProperties =
-            new ConcurrentHashMap<>();
+            new ConcurrentHashMap<String,Object>();
 
     WsPerSessionServerEndpointConfig(ServerEndpointConfig perEndpointConfig) {
         this.perEndpointConfig = perEndpointConfig;

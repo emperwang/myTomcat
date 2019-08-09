@@ -26,13 +26,9 @@ package org.apache.catalina.security;
 public final class SecurityClassLoad {
 
     public static void securityClassLoad(ClassLoader loader) throws Exception {
-        securityClassLoad(loader, true);
-    }
 
 
-    static void securityClassLoad(ClassLoader loader, boolean requireSecurityManager) throws Exception {
-
-        if (requireSecurityManager && System.getSecurityManager() == null) {
+        if( System.getSecurityManager() == null ){
             return;
         }
 
@@ -53,10 +49,9 @@ public final class SecurityClassLoad {
     private static final void loadCorePackage(ClassLoader loader) throws Exception {
         final String basePackage = "org.apache.catalina.core.";
         loader.loadClass(basePackage + "AccessLogAdapter");
-        loader.loadClass(basePackage + "ApplicationContextFacade$PrivilegedExecuteMethod");
+        loadAnonymousInnerClasses(loader, basePackage + "ApplicationContextFacade");
         loader.loadClass(basePackage + "ApplicationDispatcher$PrivilegedForward");
         loader.loadClass(basePackage + "ApplicationDispatcher$PrivilegedInclude");
-        loader.loadClass(basePackage + "ApplicationPushBuilder");
         loader.loadClass(basePackage + "AsyncContextImpl");
         loader.loadClass(basePackage + "AsyncContextImpl$AsyncRunnable");
         loader.loadClass(basePackage + "AsyncContextImpl$DebugException");
@@ -71,8 +66,8 @@ public final class SecurityClassLoad {
 
     private static final void loadLoaderPackage(ClassLoader loader) throws Exception {
         final String basePackage = "org.apache.catalina.loader.";
-        loader.loadClass(basePackage + "WebappClassLoaderBase$PrivilegedFindClassByName");
-        loader.loadClass(basePackage + "WebappClassLoaderBase$PrivilegedHasLoggingConfig");
+        loader.loadClass(basePackage + "ResourceEntry");
+        loader.loadClass(basePackage + "WebappClassLoaderBase$PrivilegedFindResourceByName");
     }
 
 
@@ -103,24 +98,30 @@ public final class SecurityClassLoad {
 
     private static final void loadUtilPackage(ClassLoader loader) throws Exception {
         final String basePackage = "org.apache.catalina.util.";
+        loader.loadClass(basePackage + "Enumerator");
         loader.loadClass(basePackage + "ParameterMap");
         loader.loadClass(basePackage + "RequestUtil");
-        loader.loadClass(basePackage + "TLSUtil");
     }
 
 
     private static final void loadValvesPackage(ClassLoader loader) throws Exception {
         final String basePackage = "org.apache.catalina.valves.";
-        loadAnonymousInnerClasses(loader, basePackage + "AbstractAccessLogValve");
+        loader.loadClass(basePackage + "AccessLogValve$3");
     }
+
 
     private static final void loadCoyotePackage(ClassLoader loader) throws Exception {
         final String basePackage = "org.apache.coyote.";
+        // Java 6 compiler creates helper *$1 classes because we use switch with an enum
+        loadAnonymousInnerClasses(loader, basePackage + "http11.AbstractHttp11Processor");
+        loadAnonymousInnerClasses(loader, basePackage + "http11.Http11Processor");
+        loadAnonymousInnerClasses(loader, basePackage + "http11.Http11NioProcessor");
+        loadAnonymousInnerClasses(loader, basePackage + "http11.Http11AprProcessor");
+        loadAnonymousInnerClasses(loader, basePackage + "http11.AbstractOutputBuffer");
         loader.loadClass(basePackage + "http11.Constants");
         // Make sure system property is read at this point
         Class<?> clazz = loader.loadClass(basePackage + "Constants");
         clazz.getConstructor().newInstance();
-        loader.loadClass(basePackage + "http2.Stream$PrivilegedPush");
     }
 
 
@@ -158,43 +159,31 @@ public final class SecurityClassLoad {
         final String basePackage = "org.apache.tomcat.";
         // buf
         loader.loadClass(basePackage + "util.buf.B2CConverter");
-        loader.loadClass(basePackage + "util.buf.ByteBufferUtils");
         loader.loadClass(basePackage + "util.buf.C2BConverter");
         loader.loadClass(basePackage + "util.buf.HexUtils");
         loader.loadClass(basePackage + "util.buf.StringCache");
         loader.loadClass(basePackage + "util.buf.StringCache$ByteEntry");
         loader.loadClass(basePackage + "util.buf.StringCache$CharEntry");
         loader.loadClass(basePackage + "util.buf.UriUtil");
-        // collections
-        Class<?> clazz = loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap");
-        // Ensure StringManager is configured
-        clazz.getConstructor().newInstance();
-        loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$EntryImpl");
-        loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$EntryIterator");
-        loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$EntrySet");
-        loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$Key");
         // http
-        loader.loadClass(basePackage + "util.http.CookieProcessor");
-        loader.loadClass(basePackage + "util.http.NamesEnumerator");
+        loader.loadClass(basePackage + "util.http.HttpMessages");
         // Make sure system property is read at this point
-        clazz = loader.loadClass(basePackage + "util.http.FastHttpDateFormat");
-        clazz.getConstructor().newInstance();
+        Class<?> clazz = loader.loadClass(
+                basePackage + "util.http.FastHttpDateFormat");
+        clazz.newInstance();
+        loader.loadClass(basePackage + "util.http.HttpMessages");
         loader.loadClass(basePackage + "util.http.parser.HttpParser");
+        loader.loadClass(basePackage + "util.http.parser.HttpParser$DomainParseState");
+        loader.loadClass(basePackage + "util.http.parser.HttpParser$SkipResult");
         loader.loadClass(basePackage + "util.http.parser.MediaType");
         loader.loadClass(basePackage + "util.http.parser.MediaTypeCache");
-        loader.loadClass(basePackage + "util.http.parser.SkipResult");
+        // jni
+        loader.loadClass(basePackage + "jni.Status");
         // net
         loader.loadClass(basePackage + "util.net.Constants");
-        loader.loadClass(basePackage + "util.net.DispatchType");
-        loader.loadClass(basePackage + "util.net.NioBlockingSelector$BlockPoller$RunnableAdd");
-        loader.loadClass(basePackage + "util.net.NioBlockingSelector$BlockPoller$RunnableCancel");
-        loader.loadClass(basePackage + "util.net.NioBlockingSelector$BlockPoller$RunnableRemove");
-        loader.loadClass(basePackage + "util.net.Nio2Endpoint$Nio2SocketWrapper$OperationState");
-        loader.loadClass(basePackage + "util.net.Nio2Endpoint$Nio2SocketWrapper$VectoredIOCompletionHandler");
-        loader.loadClass(basePackage + "util.net.SocketWrapperBase$BlockingMode");
-        loader.loadClass(basePackage + "util.net.SocketWrapperBase$CompletionCheck");
-        loader.loadClass(basePackage + "util.net.SocketWrapperBase$CompletionHandlerCall");
-        loader.loadClass(basePackage + "util.net.SocketWrapperBase$CompletionState");
+        loadAnonymousInnerClasses(loader, basePackage + "util.net.NioBlockingSelector$BlockPoller");
+        loader.loadClass(basePackage + "util.net.SendfileState");
+        loader.loadClass(basePackage + "util.net.SSLSupport$CipherData");
         // security
         loader.loadClass(basePackage + "util.security.PrivilegedGetTccl");
         loader.loadClass(basePackage + "util.security.PrivilegedSetTccl");

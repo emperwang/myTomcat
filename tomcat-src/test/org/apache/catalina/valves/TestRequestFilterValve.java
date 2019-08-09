@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.valves;
 
 import java.io.IOException;
@@ -91,7 +92,7 @@ public class TestRequestFilterValve {
 
         connector.setPort(PORT);
         request.setConnector(connector);
-        request.getMappingData().context = context;
+        request.setContext(context);
         request.setCoyoteRequest(new org.apache.coyote.Request());
 
         Assert.assertNotNull("Invalid test with null type", type);

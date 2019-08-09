@@ -28,7 +28,6 @@ public class NullRealm extends RealmBase {
     private static final String NAME = "NullRealm";
 
     @Override
-    @Deprecated
     protected String getName() {
         return NAME;
     }

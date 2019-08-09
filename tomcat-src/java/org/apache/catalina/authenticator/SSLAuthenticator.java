@@ -24,6 +24,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.connector.Request;
+import org.apache.catalina.deploy.LoginConfig;
+
+
 
 /**
  * An <b>Authenticator</b> and <b>Valve</b> implementation of authentication
@@ -32,6 +35,27 @@ import org.apache.catalina.connector.Request;
  * @author Craig R. McClanahan
  */
 public class SSLAuthenticator extends AuthenticatorBase {
+
+
+    // ------------------------------------------------------------- Properties
+
+    /**
+     * Descriptive information about this implementation.
+     */
+    protected static final String info =
+        "org.apache.catalina.authenticator.SSLAuthenticator/1.0";
+
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
+
 
     // --------------------------------------------------------- Public Methods
 
@@ -42,12 +66,16 @@ public class SSLAuthenticator extends AuthenticatorBase {
      *
      * @param request Request we are processing
      * @param response Response we are creating
+     * @param config    Login configuration describing how authentication
+     *              should be performed
      *
      * @exception IOException if an input/output error occurs
      */
     @Override
-    protected boolean doAuthenticate(Request request, HttpServletResponse response)
-            throws IOException {
+    public boolean authenticate(Request request,
+                                HttpServletResponse response,
+                                LoginConfig config)
+        throws IOException {
 
         // NOTE: We don't try to reauthenticate using any existing SSO session,
         // because that will only work if the original authentication was

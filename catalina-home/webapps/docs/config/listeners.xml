@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -125,22 +125,22 @@
         must be enabled as well.</p>
         <p>The default value is <code>off</code>.</p>
       </attribute>
-
-      <attribute name="useAprConnector" required="false">
-        <p>This attribute controls the auto-selection of the connector
-        implementation. When the <strong>protocol</strong> is specified as
-        <code>HTTP/1.1</code> or <code>AJP/1.3</code> then if this attribute is
-        <code>true</code> the APR/native connector will be used but if this
-        attribute is false the NIO connector will be used.</p>
-      </attribute>
-
-      <attribute name="useOpenSSL" required="false">
-        <p>This attribute controls the auto-selection of the OpenSSL JSSE
-        implementation. The default is <code>true</code> which will use OpenSSL
-        if the native library is available and a NIO or NIO2 connector is used.</p>
-      </attribute>
-
     </attributes>
+
+  </subsection>
+
+  <subsection name="Jasper Listener - org.apache.catalina.core.JasperListener">
+
+    <p>The <strong>Jasper Listener</strong> initializes the Jasper 2 JSP engine
+    before any web applications that may use it are loaded. For more
+    information on the Jasper 2 JSP engine see the
+    <a href="../jasper-howto.html">Jasper How To</a>.</p>
+
+    <p>This listener must only be nested within <a href="server.html">Server</a>
+    elements.</p>
+
+    <p>No additional attributes are supported by the <strong>Jasper Listener
+    </strong>.</p>
 
   </subsection>
 
@@ -204,12 +204,13 @@
       <attribute name="appContextProtection" required="false">
         <p>Enables protection so that calls to
         <code>sun.awt.AppContext.getAppContext()</code> triggered by a web
-        application do not result in a memory leak. Note that enabling this
-        protection will trigger a requirement for a graphical environment unless
-        Java is started in head-less mode. The default is <code>false</code>.
-        This protection is disabled if running on Java 8 onwards since the leak
-        has been fixed for Java 8 onwards.
-        </p>
+        application do not result in a memory leak. Note that a call to this
+        method will be triggered as part of the web application stop process
+        when running on Java 6. It is therefore strongly recommended that this
+        protection is enabled when running on Java 6. The default is
+        <code>true</code> for Java 6. The default is <code>false</code> for Java
+        7. This protection is disabled if running on Java 8 onwards since the
+        leak has been fixed for Java 8 onwards.</p>
       </attribute>
 
       <attribute name="AWTThreadProtection" required="false">
@@ -263,6 +264,16 @@
         been fixed for Java 9 onwards.</p>
       </attribute>
 
+      <attribute name="java2DDisposerProtection" required="false">
+        <p>Enables protection so that loading the
+        <code>sun.java2d.Disposer</code> class by a web application does not
+        result in a memory leak.
+        Defaults to <code>false</code> because a thread is launched.</p>
+        <p>Note: The underlying leak has been fixed in Java 1.6.0 update 21
+        onwards and Java 7 onwards. This option is unnecessary if running on a
+        fixed version of Java.</p>
+      </attribute>
+
       <attribute name="ldapPoolProtection" required="false">
         <p>Enables protection so that the PoolCleaner thread started by
         <code>com.sun.jndi.ldap.LdapPoolManager</code> does not result in a
@@ -291,12 +302,12 @@
 
       <attribute name="securityPolicyProtection" required="false">
         <p>Enables protection so that usage of the deprecated
-        <code>javax.security.auth.Policy</code> class by a web application does
-        not result in a memory leak. The first access of this class will trigger
-        the static initializer that will retain a static reference to the
-        context class loader. The protection calls the <code>getPolicy()</code>
-        method of this class to ensure that the static initializer is not
-        triggered by a web application. Defaults to <code>true</code>.</p>
+        <code>javax.security.auth.Policy</code> class by a web application does not
+        result in a memory leak. The first access of this class will trigger the
+        static initializer that will retain a static reference to the context
+        class loader. The protection calls the <code>getPolicy()</code> method
+        of this class to ensure that the static initializer is not triggered by
+        a web application. Defaults to <code>true</code>.</p>
         <p>Note: The underlying leak has been fixed in Java 7 update 51 onwards
         and Java 8 onwards. This protection is therefor disabled if running on
         Java 8 onwards.</p>
@@ -359,11 +370,9 @@
     <p>The <strong>Security Lifecycle Listener</strong> performs a number of
     security checks when Tomcat starts and prevents Tomcat from starting if they
     fail. The listener is not enabled by default. To enabled it uncomment the
-    listener in $CATALINA_BASE/conf/server.xml. For Tomcat versions before 8.5.30,
-    if the operating system supports umask then the line in
-    $CATALINA_HOME/bin/catalina.sh that obtains the umask also needs to be
-    uncommented. For Tomcat 8.5.30 and later, the umask is automatically
-    passed-into Tomcat.</p>
+    listener in $CATALINA_BASE/conf/server.xml. If the operating system supports
+    umask then the line in $CATALINA_HOME/bin/catalina.sh that obtains the umask
+    also needs to be uncommented.</p>
 
     <p>This listener must only be nested within <a href="server.html">Server</a>
     elements.</p>
@@ -385,40 +394,6 @@
         will start. If not specified, the default value of <b>0007</b> is used.
         To disable this check, set the attribute to the empty string. The check
         is not performed on Windows platforms.</p>
-      </attribute>
-
-    </attributes>
-
-  </subsection>
-
-  <subsection name="StoreConfig Lifecycle Listener - org.apache.catalina.storeconfig.StoreConfigLifecycleListener">
-
-    <p>The <strong>StoreConfig Lifecycle Listener</strong> configures a
-    StoreConfig MBean that may be used to save the current server configuration
-    in server.xml or the current configuration for a web application in a
-    context.xml file.</p>
-
-    <p>This listener must only be nested within <a href="server.html">Server</a>
-    elements.</p>
-
-    <p>The following additional attributes are supported by the
-    <strong>StoreConfig Lifecycle Listener</strong>:</p>
-
-    <attributes>
-
-      <attribute name="storeConfigClass" required="false">
-        <p>The name of the <code>IStoreConfig</code> implementation to use. If
-        not specified the default of
-        <code>org.apache.catalina.storeconfig.StoreConfig</code> will be
-        used.</p>
-      </attribute>
-
-      <attribute name="storeRegistry" required="false">
-        <p>The URL of the configuration file that configures how the
-        <code>IStoreConfig</code> is to save the configuration. If not specified
-        the built in resource
-        <code>/org/apache/catalina/storeconfig/server-registry.xml</code> will
-        be used.</p>
       </attribute>
 
     </attributes>
@@ -631,15 +606,6 @@
     <p><strong>Note that the examples above do not use SSL. JMX access should
     be considered equivalent to administrative access and secured accordingly.
     </strong></p>
-
-  </subsection>
-
-  <subsection name="System property replacement - org.apache.catalina.util.SystemPropertyReplacerListener">
-
-    <p>This listener performs system property replacement using the property
-     source configured on the digester. When <code>${parameter}</code>
-     denoted parameters are found in the values of system properties,
-     the property source will be invoked to attempt to replace it.</p>
 
   </subsection>
 

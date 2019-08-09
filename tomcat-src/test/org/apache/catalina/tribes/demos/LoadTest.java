@@ -29,10 +29,21 @@ import org.apache.catalina.tribes.MembershipListener;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
+
+/**
+ * <p>Title: </p>
+ *
+ * <p>Description: </p>
+ *
+ * <p>Company: </p>
+ *
+ * @author not attributable
+ * @version 1.0
+ */
 public class LoadTest implements MembershipListener,ChannelListener, Runnable {
     private static final Log log = LogFactory.getLog(LoadTest.class);
     public static int size = 24000;
-    public static final Object mutex = new Object();
+    public static Object mutex = new Object();
     public boolean doRun = true;
 
     public long bytesReceived = 0;
@@ -241,7 +252,7 @@ public class LoadTest implements MembershipListener,ChannelListener, Runnable {
     public static class LoadMessage extends ByteMessage {
 
         public static byte[] outdata = new byte[size];
-        public static final Random r = new Random();
+        public static Random r = new Random();
         public static int getMessageSize (LoadMessage msg) {
             return msg.getMessage().length;
         }

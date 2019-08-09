@@ -20,12 +20,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.CharConversionException;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -39,8 +35,6 @@ import org.apache.tomcat.util.res.StringManager;
 public final class UDecoder {
 
     private static final StringManager sm = StringManager.getManager(UDecoder.class);
-
-    private static final Log log = LogFactory.getLog(UDecoder.class);
 
     public static final boolean ALLOW_ENCODED_SLASH =
         Boolean.parseBoolean(System.getProperty("org.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH", "false"));
@@ -71,6 +65,17 @@ public final class UDecoder {
 
     public UDecoder()
     {
+    }
+
+    /** URLDecode, will modify the source.  Includes converting
+     *  '+' to ' '.
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void convert( ByteChunk mb )
+        throws IOException
+    {
+        convert(mb, true);
     }
 
     /**
@@ -128,12 +133,21 @@ public final class UDecoder {
         }
 
         mb.setEnd( idx );
-
-        return;
     }
 
     // -------------------- Additional methods --------------------
     // XXX What do we do about charset ????
+
+    /** In-buffer processing - the buffer will be modified
+     *  Includes converting  '+' to ' '.
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void convert( CharChunk mb )
+        throws IOException
+    {
+        convert(mb, true);
+    }
 
     /**
      * In-buffer processing - the buffer will be modified.
@@ -193,6 +207,17 @@ public final class UDecoder {
         mb.setEnd( idx );
     }
 
+    /** URLDecode, will modify the source
+     *  Includes converting  '+' to ' '.
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void convert(MessageBytes mb)
+        throws IOException
+    {
+        convert(mb, true);
+    }
+
     /**
      * URLDecode, will modify the source
      * @param mb The URL encoded String, bytes or chars
@@ -224,6 +249,17 @@ public final class UDecoder {
             convert( bytesC, query );
             break;
         }
+    }
+
+    // XXX Old code, needs to be replaced !!!!
+    //
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public final String convert(String str)
+    {
+        return convert(str, true);
     }
 
     /**
@@ -297,9 +333,9 @@ public final class UDecoder {
 
     /**
      * Decode and return the specified URL-encoded String.
-     * When the byte array is converted to a string, ISO-885901 is used. This
-     * may be different than some other servers. It is assumed the string is not
-     * a query string.
+     * When the byte array is converted to a string, UTF-8 is used. This may
+     * be different than some other servers. It is assumed the string is not a
+     * query string.
      *
      * @param str The url-encoded string
      * @return the decoded string
@@ -307,7 +343,7 @@ public final class UDecoder {
      * by a valid 2-digit hexadecimal number
      */
     public static String URLDecode(String str) {
-        return URLDecode(str, StandardCharsets.ISO_8859_1);
+        return URLDecode(str, B2CConverter.UTF_8);
     }
 
 
@@ -316,88 +352,12 @@ public final class UDecoder {
      * string is not a query string.
      *
      * @param str The url-encoded string
-     * @param enc The encoding to use; if null, ISO-885901 is used. If
-     * an unsupported encoding is specified null will be returned
-     * @return the decoded string
-     * @exception IllegalArgumentException if a '%' character is not followed
-     * by a valid 2-digit hexadecimal number
-     *
-     * @deprecated This method will be removed in Tomcat 9
-     */
-    @Deprecated
-    public static String URLDecode(String str, String enc) {
-        return URLDecode(str, enc, false);
-    }
-
-
-    /**
-     * Decode and return the specified URL-encoded String. It is assumed the
-     * string is not a query string.
-     *
-     * @param str The url-encoded string
-     * @param charset The character encoding to use; if null, ISO-8859-1 is
-     *                used.
+     * @param charset The character encoding to use; if null, UTF-8 is used.
      * @return the decoded string
      * @exception IllegalArgumentException if a '%' character is not followed
      * by a valid 2-digit hexadecimal number
      */
     public static String URLDecode(String str, Charset charset) {
-        return URLDecode(str, charset, false);
-    }
-
-
-    /**
-     * Decode and return the specified URL-encoded String.
-     *
-     * @param str The url-encoded string
-     * @param enc The encoding to use; if null, ISO-8859-1 is used. If
-     * an unsupported encoding is specified null will be returned
-     * @param isQuery Is this a query string being processed
-     * @return the decoded string
-     * @exception IllegalArgumentException if a '%' character is not followed
-     * by a valid 2-digit hexadecimal number
-     *
-     * @deprecated This method will be removed in Tomcat 9
-     */
-    @Deprecated
-    public static String URLDecode(String str, String enc, boolean isQuery) {
-        Charset charset = null;
-
-        if (enc != null) {
-            try {
-                charset = B2CConverter.getCharset(enc);
-            } catch (UnsupportedEncodingException uee) {
-                if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("uDecoder.urlDecode.uee", enc), uee);
-                }
-            }
-        }
-
-        return URLDecode(str, charset, isQuery);
-    }
-
-
-    /**
-     * Decode and return the specified URL-encoded byte array.
-     *
-     * @param bytes The url-encoded byte array
-     * @param enc The encoding to use; if null, ISO-8859-1 is used. If
-     * an unsupported encoding is specified null will be returned
-     * @param isQuery Is this a query string being processed
-     * @return the decoded string
-     * @exception IllegalArgumentException if a '%' character is not followed
-     * by a valid 2-digit hexadecimal number
-     *
-     * @deprecated This method will be removed in Tomcat 9
-     */
-    @Deprecated
-    public static String URLDecode(byte[] bytes, String enc, boolean isQuery) {
-        throw new IllegalArgumentException(sm.getString("udecoder.urlDecode.iae"));
-    }
-
-
-    private static String URLDecode(String str, Charset charset, boolean isQuery) {
-
         if (str == null) {
             return null;
         }
@@ -408,7 +368,7 @@ public final class UDecoder {
         }
 
         if (charset == null) {
-            charset = StandardCharsets.ISO_8859_1;
+            charset = B2CConverter.UTF_8;
         }
 
         /*
@@ -452,8 +412,6 @@ public final class UDecoder {
                         throw new IllegalArgumentException(
                                 sm.getString("uDecoder.urlDecode.missingDigit", str));
                     }
-                } else if (c == '+' && isQuery) {
-                    osw.append(' ');
                 } else {
                     osw.append(c);
                 }

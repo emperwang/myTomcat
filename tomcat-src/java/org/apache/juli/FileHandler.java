@@ -21,14 +21,12 @@ package org.apache.juli;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.sql.Timestamp;
@@ -49,6 +47,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
+import java.util.logging.SimpleFormatter;
 import java.util.regex.Pattern;
 
 /**
@@ -106,13 +105,9 @@ public class FileHandler extends Handler {
 
                 {
                     SecurityManager s = System.getSecurityManager();
-                    if (s == null) {
-                        this.isSecurityEnabled = false;
-                        this.group = Thread.currentThread().getThreadGroup();
-                    } else {
-                        this.isSecurityEnabled = true;
-                        this.group = s.getThreadGroup();
-                    }
+                    this.isSecurityEnabled = s != null;
+                    this.group = isSecurityEnabled ? s.getThreadGroup()
+                            : Thread.currentThread().getThreadGroup();
                 }
 
                 @Override
@@ -227,7 +222,7 @@ public class FileHandler extends Handler {
     /**
      * Lock used to control access to the writer.
      */
-    protected final ReadWriteLock writerLock = new ReentrantReadWriteLock();
+    protected ReadWriteLock writerLock = new ReentrantReadWriteLock();
 
 
     /**
@@ -433,7 +428,7 @@ public class FileHandler extends Handler {
         String filterName = getProperty(className + ".filter", null);
         if (filterName != null) {
             try {
-                setFilter((Filter) cl.loadClass(filterName).getConstructor().newInstance());
+                setFilter((Filter) cl.loadClass(filterName).newInstance());
             } catch (Exception e) {
                 // Ignore
             }
@@ -443,14 +438,13 @@ public class FileHandler extends Handler {
         String formatterName = getProperty(className + ".formatter", null);
         if (formatterName != null) {
             try {
-                setFormatter((Formatter) cl.loadClass(
-                        formatterName).getConstructor().newInstance());
+                setFormatter((Formatter) cl.loadClass(formatterName).newInstance());
             } catch (Exception e) {
                 // Ignore and fallback to defaults
-                setFormatter(new OneLineFormatter());
+                setFormatter(new SimpleFormatter());
             }
         } else {
-            setFormatter(new OneLineFormatter());
+            setFormatter(new SimpleFormatter());
         }
 
         // Set error manager
@@ -537,47 +531,40 @@ public class FileHandler extends Handler {
 
             @Override
             public void run() {
-                try (DirectoryStream<Path> files = streamFilesForDelete()) {
-                    for (Path file : files) {
-                        Files.delete(file);
+                for (File file : streamFilesForDelete()) {
+                    if (!file.delete()) {
+                        reportError("Unable to delete log files older than [" + maxDays + "] days",
+                                null, ErrorManager.GENERIC_FAILURE);
                     }
-                } catch (IOException e) {
-                    reportError("Unable to delete log files older than [" + maxDays + "] days",
-                            null, ErrorManager.GENERIC_FAILURE);
                 }
             }
         });
     }
 
-    private DirectoryStream<Path> streamFilesForDelete() throws IOException {
+    private File[] streamFilesForDelete() {
         final Date maxDaysOffset = getMaxDaysOffset();
         final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-        return Files.newDirectoryStream(new File(directory).toPath(),
-                new DirectoryStream.Filter<Path>() {
+        return new File(directory).listFiles(new FilenameFilter() {
 
-                    @Override
-                    public boolean accept(Path path) throws IOException {
-                        boolean result = false;
-                        String date = obtainDateFromPath(path);
-                        if (date != null) {
-                            try {
-                                Date dateFromFile = formatter.parse(date);
-                                result = dateFromFile.before(maxDaysOffset);
-                            } catch (ParseException e) {
-                                // no-op
-                            }
-                        }
-                        return result;
+            @Override
+            public boolean accept(File dir, String name) {
+                boolean result = false;
+                String date = obtainDateFromFilename(name);
+                if (date != null) {
+                    try {
+                        Date dateFromFile = formatter.parse(date);
+                        result = dateFromFile.before(maxDaysOffset);
+                    } catch (ParseException e) {
+                        // no-op
                     }
-                });
+                }
+                return result;
+            }
+        });
     }
 
-    private String obtainDateFromPath(Path path) {
-        Path fileName = path.getFileName();
-        if (fileName == null) {
-            return null;
-        }
-        String date = fileName.toString();
+    private String obtainDateFromFilename(String name) {
+        String date = name;
         if (pattern.matcher(date).matches()) {
             date = date.substring(prefix.length());
             return date.substring(0, date.length() - suffix.length());

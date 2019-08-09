@@ -17,11 +17,13 @@
 package org.apache.tomcat.unittest;
 
 import java.beans.PropertyChangeListener;
-import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.regex.Pattern;
 
 import javax.management.ObjectName;
+import javax.naming.directory.DirContext;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Cluster;
@@ -31,6 +33,8 @@ import org.apache.catalina.Host;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.LifecycleState;
+import org.apache.catalina.Loader;
+import org.apache.catalina.Manager;
 import org.apache.catalina.Pipeline;
 import org.apache.catalina.Realm;
 import org.apache.catalina.connector.Request;
@@ -45,22 +49,7 @@ public class TesterHost implements Host {
     }
 
     @Override
-    public String getLogName() {
-        return null;
-    }
-
-    @Override
     public ObjectName getObjectName() {
-        return null;
-    }
-
-    @Override
-    public String getDomain() {
-        return null;
-    }
-
-    @Override
-    public String getMBeanKeyProperties() {
         return null;
     }
 
@@ -206,16 +195,6 @@ public class TesterHost implements Host {
     }
 
     @Override
-    public File getCatalinaBase() {
-        return null;
-    }
-
-    @Override
-    public File getCatalinaHome() {
-        return null;
-    }
-
-    @Override
     public void addLifecycleListener(LifecycleListener listener) {
         // NO-OP
     }
@@ -271,17 +250,7 @@ public class TesterHost implements Host {
     }
 
     @Override
-    public File getConfigBaseFile() {
-        return null;
-    }
-
-    @Override
     public String getAppBase() {
-        return null;
-    }
-
-    @Override
-    public File getAppBaseFile() {
         return null;
     }
 
@@ -372,6 +341,51 @@ public class TesterHost implements Host {
 
     @Override
     public void removeAlias(String alias) {
+        // NO-OP
+    }
+
+    @Override
+    public String getInfo() {
+        return null;
+    }
+
+    @Override
+    public Loader getLoader() {
+        return null;
+    }
+
+    @Override
+    public void setLoader(Loader loader) {
+        // NO-OP
+    }
+
+    @Override
+    public Manager getManager() {
+        return null;
+    }
+
+    @Override
+    public void setManager(Manager manager) {
+        // NO-OP
+    }
+
+    @Override
+    public Object getMappingObject() {
+        return null;
+    }
+
+    @Override
+    public DirContext getResources() {
+        return null;
+    }
+
+    @Override
+    public void setResources(DirContext resources) {
+        // NO-OP
+    }
+
+    @Override
+    public void invoke(Request request, Response response) throws IOException, ServletException {
         // NO-OP
     }
 }

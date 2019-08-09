@@ -40,15 +40,11 @@ import org.apache.tools.ant.Project;
  */
 public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
 
-    // ----------------------------------------------------- Instance Variables
-
     /**
      * manager webapp's encoding.
      */
-    private static final String CHARSET = "utf-8";
+    private static String CHARSET = "utf-8";
 
-
-    // ------------------------------------------------------------- Properties
 
     /**
      * The charset used during URL encoding.
@@ -56,7 +52,7 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
     protected String charset = "ISO-8859-1";
 
     public String getCharset() {
-        return charset;
+        return this.charset;
     }
 
     public void setCharset(String charset) {
@@ -105,30 +101,6 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
         this.username = username;
     }
 
-    /**
-     * If set to true - ignore the constraint of the first line of the response
-     * message that must be "OK -".
-     * <p>
-     * When this attribute is set to {@code false} (the default), the first line
-     * of server response is expected to start with "OK -". If it does not then
-     * the task is considered as failed and the first line is treated as an
-     * error message.
-     * <p>
-     * When this attribute is set to {@code true}, the first line of the
-     * response is treated like any other, regardless of its text.
-     */
-    protected boolean ignoreResponseConstraint = false;
-
-    public boolean isIgnoreResponseConstraint() {
-        return ignoreResponseConstraint;
-    }
-
-    public void setIgnoreResponseConstraint(boolean ignoreResponseConstraint) {
-        this.ignoreResponseConstraint = ignoreResponseConstraint;
-    }
-
-
-    // --------------------------------------------------------- Public Methods
 
     /**
      * Execute the specified command. This logic only performs the common
@@ -169,9 +141,8 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
      *
      * @exception BuildException if an error occurs
      */
-    public void execute(String command, InputStream istream, String contentType, long contentLength)
+    public void execute(String command, InputStream istream, String contentType, int contentLength)
                     throws BuildException {
-
         URLConnection conn = null;
         InputStreamReader reader = null;
         try {
@@ -181,7 +152,6 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
             // Create a connection for this command
             conn = (new URL(url + command)).openConnection();
             HttpURLConnection hconn = (HttpURLConnection) conn;
-
             // Set up standard connection characteristics
             hconn.setAllowUserInteraction(false);
             hconn.setDoInput(true);
@@ -196,7 +166,6 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
                 }
                 if (contentLength >= 0) {
                     hconn.setRequestProperty("Content-Length", "" + contentLength);
-
                     hconn.setFixedLengthStreamingMode(contentLength);
                 }
             } else {
@@ -207,11 +176,11 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
 
             // Establish the connection with the server
             hconn.connect();
-
             // Send the request data (if any)
             if (istream != null) {
-                try (BufferedOutputStream ostream = new BufferedOutputStream(
-                                hconn.getOutputStream(), 1024);) {
+                BufferedOutputStream ostream = null;
+                try {
+                    ostream = new BufferedOutputStream(hconn.getOutputStream(), 1024);
                     byte buffer[] = new byte[1024];
                     while (true) {
                         int n = istream.read(buffer);
@@ -222,13 +191,18 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
                     }
                     ostream.flush();
                 } finally {
+                    if (ostream != null) {
+                        try {
+                            ostream.close();
+                        } catch (IOException e) {
+                        }
+                    }
                     try {
                         istream.close();
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                     }
                 }
             }
-
             // Process the response message
             reader = new InputStreamReader(hconn.getInputStream(), CHARSET);
             StringBuilder buff = new StringBuilder();
@@ -246,7 +220,7 @@ public abstract class AbstractCatalinaTask extends BaseRedirectorHelperTask {
                     if (buff.length() > 0) {
                         String line = buff.toString();
                         buff.setLength(0);
-                        if (!ignoreResponseConstraint && first) {
+                        if (first) {
                             if (!line.startsWith("OK -")) {
                                 error = line;
                                 msgPriority = Project.MSG_ERR;

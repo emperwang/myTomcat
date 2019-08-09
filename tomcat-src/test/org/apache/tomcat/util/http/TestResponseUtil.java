@@ -31,7 +31,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "host");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(response, "*", expected);
     }
@@ -42,7 +42,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "*");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(response, "*", expected);
     }
@@ -52,7 +52,7 @@ public class TestResponseUtil {
     public void testAddAllWithNone() {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(response, "*", expected);
     }
@@ -63,7 +63,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "foo, bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("too");
@@ -76,7 +76,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "foo, *");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(response, "too", expected);
     }
@@ -87,7 +87,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "foo, bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         doTestAddVaryFieldName(response, "foo", expected);
@@ -100,7 +100,7 @@ public class TestResponseUtil {
         response.getCoyoteResponse();
         response.addHeader("vary", "foo");
         response.addHeader("vary", "bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("too");
@@ -114,7 +114,7 @@ public class TestResponseUtil {
         response.getCoyoteResponse();
         response.addHeader("vary", "foo");
         response.addHeader("vary", "*");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(response, "too", expected);
     }
@@ -126,7 +126,7 @@ public class TestResponseUtil {
         response.getCoyoteResponse();
         response.addHeader("vary", "foo");
         response.addHeader("vary", "bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         doTestAddVaryFieldName(response, "foo", expected);
@@ -138,7 +138,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "{{{, bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("too");
         doTestAddVaryFieldName(response, "too", expected);
@@ -150,7 +150,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "{{{, *");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(response, "too", expected);
     }
@@ -161,7 +161,7 @@ public class TestResponseUtil {
         TesterResponse response = new TesterResponse();
         response.getCoyoteResponse();
         response.addHeader("vary", "{{{, bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         doTestAddVaryFieldName(response, "bar", expected);
     }
@@ -172,7 +172,7 @@ public class TestResponseUtil {
         ResponseUtil.addVaryFieldName(response, fieldName);
         // There will now only be one Vary header
         String resultHeader = response.getHeader("vary");
-        Set<String> result = new HashSet<>();
+        Set<String> result = new HashSet<String>();
         // Deliberately do not use Vary.parseVary as it will skip invalid values.
         for (String value : resultHeader.split(",")) {
             result.add(value.trim());
@@ -184,7 +184,7 @@ public class TestResponseUtil {
     @Test
     public void testMimeHeadersAddAllWithNone() {
         MimeHeaders mh = new MimeHeaders();
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("*");
         doTestAddVaryFieldName(mh, "*", expected);
     }
@@ -195,7 +195,7 @@ public class TestResponseUtil {
         MimeHeaders mh = new MimeHeaders();
         mh.addValue("vary").setString("foo");
         mh.addValue("vary").setString("bar");
-        Set<String> expected = new HashSet<>();
+        Set<String> expected = new HashSet<String>();
         expected.add("bar");
         expected.add("foo");
         expected.add("too");
@@ -207,7 +207,7 @@ public class TestResponseUtil {
         ResponseUtil.addVaryFieldName(mh, fieldName);
         // There will now only be one Vary header
         String resultHeader = mh.getHeader("vary");
-        Set<String> result = new HashSet<>();
+        Set<String> result = new HashSet<String>();
         // Deliberately do not use Vary.parseVary as it will skip invalid values.
         for (String value : resultHeader.split(",")) {
             result.add(value.trim());

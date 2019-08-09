@@ -56,14 +56,23 @@ public class JspWriterImpl extends JspWriter {
     }
 
     /**
+     * Create a buffered character-output stream that uses a default-sized
+     * output buffer.
+     *
+     * @param  response  A Servlet Response
+     */
+    public JspWriterImpl(ServletResponse response) {
+        this(response, Constants.DEFAULT_BUFFER_SIZE, true);
+    }
+
+    /**
      * Create a new buffered character-output stream that uses an output
      * buffer of the given size.
      *
      * @param  response A Servlet Response
      * @param  sz       Output-buffer size, a positive integer
-     * @param autoFlush <code>true</code> to automatically flush on buffer
-     *  full, <code>false</code> to throw an overflow exception in that case
-     * @exception  IllegalArgumentException  If sz is &lt;= 0
+     *
+     * @exception  IllegalArgumentException  If sz is <= 0
      */
     public JspWriterImpl(ServletResponse response, int sz,
             boolean autoFlush) {
@@ -84,8 +93,7 @@ public class JspWriterImpl extends JspWriter {
         this.bufferSize=sz;
     }
 
-    /**
-     * Package-level access
+    /** Package-level access
      */
     void recycle() {
         flushed = false;
@@ -99,7 +107,6 @@ public class JspWriterImpl extends JspWriter {
      * Flush the output buffer to the underlying character stream, without
      * flushing the stream itself.  This method is non-private only so that it
      * may be invoked by PrintStream.
-     * @throws IOException Error writing buffered data
      */
     protected final void flushBuffer() throws IOException {
         if (bufferSize == 0)
@@ -333,6 +340,8 @@ public class JspWriterImpl extends JspWriter {
     }
 
 
+    static String lineSeparator = System.getProperty("line.separator");
+
     /**
      * Write a line separator.  The line separator string is defined by the
      * system property <tt>line.separator</tt>, and is not necessarily a single
@@ -343,7 +352,7 @@ public class JspWriterImpl extends JspWriter {
 
     @Override
     public void newLine() throws IOException {
-        write(System.lineSeparator());
+        write(lineSeparator);
     }
 
 

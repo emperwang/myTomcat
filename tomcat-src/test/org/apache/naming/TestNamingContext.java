@@ -22,11 +22,11 @@ import javax.naming.NamingException;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.apache.catalina.deploy.ContextEnvironment;
+import org.apache.catalina.deploy.ContextResourceLink;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.naming.factory.ResourceLinkFactory;
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
-import org.apache.tomcat.util.descriptor.web.ContextResourceLink;
 
 public class TestNamingContext extends TomcatBaseTest {
 

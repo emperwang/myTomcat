@@ -39,9 +39,11 @@ public class SSIProcessor {
     protected static final String COMMAND_START = "<!--#";
     /** The end pattern */
     protected static final String COMMAND_END = "-->";
-    protected final SSIExternalResolver ssiExternalResolver;
-    protected final HashMap<String,SSICommand> commands = new HashMap<>();
-    protected final int debug;
+    protected static final int BUFFER_SIZE = 4096;
+    protected SSIExternalResolver ssiExternalResolver;
+    protected HashMap<String,SSICommand> commands =
+        new HashMap<String,SSICommand>();
+    protected int debug;
     protected final boolean allowExec;
 
 
@@ -85,7 +87,6 @@ public class SSIProcessor {
      *
      * @param reader
      *            the reader to read the file containing SSIs from
-     * @param lastModifiedDate resource last modification date
      * @param writer
      *            the writer to write the file with the SSIs processed.
      * @return the most current modified date resulting from any SSI commands
@@ -96,7 +97,7 @@ public class SSIProcessor {
     public long process(Reader reader, long lastModifiedDate,
             PrintWriter writer) throws IOException {
         SSIMediator ssiMediator = new SSIMediator(ssiExternalResolver,
-                lastModifiedDate);
+                lastModifiedDate, debug);
         StringWriter stringWriter = new StringWriter();
         IOTools.flow(reader, stringWriter);
         String fileContents = stringWriter.toString();
@@ -186,8 +187,7 @@ public class SSIProcessor {
      *
      * @param cmd
      *            a value of type 'StringBuilder'
-     * @param start index on which parsing will start
-     * @return an array with the parameter names
+     * @return a value of type 'String[]'
      */
     protected String[] parseParamNames(StringBuilder cmd, int start) {
         int bIdx = start;
@@ -237,9 +237,7 @@ public class SSIProcessor {
      *
      * @param cmd
      *            a value of type 'StringBuilder'
-     * @param start index on which parsing will start
-     * @param count number of values which should be parsed
-     * @return an array with the parameter values
+     * @return a value of type 'String[]'
      */
     protected String[] parseParamValues(StringBuilder cmd, int start, int count) {
         int valIndex = 0;

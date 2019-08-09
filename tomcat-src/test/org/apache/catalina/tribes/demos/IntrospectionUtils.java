@@ -23,18 +23,16 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
 
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
-
 /**
  * Utils for introspection and reflection
  */
 public final class IntrospectionUtils {
 
 
-    private static final Log log = LogFactory.getLog(IntrospectionUtils.class);
+    private static final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog( IntrospectionUtils.class );
 
-    /*
+    /**
      * Find a method with the right name If found, call the method ( if param is
      * int or boolean we'll convert value to the right type before) - that means
      * you can have setDebug(1).
@@ -180,7 +178,7 @@ public final class IntrospectionUtils {
         return false;
     }
 
-    /*
+    /**
      * Reverse of Introspector.decapitalize
      */
     public static String capitalize(String name) {
@@ -201,7 +199,8 @@ public final class IntrospectionUtils {
         objectMethods.clear();
     }
 
-    static Hashtable<Class<?>,Method[]> objectMethods = new Hashtable<>();
+    static Hashtable<Class<?>,Method[]> objectMethods =
+        new Hashtable<Class<?>,Method[]>();
 
     public static Method[] findMethods(Class<?> c) {
         Method methods[] = objectMethods.get(c);

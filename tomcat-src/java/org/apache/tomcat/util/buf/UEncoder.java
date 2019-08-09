@@ -17,19 +17,17 @@
 package org.apache.tomcat.util.buf;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 
-/**
- * Efficient implementation of an UTF-8 encoder.
- * This class is not thread safe - you need one encoder per thread.
- * The encoder will save and recycle the internal objects, avoiding
- * garbage.
+/** Efficient implementation for encoders.
+ *  This class is not thread safe - you need one encoder per thread.
+ *  The encoder will save and recycle the internal objects, avoiding
+ *  garbage.
  *
- * You can add extra characters that you want preserved, for example
- * while encoding a URL you can add "/".
+ *  You can add extra characters that you want preserved, for example
+ *  while encoding a URL you can add "/".
  *
- * @author Costin Manolache
+ *  @author Costin Manolache
  */
 public final class UEncoder {
 
@@ -56,15 +54,45 @@ public final class UEncoder {
     private ByteChunk bb=null;
     private CharChunk cb=null;
     private CharChunk output=null;
+    private final boolean readOnlySafeChars;
+
+    private String encoding="UTF-8";
+
+    public UEncoder() {
+        this.safeChars = initialSafeChars();
+        readOnlySafeChars = false;
+    }
 
     /**
      * Create a UEncoder with an unmodifiable safe character set.
+     * <p>
+     * Calls to {@link UEncoder#addSafeCharacter(char) addSafeCharacter(char)}
+     * on instances created by this constructor will throw an
+     * {@link IllegalStateException}.
      *
-     * @param safeCharsSet safe characters for this encoder
+     * @param safeCharsSet
+     *            safe characters for this encoder
      */
     public UEncoder(SafeCharsSet safeCharsSet) {
         this.safeChars = safeCharsSet.getSafeChars();
+        readOnlySafeChars = true;
     }
+
+     /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void setEncoding( String s ) {
+        encoding=s;
+    }
+
+    public void addSafeCharacter( char c ) {
+        if (readOnlySafeChars) {
+            throw new IllegalStateException("UEncoders safeChararacters are read only");
+        }
+        safeChars.set( c );
+    }
+
 
    /**
     * URL Encode string, using a specified encoding.
@@ -72,9 +100,6 @@ public final class UEncoder {
     * @param s string to be encoded
     * @param start the beginning index, inclusive
     * @param end the ending index, exclusive
-    *
-    * @return A new CharChunk contained the URL encoded string
-    *
     * @throws IOException If an I/O error occurs
     */
    public CharChunk encodeURL(String s, int start, int end)
@@ -83,7 +108,7 @@ public final class UEncoder {
            bb = new ByteChunk(8); // small enough.
            cb = new CharChunk(2); // small enough.
            output = new CharChunk(64); // small enough.
-           c2b = new C2BConverter(StandardCharsets.UTF_8);
+           c2b = new C2BConverter(encoding);
        } else {
            bb.recycle();
            cb.recycle();

@@ -38,15 +38,14 @@ public class ExpressionTokenizer {
     public static final int TOKEN_GT = 10;
     public static final int TOKEN_LT = 11;
     public static final int TOKEN_END = 12;
-    private final char[] expr;
+    private char[] expr;
     private String tokenVal = null;
     private int index;
-    private final int length;
+    private int length;
 
 
     /**
      * Creates a new parser for the specified expression.
-     * @param expr The expression
      */
     public ExpressionTokenizer(String expr) {
         this.expr = expr.trim().toCharArray();
@@ -55,7 +54,7 @@ public class ExpressionTokenizer {
 
 
     /**
-     * @return <code>true</code> if there are more tokens.
+     * Returns true if there are more tokens.
      */
     public boolean hasMoreTokens() {
         return index < length;
@@ -63,7 +62,7 @@ public class ExpressionTokenizer {
 
 
     /**
-     * @return the current index for error reporting purposes.
+     * Returns the current index for error reporting purposes.
      */
     public int getIndex() {
         return index;
@@ -77,7 +76,7 @@ public class ExpressionTokenizer {
 
 
     /**
-     * @return the next token type and initializes any state variables
+     * Returns the next token type and initializes any state variables
      * accordingly.
      */
     public int nextToken() {
@@ -135,8 +134,8 @@ public class ExpressionTokenizer {
                 break;
         }
         int end = index;
+        // If it's a quoted string then end is the next unescaped quote
         if (currentChar == '"' || currentChar == '\'') {
-            // It's a quoted string and the end is the next unescaped quote
             char endChar = currentChar;
             boolean escaped = false;
             start++;
@@ -150,19 +149,6 @@ public class ExpressionTokenizer {
             }
             end = index;
             index++; // Skip the end quote
-        } else if (currentChar == '/') {
-            // It's a regular expression and the end is the next unescaped /
-            char endChar = currentChar;
-            boolean escaped = false;
-            for (; index < length; index++) {
-                if (expr[index] == '\\' && !escaped) {
-                    escaped = true;
-                    continue;
-                }
-                if (expr[index] == endChar && !escaped) break;
-                escaped = false;
-            }
-            end = ++index;
         } else {
             // End is the next whitespace character
             for (; index < length; index++) {
@@ -177,7 +163,7 @@ public class ExpressionTokenizer {
 
 
     /**
-     * @return the String value of the token if it was type TOKEN_STRING.
+     * Returns the String value of the token if it was type TOKEN_STRING.
      * Otherwise null is returned.
      */
     public String getTokenValue() {

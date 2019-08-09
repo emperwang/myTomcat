@@ -56,7 +56,7 @@ import org.apache.tomcat.util.ExceptionUtils;
  *         to corresponding to the value of <code>catalina.home</code>
  *         (useful when your command line tool runs Ant).</li>
  *     <li><em>-common</em> : Add <code>common/classes</code> and
- *         <code>common/lib</code> to the class loader repositories.</li>
+ *         <code>common/lib</codE) to the class loader repositories.</li>
  *     <li><em>-server</em> : Add <code>server/classes</code> and
  *         <code>server/lib</code> to the class loader repositories.</li>
  *     <li><em>-shared</em> : Add <code>shared/classes</code> and
@@ -87,8 +87,7 @@ public final class Tool {
     /**
      * The pathname of our installation base directory.
      */
-    private static final String catalinaHome =
-            System.getProperty(Globals.CATALINA_HOME_PROP);
+    private static String catalinaHome = System.getProperty(Globals.CATALINA_HOME_PROP);
 
 
     /**
@@ -157,8 +156,8 @@ public final class Tool {
         // Construct the class loader we will be using
         ClassLoader classLoader = null;
         try {
-            ArrayList<File> packed = new ArrayList<>();
-            ArrayList<File> unpacked = new ArrayList<>();
+            ArrayList<File> packed = new ArrayList<File>();
+            ArrayList<File> unpacked = new ArrayList<File>();
             unpacked.add(new File(catalinaHome, "classes"));
             packed.add(new File(catalinaHome, "lib"));
             if (common) {

@@ -14,13 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina;
+
 
 import java.util.EventObject;
 
+
 /**
  * General event for notifying listeners of significant changes on a component
- * that implements the Lifecycle interface.
+ * that implements the Lifecycle interface.  In particular, this will be useful
+ * on Containers, where these events replace the ContextInterceptor concept in
+ * Tomcat 3.x.
  *
  * @author Craig R. McClanahan
  */
@@ -28,6 +34,8 @@ public final class LifecycleEvent extends EventObject {
 
     private static final long serialVersionUID = 1L;
 
+
+    // ----------------------------------------------------------- Constructors
 
     /**
      * Construct a new LifecycleEvent with the specified parameters.
@@ -37,44 +45,59 @@ public final class LifecycleEvent extends EventObject {
      * @param data Event data (if any)
      */
     public LifecycleEvent(Lifecycle lifecycle, String type, Object data) {
+
         super(lifecycle);
         this.type = type;
         this.data = data;
     }
 
 
+    // ----------------------------------------------------- Instance Variables
+
+
     /**
      * The event data associated with this event.
      */
-    private final Object data;
+    private Object data = null;
 
 
     /**
      * The event type this instance represents.
      */
-    private final String type;
+    private String type = null;
+
+
+    // ------------------------------------------------------------- Properties
 
 
     /**
-     * @return the event data of this event.
+     * Return the event data of this event.
      */
     public Object getData() {
-        return data;
+
+        return (this.data);
+
     }
 
 
     /**
-     * @return the Lifecycle on which this event occurred.
+     * Return the Lifecycle on which this event occurred.
      */
     public Lifecycle getLifecycle() {
+
         return (Lifecycle) getSource();
+
     }
 
 
     /**
-     * @return the event type of this event.
+     * Return the event type of this event.
      */
     public String getType() {
-        return this.type;
+
+        return (this.type);
+
     }
+
+
 }

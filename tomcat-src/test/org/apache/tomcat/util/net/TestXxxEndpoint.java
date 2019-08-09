@@ -26,6 +26,8 @@ import org.junit.Test;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
+import org.apache.juli.logging.Log;
+import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.jni.Address;
 import org.apache.tomcat.jni.Error;
 import org.apache.tomcat.jni.Library;
@@ -38,6 +40,8 @@ import org.apache.tomcat.jni.Socket;
  * that each implementation is tested.
  */
 public class TestXxxEndpoint extends TomcatBaseTest {
+
+    private static Log log = LogFactory.getLog(TestXxxEndpoint.class);
 
     private long createAprPool() {
 

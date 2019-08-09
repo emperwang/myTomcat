@@ -33,23 +33,23 @@ import org.xml.sax.Attributes;
 public interface ObjectCreationFactory {
 
     /**
-     * Factory method called by {@link FactoryCreateRule} to supply an
+     * <p>Factory method called by {@link FactoryCreateRule} to supply an
      * object based on the element's attributes.
      *
      * @param attributes the element's attributes
-     * @return the creted object
+     *
      * @throws Exception any exception thrown will be propagated upwards
      */
     public Object createObject(Attributes attributes) throws Exception;
 
     /**
-     * @return the {@link Digester} that was set by the
+     * <p>Returns the {@link Digester} that was set by the
      * {@link FactoryCreateRule} upon initialization.
      */
     public Digester getDigester();
 
     /**
-     * Set the {@link Digester} to allow the implementation to do logging,
+     * <p>Set the {@link Digester} to allow the implementation to do logging,
      * classloading based on the digester's classloader, etc.
      *
      * @param digester parent Digester object

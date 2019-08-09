@@ -34,9 +34,8 @@ import org.apache.tools.ant.BuildException;
  * </ul>
  * <p>
  * Examples:
- * <br>
+ * <br/>
  * Get a Mbean IDataSender attribute nrOfRequests and create a new ant property <em>IDataSender.9025.nrOfRequests</em>
- * </p>
  * <pre>
  *   &lt;jmx:get
  *           ref="jmx.server"
@@ -46,6 +45,7 @@ import org.apache.tools.ant.BuildException;
  *           echo="false"&gt;
  *       /&gt;
  * </pre>
+ * </p>
  * <p>
  * First call to a remote MBeanserver save the JMXConnection a referenz <em>jmx.server</em>
  * </p>
@@ -60,6 +60,25 @@ public class JMXAccessorGetTask extends JMXAccessorTask {
     // ----------------------------------------------------- Instance Variables
 
     private String attribute;
+
+    // ----------------------------------------------------- Instance Info
+
+    /**
+     * Descriptive information describing this implementation.
+     */
+    private static final String info = "org.apache.catalina.ant.JMXAccessorGetTask/1.0";
+
+    /**
+     * Return descriptive information about this implementation and the
+     * corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
 
     // ------------------------------------------------------------- Properties
 
@@ -80,6 +99,14 @@ public class JMXAccessorGetTask extends JMXAccessorTask {
 
     // ------------------------------------------------------ protected Methods
 
+    /**
+     * Execute the specified command, based on the configured properties. The
+     * input stream will be closed upon completion of this task, whether it was
+     * executed successfully or not.
+     *
+     * @exception BuildException
+     *                if an error occurs
+     */
     @Override
     public String jmxExecute(MBeanServerConnection jmxServerConnection)
         throws Exception {
@@ -96,14 +123,12 @@ public class JMXAccessorGetTask extends JMXAccessorTask {
 
 
     /**
-     * Get property value.
-     *
-     * @param jmxServerConnection Connection to the JMX server
-     * @param name The MBean name
-     * @return The error message if any
-     * @throws Exception An error occurred
+     * @param jmxServerConnection
+     * @param name
+     * @return The value of the given named attribute
+     * @throws Exception
      */
-    protected String jmxGet(MBeanServerConnection jmxServerConnection, String name) throws Exception {
+    protected String jmxGet(MBeanServerConnection jmxServerConnection,String name) throws Exception {
         String error = null;
         if(isEcho()) {
             handleOutput("MBean " + name + " get attribute " + attribute );

@@ -28,9 +28,9 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.deploy.LoginConfig;
 import org.apache.catalina.filters.TesterHttpServletResponse;
-import org.apache.catalina.startup.TesterMapRealm;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
+import org.apache.catalina.startup.TestTomcat.MapRealm;
 import org.apache.tomcat.util.security.ConcurrentMessageDigest;
 import org.apache.tomcat.util.security.MD5Encoder;
 
@@ -107,7 +107,7 @@ public class TesterDigestAuthenticatorPerformance {
         ConcurrentMessageDigest.init("MD5");
 
         // Configure the Realm
-        TesterMapRealm realm = new TesterMapRealm();
+        MapRealm realm = new MapRealm();
         realm.addUser(USER, PWD);
         realm.addUserRole(USER, ROLE);
 
@@ -115,11 +115,6 @@ public class TesterDigestAuthenticatorPerformance {
         Context context = new StandardContext();
         context.setName(CONTEXT_PATH);
         context.setRealm(realm);
-
-        // Configure the Login config
-        LoginConfig config = new LoginConfig();
-        config.setRealmName(REALM);
-        context.setLoginConfig(config);
 
         // Make the Context and Realm visible to the Authenticator
         authenticator.setContainer(context);
@@ -139,6 +134,7 @@ public class TesterDigestAuthenticatorPerformance {
 
         private TesterDigestRequest request;
         private HttpServletResponse response;
+        private LoginConfig config;
         private DigestAuthenticator authenticator;
 
         private static final String A1 = USER + ":" + REALM + ":" + PWD;
@@ -159,9 +155,11 @@ public class TesterDigestAuthenticatorPerformance {
             this.requestCount = requestCount;
 
             request = new TesterDigestRequest();
-            request.getMappingData().context = authenticator.context;
 
             response = new TesterHttpServletResponse();
+
+            config = new LoginConfig();
+            config.setRealmName(REALM);
         }
 
         @Override

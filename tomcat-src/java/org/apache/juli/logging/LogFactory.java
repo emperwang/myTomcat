@@ -16,35 +16,36 @@
  */
 package org.apache.juli.logging;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.file.FileSystems;
-import java.util.ServiceLoader;
+import java.lang.reflect.Method;
+import java.util.Properties;
 import java.util.logging.LogManager;
 
 /**
- * This is a modified LogFactory that uses a simple {@link ServiceLoader} based
- * discovery mechanism with a default of using JDK based logging. An
- * implementation that uses the full Commons Logging discovery mechanism is
- * available as part of the Tomcat extras download.
+ * Modified LogFactory: removed all discovery, hardcode a specific implementation
+ * If you like a different logging implementation - use either the discovery-based
+ * commons-logging, or better - another implementation hardcoded to your favourite
+ * logging impl.
  *
- * Why? It is an attempt to strike a balance between simpler code (no discovery)
- * and providing flexibility - particularly for those projects that embed Tomcat
- * or some of Tomcat's components - is an alternative logging
- * implementation is desired.
+ * Why ? Each application and deployment can choose a logging implementation -
+ * that involves configuration, installing the logger jar and optional plugins, etc.
+ * As part of this process - they can as well install the commons-logging implementation
+ * that corresponds to their logger of choice. This completely avoids any discovery
+ * problem, while still allowing the user to switch.
  *
- * Note that this implementation is not just a wrapper around JDK logging (like
- * the original commons-logging impl). It adds 2 features - a simpler
- * configuration  (which is in fact a subset of log4j.properties) and a
- * formatter that is less ugly.
+ * Note that this implementation is not just a wrapper around JDK logging ( like
+ * the original commons-logging impl ). It adds 2 features - a simpler configuration
+ * ( which is in fact a subset of log4j.properties ) and a formatter that is
+ * less ugly.
  *
- * The removal of 'abstract' preserves binary backward compatibility. It is
- * possible to preserve the abstract - and introduce another (hardcoded) factory
- * - but I see no benefit.
+ * The removal of 'abstract' preserves binary backward compatibility. It is possible
+ * to preserve the abstract - and introduce another ( hardcoded ) factory - but I
+ * see no benefit.
  *
- * Since this class is not intended to be extended - all protected methods are
- * removed. This can be changed - but again, there is little value in keeping
- * dead code. Just take a quick look at the removed code ( and it's complexity).
+ * Since this class is not intended to be extended - and provides
+ * no plugin for other LogFactory implementation - all protected methods are removed.
+ * This can be changed - but again, there is little value in keeping dead code.
+ * Just take a quick look at the removed code ( and it's complexity)
  *
  * --------------
  *
@@ -64,12 +65,74 @@ import java.util.logging.LogManager;
  */
 public class LogFactory {
 
-    private static final LogFactory singleton = new LogFactory();
-
-    private final Constructor<? extends Log> discoveredLogConstructor;
+    // ----------------------------------------------------- Manifest Constants
 
     /**
-     * Private constructor that is not available for public use.
+     * The name of the property used to identify the LogFactory implementation
+     * class name.
+     */
+    public static final String FACTORY_PROPERTY =
+        "org.apache.commons.logging.LogFactory";
+
+    /**
+     * The fully qualified class name of the fallback <code>LogFactory</code>
+     * implementation class to use, if no other can be found.
+     */
+    public static final String FACTORY_DEFAULT =
+        "org.apache.commons.logging.impl.LogFactoryImpl";
+
+    /**
+     * The name of the properties file to search for.
+     */
+    public static final String FACTORY_PROPERTIES =
+        "commons-logging.properties";
+
+    /**
+     * <p>Setting this system property value allows the <code>Hashtable</code> used to store
+     * classloaders to be substituted by an alternative implementation.
+     * </p>
+     * <p>
+     * <strong>Note:</strong> <code>LogFactory</code> will print:
+     * <code><pre>
+     * [ERROR] LogFactory: Load of custom hashtable failed</em>
+     * </code></pre>
+     * to system error and then continue using a standard Hashtable.
+     * </p>
+     * <p>
+     * <strong>Usage:</strong> Set this property when Java is invoked
+     * and <code>LogFactory</code> will attempt to load a new instance
+     * of the given implementation class.
+     * For example, running the following ant scriptlet:
+     * <code><pre>
+     *  &lt;java classname="${test.runner}" fork="yes" failonerror="${test.failonerror}"&gt;
+     *     ...
+     *     &lt;sysproperty
+     *        key="org.apache.commons.logging.LogFactory.HashtableImpl"
+     *        value="org.apache.commons.logging.AltHashtable"/&gt;
+     *  &lt;/java&gt;
+     * </pre></code>
+     * will mean that <code>LogFactory</code> will load an instance of
+     * <code>org.apache.commons.logging.AltHashtable</code>.
+     * </p>
+     * <p>
+     * A typical use case is to allow a custom
+     * Hashtable implementation using weak references to be substituted.
+     * This will allow classloaders to be garbage collected without
+     * the need to release them (on 1.3+ JVMs only, of course ;)
+     * </p>
+     */
+    public static final String HASHTABLE_IMPLEMENTATION_PROPERTY =
+        "org.apache.commons.logging.LogFactory.HashtableImpl";
+
+    private static LogFactory singleton=new LogFactory();
+
+    Properties logConfig;
+
+    // ----------------------------------------------------------- Constructors
+
+
+    /**
+     * Protected constructor that is not available for public use.
      */
     private LogFactory() {
         /*
@@ -82,27 +145,35 @@ public class LogFactory {
          *
          * This can be removed once the oldest JRE supported by Tomcat includes
          * a fix.
+         *
+         * Bug affects Java 7 onwards but Tomcat 7 needs to run on Java 6 so we
+         * have to use reflection here. JreCompat isn't available as JULI has no
+         * external dependencies.
          */
-        FileSystems.getDefault();
-
-        // Look via a ServiceLoader for a Log implementation that has a
-        // constructor taking the String name.
-        ServiceLoader<Log> logLoader = ServiceLoader.load(Log.class);
-        Constructor<? extends Log> m=null;
-        for (Log log: logLoader) {
-            Class<? extends Log> c=log.getClass();
-            try {
-                m=c.getConstructor(String.class);
-                break;
-            }
-            catch (NoSuchMethodException | SecurityException e) {
-                throw new Error(e);
-            }
+        try {
+            Class<?> clazz = Class.forName("java.nio.file.FileSystems");
+            Method m = clazz.getMethod("getDefault");
+            // Static method - no instance nor arguments
+            m.invoke(null);
+        } catch (ClassNotFoundException e) {
+            // Ignore: Must be Java 6
+        } catch (NoSuchMethodException e) {
+            // Ignore: Must be Java 6
+        } catch (IllegalArgumentException e) {
+            // Ignore: Must be Java 6
+        } catch (IllegalAccessException e) {
+            // Ignore: Must be Java 6
+        } catch (InvocationTargetException e) {
+            // Ignore: Must be Java 6
         }
-        discoveredLogConstructor=m;
+
+        logConfig=new Properties();
     }
 
-
+    // hook for syserr logger - class level
+    void setLogConfig( Properties p ) {
+        this.logConfig=p;
+    }
     // --------------------------------------------------------- Public Methods
 
     // only those 2 methods need to change to use a different direct logger.
@@ -121,22 +192,69 @@ public class LogFactory {
      *  returned (the meaning of this name is only known to the underlying
      *  logging implementation that is being wrapped)
      *
-     * @return A log instance with the requested name
-     *
      * @exception LogConfigurationException if a suitable <code>Log</code>
      *  instance cannot be returned
      */
-    public Log getInstance(String name) throws LogConfigurationException {
-        if (discoveredLogConstructor == null) {
-            return DirectJDKLog.getInstance(name);
-        }
+    public Log getInstance(String name)
+        throws LogConfigurationException {
+        return DirectJDKLog.getInstance(name);
+    }
 
-        try {
-            return discoveredLogConstructor.newInstance(name);
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException |
-                InvocationTargetException e) {
-            throw new LogConfigurationException(e);
-        }
+
+    /**
+     * Release any internal references to previously created {@link Log}
+     * instances returned by this factory.  This is useful in environments
+     * like servlet containers, which implement application reloading by
+     * throwing away a ClassLoader.  Dangling references to objects in that
+     * class loader would prevent garbage collection.
+     */
+    public void release() {
+        DirectJDKLog.release();
+    }
+
+    /**
+     * Return the configuration attribute with the specified name (if any),
+     * or <code>null</code> if there is no such attribute.
+     *
+     * @param name Name of the attribute to return
+     */
+    public Object getAttribute(String name) {
+        return logConfig.get(name);
+    }
+
+
+    /**
+     * Return an array containing the names of all currently defined
+     * configuration attributes.  If there are no such attributes, a zero
+     * length array is returned.
+     */
+    public String[] getAttributeNames() {
+        String result[] = new String[logConfig.size()];
+        return logConfig.keySet().toArray(result);
+    }
+
+    /**
+     * Remove any configuration attribute associated with the specified name.
+     * If there is no such attribute, no action is taken.
+     *
+     * @param name Name of the attribute to remove
+     */
+    public void removeAttribute(String name) {
+        logConfig.remove(name);
+     }
+
+
+    /**
+     * Set the configuration attribute with the specified name.  Calling
+     * this with a <code>null</code> value is equivalent to calling
+     * <code>removeAttribute(name)</code>.
+     *
+     * @param name Name of the attribute to set
+     * @param value Value of the attribute to set, or <code>null</code>
+     *  to remove any setting for this attribute
+     */
+    public void setAttribute(String name, Object value) {
+        logConfig.put(name, value);
     }
 
 
@@ -146,12 +264,11 @@ public class LogFactory {
      *
      * @param clazz Class for which a suitable Log name will be derived
      *
-     * @return A log instance with a name of clazz.getName()
-     *
      * @exception LogConfigurationException if a suitable <code>Log</code>
      *  instance cannot be returned
      */
-    public Log getInstance(Class<?> clazz) throws LogConfigurationException {
+    public Log getInstance(Class<?> clazz)
+        throws LogConfigurationException {
         return getInstance( clazz.getName());
     }
 
@@ -184,8 +301,6 @@ public class LogFactory {
      * properties defined in this file will be set as configuration attributes
      * on the corresponding <code>LogFactory</code> instance.</p>
      *
-     * @return The singleton LogFactory instance
-     *
      * @exception LogConfigurationException if the implementation class is not
      *  available or cannot be instantiated.
      */
@@ -200,14 +315,13 @@ public class LogFactory {
      *
      * @param clazz Class from which a log name will be derived
      *
-     * @return A log instance with a name of clazz.getName()
-     *
      * @exception LogConfigurationException if a suitable <code>Log</code>
      *  instance cannot be returned
      */
     public static Log getLog(Class<?> clazz)
         throws LogConfigurationException {
-        return getFactory().getInstance(clazz);
+        return (getFactory().getInstance(clazz));
+
     }
 
 
@@ -219,14 +333,13 @@ public class LogFactory {
      *  returned (the meaning of this name is only known to the underlying
      *  logging implementation that is being wrapped)
      *
-     * @return A log instance with the requested name
-     *
      * @exception LogConfigurationException if a suitable <code>Log</code>
      *  instance cannot be returned
      */
     public static Log getLog(String name)
         throws LogConfigurationException {
-        return getFactory().getInstance(name);
+        return (getFactory().getInstance(name));
+
     }
 
 
@@ -245,6 +358,38 @@ public class LogFactory {
         if (!LogManager.getLogManager().getClass().getName().equals(
                 "java.util.logging.LogManager")) {
             LogManager.getLogManager().reset();
+        }
+    }
+
+
+    /**
+     * Release any internal references to previously created {@link LogFactory}
+     * instances, after calling the instance method <code>release()</code> on
+     * each of them.  This is useful in environments like servlet containers,
+     * which implement application reloading by throwing away a ClassLoader.
+     * Dangling references to objects in that class loader would prevent
+     * garbage collection.
+     */
+    public static void releaseAll() {
+        singleton.release();
+    }
+
+    /**
+     * Returns a string that uniquely identifies the specified object, including
+     * its class.
+     * <p>
+     * The returned string is of form "classname@hashcode", ie is the same as
+     * the return value of the Object.toString() method, but works even when
+     * the specified object's class has overridden the toString method.
+     *
+     * @param o may be null.
+     * @return a string of form classname@hashcode, or "null" if param o is null.
+     */
+    public static String objectId(Object o) {
+        if (o == null) {
+            return "null";
+        } else {
+            return o.getClass().getName() + "@" + System.identityHashCode(o);
         }
     }
 }

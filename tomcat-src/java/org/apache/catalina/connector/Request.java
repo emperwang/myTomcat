@@ -16,15 +16,14 @@
  */
 package org.apache.catalina.connector;
 
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -33,6 +32,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -59,10 +59,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.SessionTrackingMode;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpUpgradeHandler;
 import javax.servlet.http.Part;
 
 import org.apache.catalina.Container;
@@ -72,38 +70,30 @@ import org.apache.catalina.Host;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Realm;
 import org.apache.catalina.Session;
-import org.apache.catalina.TomcatPrincipal;
 import org.apache.catalina.Wrapper;
-import org.apache.catalina.core.ApplicationFilterChain;
-import org.apache.catalina.core.ApplicationMapping;
 import org.apache.catalina.core.ApplicationPart;
-import org.apache.catalina.core.ApplicationPushBuilder;
 import org.apache.catalina.core.ApplicationSessionCookieConfig;
 import org.apache.catalina.core.AsyncContextImpl;
-import org.apache.catalina.mapper.MappingData;
-import org.apache.catalina.servlet4preview.http.PushBuilder;
-import org.apache.catalina.servlet4preview.http.ServletMapping;
+import org.apache.catalina.realm.GenericPrincipal;
 import org.apache.catalina.util.ParameterMap;
-import org.apache.catalina.util.TLSUtil;
+import org.apache.catalina.util.RequestUtil;
+import org.apache.catalina.util.StringParser;
 import org.apache.catalina.util.URLEncoder;
 import org.apache.coyote.ActionCode;
-import org.apache.coyote.UpgradeToken;
-import org.apache.coyote.http11.upgrade.InternalHttpUpgradeHandler;
+import org.apache.coyote.http11.upgrade.servlet31.HttpUpgradeHandler;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.InstanceManager;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
-import org.apache.tomcat.util.buf.StringUtils;
 import org.apache.tomcat.util.buf.UDecoder;
-import org.apache.tomcat.util.http.CookieProcessor;
+import org.apache.tomcat.util.compat.JreCompat;
+import org.apache.tomcat.util.http.Cookies;
 import org.apache.tomcat.util.http.FastHttpDateFormat;
 import org.apache.tomcat.util.http.Parameters;
 import org.apache.tomcat.util.http.Parameters.FailReason;
 import org.apache.tomcat.util.http.ServerCookie;
-import org.apache.tomcat.util.http.ServerCookies;
 import org.apache.tomcat.util.http.fileupload.FileItem;
 import org.apache.tomcat.util.http.fileupload.FileUploadBase;
 import org.apache.tomcat.util.http.fileupload.FileUploadBase.InvalidContentTypeException;
@@ -111,7 +101,7 @@ import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.disk.DiskFileItemFactory;
 import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
 import org.apache.tomcat.util.http.fileupload.servlet.ServletRequestContext;
-import org.apache.tomcat.util.http.parser.AcceptLanguage;
+import org.apache.tomcat.util.http.mapper.MappingData;
 import org.apache.tomcat.util.net.SSLSupport;
 import org.apache.tomcat.util.res.StringManager;
 import org.ietf.jgss.GSSCredential;
@@ -123,7 +113,8 @@ import org.ietf.jgss.GSSException;
  * @author Remy Maucherat
  * @author Craig R. McClanahan
  */
-public class Request implements org.apache.catalina.servlet4preview.http.HttpServletRequest {
+public class Request
+implements HttpServletRequest {
 
     private static final Log log = LogFactory.getLog(Request.class);
 
@@ -131,10 +122,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     public Request() {
-        formats = new SimpleDateFormat[formatsTemplate.length];
-        for(int i = 0; i < formats.length; i++) {
-            formats[i] = (SimpleDateFormat) formatsTemplate[i].clone();
-        }
+
+        formats[0].setTimeZone(GMT_ZONE);
+        formats[1].setTimeZone(GMT_ZONE);
+        formats[2].setTimeZone(GMT_ZONE);
+
     }
 
 
@@ -190,25 +182,23 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * Notice that because SimpleDateFormat is not thread-safe, we can't
      * declare formats[] as a static variable.
      */
-    protected final SimpleDateFormat formats[];
-
-    private static final SimpleDateFormat formatsTemplate[] = {
-        new SimpleDateFormat(FastHttpDateFormat.RFC1123_DATE, Locale.US),
-        new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.US),
-        new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.US)
+    protected SimpleDateFormat formats[] = {
+            new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US),
+            new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.US),
+            new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.US)
     };
 
 
     /**
      * The default Locale if none are specified.
      */
-    protected static final Locale defaultLocale = Locale.getDefault();
+    protected static Locale defaultLocale = Locale.getDefault();
 
 
     /**
      * The attributes associated with this Request, keyed by attribute name.
      */
-    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final Map<String, Object> attributes = new ConcurrentHashMap<String, Object>();
 
 
     /**
@@ -222,20 +212,32 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * The preferred Locales associated with this Request.
      */
-    protected final ArrayList<Locale> locales = new ArrayList<>();
+    protected ArrayList<Locale> locales = new ArrayList<Locale>();
 
 
     /**
      * Internal notes associated with this request by Catalina components
      * and event listeners.
      */
-    private final transient HashMap<String, Object> notes = new HashMap<>();
+    private transient HashMap<String, Object> notes = new HashMap<String, Object>();
 
 
     /**
      * Authentication type.
      */
     protected String authType = null;
+
+
+    /**
+     * Associated event.
+     */
+    protected CometEventImpl event = null;
+
+
+    /**
+     * Comet state
+     */
+    protected boolean comet = false;
 
 
     /**
@@ -247,7 +249,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * The associated input buffer.
      */
-    protected final InputBuffer inputBuffer = new InputBuffer();
+    protected InputBuffer inputBuffer = new InputBuffer();
 
 
     /**
@@ -282,6 +284,13 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Session parsed flag.
+     */
+    @Deprecated
+    protected boolean sessionParsed = false;
+
+
+    /**
      * Request parameters parsed flag.
      */
     protected boolean parametersParsed = false;
@@ -292,13 +301,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * parsed into ServerCookies.
      */
     protected boolean cookiesParsed = false;
-
-
-    /**
-     * Cookie parsed flag. Indicates that the ServerCookies have been converted
-     * into user facing Cookie objects.
-     */
-    protected boolean cookiesConverted = false;
 
 
     /**
@@ -316,14 +318,14 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Post data buffer.
      */
-    protected static final int CACHED_POST_LEN = 8192;
+    protected static int CACHED_POST_LEN = 8192;
     protected byte[] postData = null;
 
 
     /**
      * Hash map used in the getParametersMap method.
      */
-    protected ParameterMap<String, String[]> parameterMap = new ParameterMap<>();
+    protected ParameterMap<String, String[]> parameterMap = new ParameterMap<String, String[]>();
 
 
     /**
@@ -381,6 +383,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * The string parser we will use for parsing request lines.
+     */
+    private final StringParser parser = new StringParser();
+
+
+    /**
      * Local port
      */
     protected int localPort = -1;
@@ -420,17 +428,20 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     protected Boolean asyncSupported = null;
 
-    private HttpServletRequest applicationRequest = null;
+    /**
+     * Path parameters
+     */
+    protected Map<String,String> pathParameters = new HashMap<String, String>();
 
 
     // --------------------------------------------------------- Public Methods
 
     protected void addPathParameter(String name, String value) {
-        coyoteRequest.addPathParameter(name, value);
+        pathParameters.put(name, value);
     }
 
     protected String getPathParameter(String name) {
-        return coyoteRequest.getPathParameter(name);
+        return pathParameters.get(name);
     }
 
     public void setAsyncSupported(boolean asyncSupported) {
@@ -443,8 +454,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     public void recycle() {
 
+        context = null;
+        wrapper = null;
+
         internalDispatcherType = null;
         requestDispatcherPath = null;
+
+        comet = false;
+        if (event != null) {
+            event.clear();
+            event = null;
+        }
 
         authType = null;
         inputBuffer.recycle();
@@ -452,6 +472,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         usingReader = false;
         userPrincipal = null;
         subject = null;
+        sessionParsed = false;
         parametersParsed = false;
         if (parts != null) {
             for (Part part: parts) {
@@ -464,6 +485,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             parts = null;
         }
         partsParseException = null;
+        cookiesParsed = false;
         locales.clear();
         localesParsed = false;
         secure = false;
@@ -477,21 +499,19 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         attributes.clear();
         sslAttributesParsed = false;
         notes.clear();
+        cookies = null;
 
         recycleSessionInfo();
-        recycleCookieInfo(false);
 
         if (Globals.IS_SECURITY_ENABLED || Connector.RECYCLE_FACADES) {
-            parameterMap = new ParameterMap<>();
+            parameterMap = new ParameterMap<String, String[]>();
         } else {
             parameterMap.setLocked(false);
             parameterMap.clear();
         }
 
         mappingData.recycle();
-        applicationMapping.recycle();
 
-        applicationRequest = null;
         if (Globals.IS_SECURITY_ENABLED || Connector.RECYCLE_FACADES) {
             if (facade != null) {
                 facade.clear();
@@ -512,6 +532,20 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             asyncContext.recycle();
         }
         asyncContext = null;
+
+        pathParameters.clear();
+    }
+
+    @Deprecated
+    protected boolean isProcessing() {
+        return coyoteRequest.isProcessing();
+    }
+
+    /**
+     * Clear cached encoders (to save memory for Comet requests).
+     */
+    public void clearEncoders() {
+        inputBuffer.clearEncoders();
     }
 
 
@@ -532,13 +566,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
-    protected void recycleCookieInfo(boolean recycleCoyote) {
-        cookiesParsed = false;
-        cookiesConverted = false;
-        cookies = null;
-        if (recycleCoyote) {
-            getCoyoteRequest().getCookies().recycle();
-        }
+    public boolean read() throws IOException {
+        return (inputBuffer.realReadBytes(null, 0, 0) > 0);
     }
 
 
@@ -567,28 +596,28 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
-     * Return the Context within which this Request is being processed.
-     * <p>
-     * This is available as soon as the appropriate Context is identified.
-     * Note that availability of a Context allows <code>getContextPath()</code>
-     * to return a value, and thus enables parsing of the request URI.
-     *
-     * @return the Context mapped with the request
+     * Associated context.
      */
-    public Context getContext() {
-        return mappingData.context;
-    }
+    protected Context context = null;
 
     /**
-     * @param context The newly associated Context
-     * @deprecated Use setters on {@link #getMappingData() MappingData} object.
-     * Depending on use case, you may need to update other
-     * <code>MappingData</code> fields as well, such as
-     * <code>contextSlashCount</code> and <code>host</code>.
+     * Return the Context within which this Request is being processed.
      */
-    @Deprecated
+    public Context getContext() {
+        return this.context;
+    }
+
+
+    /**
+     * Set the Context within which this Request is being processed.  This
+     * must be called as soon as the appropriate Context is identified, because
+     * it identifies the value to be returned by <code>getContextPath()</code>,
+     * and thus enables parsing of the request URI.
+     *
+     * @param context The newly associated Context
+     */
     public void setContext(Context context) {
-        mappingData.context = context;
+        this.context = context;
     }
 
 
@@ -620,15 +649,43 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * @return the Host within which this Request is being processed.
      */
     public Host getHost() {
-        return mappingData.host;
+        return ((Host) mappingData.host);
+    }
+
+
+    /**
+     * Set the Host within which this Request is being processed.  This
+     * must be called as soon as the appropriate Host is identified, and
+     * before the Request is passed to a context.
+     *
+     * @param host The newly associated Host
+     */
+    @Deprecated
+    public void setHost(Host host) {
+        mappingData.host = host;
+    }
+
+
+    /**
+     * Descriptive information about this Request implementation.
+     */
+    protected static final String info =
+            "org.apache.coyote.catalina.CoyoteRequest/1.0";
+
+    /**
+     * Return descriptive information about this Request implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    public String getInfo() {
+        return info;
     }
 
 
     /**
      * Mapping data.
      */
-    protected final MappingData mappingData = new MappingData();
-    private final ApplicationMapping applicationMapping = new ApplicationMapping(mappingData);
+    protected MappingData mappingData = new MappingData();
 
     /**
      * @return mapping data.
@@ -652,31 +709,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         if (facade == null) {
             facade = new RequestFacade(this);
         }
-        if (applicationRequest == null) {
-            applicationRequest = facade;
-        }
-        return applicationRequest;
-    }
-
-
-    /**
-     * Set a wrapped HttpServletRequest to pass to the application. Components
-     * wishing to wrap the request should obtain the request via
-     * {@link #getRequest()}, wrap it and then call this method with the
-     * wrapped request.
-     *
-     * @param applicationRequest The wrapped request to pass to the application
-     */
-    public void setRequest(HttpServletRequest applicationRequest) {
-        // Check the wrapper wraps this request
-        ServletRequest r = applicationRequest;
-        while (r instanceof HttpServletRequestWrapper) {
-            r = ((HttpServletRequestWrapper) r).getRequest();
-        }
-        if (r != facade) {
-            throw new IllegalArgumentException(sm.getString("request.illegalWrap"));
-        }
-        this.applicationRequest = applicationRequest;
+        return facade;
     }
 
 
@@ -734,23 +767,26 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Associated wrapper.
+     */
+    protected Wrapper wrapper = null;
+
+    /**
      * @return the Wrapper within which this Request is being processed.
      */
     public Wrapper getWrapper() {
-        return mappingData.wrapper;
+        return this.wrapper;
     }
 
 
     /**
+     * Set the Wrapper within which this Request is being processed.  This
+     * must be called as soon as the appropriate Wrapper is identified, and
+     * before the Request is ultimately passed to an application servlet.
      * @param wrapper The newly associated Wrapper
-     * @deprecated Use setters on {@link #getMappingData() MappingData} object.
-     * Depending on use case, you may need to update other
-     * <code>MappingData</code> fields as well, such as <code>context</code>
-     * and <code>contextSlashCount</code>.
      */
-    @Deprecated
     public void setWrapper(Wrapper wrapper) {
-        mappingData.wrapper = wrapper;
+        this.wrapper = wrapper;
     }
 
 
@@ -779,8 +815,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * @exception IOException if an input/output error occurs
      */
     public void finishRequest() throws IOException {
-        if (response.getStatus() == HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE) {
-            checkSwallowInput();
+        // Optionally disable swallowing of additional request data.
+        Context context = getContext();
+        if (context != null &&
+                response.getStatus() == HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE &&
+                !context.getSwallowAbortedUploads()) {
+            coyoteRequest.action(ActionCode.DISABLE_SWALLOW_INPUT, null);
         }
     }
 
@@ -793,6 +833,16 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     public Object getNote(String name) {
         return notes.get(name);
+    }
+
+
+    /**
+     * Return an Iterator containing the String names of all notes bindings
+     * that exist for this request.
+     */
+    @Deprecated
+    public Iterator<String> getNoteNames() {
+        return notes.keySet().iterator();
     }
 
 
@@ -861,6 +911,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Set the name of the server (virtual host) to process this request.
+     *
+     * @param name The server name
+     */
+    @Deprecated
+    public void setServerName(String name) {
+        coyoteRequest.serverName().setString(name);
+    }
+
+
+    /**
      * Set the port number of the server to process this request.
      *
      * @param port The server port
@@ -896,7 +957,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         if (attr != null) {
             return attr;
         }
-        if (TLSUtil.isTLSRequestAttribute(name)) {
+        if (isSSLAttribute(name) || name.equals(SSLSupport.PROTOCOL_VERSION_KEY)) {
             coyoteRequest.action(ActionCode.REQ_SSL_ATTRIBUTE, coyoteRequest);
             attr = coyoteRequest.getAttribute(Globals.CERTIFICATES_ATTR);
             if (attr != null) {
@@ -913,6 +974,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             attr = coyoteRequest.getAttribute(Globals.SSL_SESSION_ID_ATTR);
             if (attr != null) {
                 attributes.put(Globals.SSL_SESSION_ID_ATTR, attr);
+                attributes.put(Globals.SSL_SESSION_ID_TOMCAT_ATTR, attr);
             }
             attr = coyoteRequest.getAttribute(Globals.SSL_SESSION_MGR_ATTR);
             if (attr != null) {
@@ -929,9 +991,16 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
-    @Override
-    public long getContentLengthLong() {
-        return coyoteRequest.getContentLengthLong();
+    /**
+     * Test if a given name is one of the special Servlet-spec SSL attributes.
+     */
+    static boolean isSSLAttribute(String name) {
+        return Globals.CERTIFICATES_ATTR.equals(name) ||
+                Globals.CIPHER_SUITE_ATTR.equals(name) ||
+                Globals.KEY_SIZE_ATTR.equals(name)  ||
+                Globals.SSL_SESSION_ID_ATTR.equals(name) ||
+                Globals.SSL_SESSION_ID_TOMCAT_ATTR.equals(name) ||
+                Globals.SSL_SESSION_MGR_ATTR.equals(name);
     }
 
 
@@ -950,6 +1019,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * <li>{@link Globals#CIPHER_SUITE_ATTR} (SSL connections only)</li>
      * <li>{@link Globals#KEY_SIZE_ATTR} (SSL connections only)</li>
      * <li>{@link Globals#SSL_SESSION_ID_ATTR} (SSL connections only)</li>
+     * <li>{@link Globals#SSL_SESSION_ID_TOMCAT_ATTR} (SSL connections only)
+     * </li>
      * <li>{@link Globals#SSL_SESSION_MGR_ATTR} (SSL connections only)</li>
      * <li>{@link Globals#PARAMETER_PARSE_FAILED_ATTR}</li>
      * </ul>
@@ -957,6 +1028,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * have names starting with "org.apache.tomcat" and include:
      * <ul>
      * <li>{@link Globals#SENDFILE_SUPPORTED_ATTR}</li>
+     * <li>{@link Globals#COMET_SUPPORTED_ATTR}</li>
+     * <li>{@link Globals#COMET_TIMEOUT_SUPPORTED_ATTR}</li>
      * </ul>
      * Connector implementations may return some, all or none of these
      * attributes and may also support additional attributes.
@@ -970,7 +1043,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         }
         // Take a copy to prevent ConcurrentModificationExceptions if used to
         // remove attributes
-        Set<String> names = new HashSet<>();
+        Set<String> names = new HashSet<String>();
         names.addAll(attributes.keySet());
         return Collections.enumeration(names);
     }
@@ -981,44 +1054,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     @Override
     public String getCharacterEncoding() {
-        String characterEncoding = coyoteRequest.getCharacterEncoding();
-        if (characterEncoding != null) {
-            return characterEncoding;
-        }
-
-        Context context = getContext();
-        if (context != null) {
-            return context.getRequestCharacterEncoding();
-        }
-
-        return null;
-    }
-
-
-    private Charset getCharset() {
-        Charset charset = null;
-        try {
-            charset = coyoteRequest.getCharset();
-        } catch (UnsupportedEncodingException e) {
-            // Ignore
-        }
-        if (charset != null) {
-            return charset;
-        }
-
-        Context context = getContext();
-        if (context != null) {
-            String encoding = context.getRequestCharacterEncoding();
-            if (encoding != null) {
-                try {
-                    return B2CConverter.getCharset(encoding);
-                } catch (UnsupportedEncodingException e) {
-                    // Ignore
-                }
-            }
-        }
-
-        return org.apache.coyote.Constants.DEFAULT_BODY_CHARSET;
+        return coyoteRequest.getCharacterEncoding();
     }
 
 
@@ -1037,16 +1073,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @Override
     public String getContentType() {
         return coyoteRequest.getContentType();
-    }
-
-
-    /**
-     * Set the content type for this Request.
-     *
-     * @param contentType The content type
-     */
-    public void setContentType(String contentType) {
-        coyoteRequest.setContentType(contentType);
     }
 
 
@@ -1112,7 +1138,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         if (locales.size() > 0) {
             return Collections.enumeration(locales);
         }
-        ArrayList<Locale> results = new ArrayList<>();
+        ArrayList<Locale> results = new ArrayList<Locale>();
         results.add(defaultLocale);
         return Collections.enumeration(results);
 
@@ -1418,9 +1444,9 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         if (context.getDispatchersUseEncodedPaths()) {
             if (pos >= 0) {
                 relative = URLEncoder.DEFAULT.encode(
-                        requestPath.substring(0, pos + 1), StandardCharsets.UTF_8) + path;
+                        requestPath.substring(0, pos + 1), "UTF-8") + path;
             } else {
-                relative = URLEncoder.DEFAULT.encode(requestPath, StandardCharsets.UTF_8) + path;
+                relative = URLEncoder.DEFAULT.encode(requestPath, "UTF-8") + path;
             }
         } else {
             if (pos >= 0) {
@@ -1656,17 +1682,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         }
 
         // Confirm that the encoding name is valid
-        Charset charset = B2CConverter.getCharset(enc);
+        B2CConverter.getCharset(enc);
 
         // Save the validated encoding
-        coyoteRequest.setCharset(charset);
+        coyoteRequest.setCharacterEncoding(enc);
     }
 
 
     @Override
     public ServletContext getServletContext() {
-        return getContext().getServletContext();
-     }
+        return context.getServletContext();
+    }
 
     @Override
     public AsyncContext startAsync() {
@@ -1677,11 +1703,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     public AsyncContext startAsync(ServletRequest request,
             ServletResponse response) {
         if (!isAsyncSupported()) {
-            IllegalStateException ise =
-                    new IllegalStateException(sm.getString("request.asyncNotSupported"));
-            log.warn(sm.getString("coyoteRequest.noAsync",
-                    StringUtils.join(getNonAsyncClassNames())), ise);
-            throw ise;
+            throw new IllegalStateException(sm.getString("request.asyncNotSupported"));
         }
 
         if (asyncContext == null) {
@@ -1693,31 +1715,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         asyncContext.setTimeout(getConnector().getAsyncTimeout());
 
         return asyncContext;
-    }
-
-
-    private Set<String> getNonAsyncClassNames() {
-        Set<String> result = new HashSet<>();
-
-        Wrapper wrapper = getWrapper();
-        if (!wrapper.isAsyncSupported()) {
-            result.add(wrapper.getServletClass());
-        }
-
-        FilterChain filterChain = getFilterChain();
-        if (filterChain instanceof ApplicationFilterChain) {
-            ((ApplicationFilterChain) filterChain).findNonAsyncFilters(result);
-        } else {
-            result.add(sm.getString("coyoteRequest.filterAsyncSupportUnknown"));
-        }
-
-        Container c = wrapper;
-        while (c != null) {
-            c.getPipeline().findNonAsyncValves(result);
-            c = c.getParent();
-        }
-
-        return result;
     }
 
     @Override
@@ -1799,8 +1796,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     public void addCookie(Cookie cookie) {
 
-        if (!cookiesConverted) {
-            convertCookies();
+        if (!cookiesParsed) {
+            parseCookies();
         }
 
         int size = 0;
@@ -1831,12 +1828,34 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Add a parameter name and corresponding set of values to this Request.
+     * (This is used when restoring the original request on a form based
+     * login).
+     *
+     * @param name Name of this request parameter
+     * @param values Corresponding values for this request parameter
+     */
+    @Deprecated
+    public void addParameter(String name, String values[]) {
+        coyoteRequest.getParameters().addParameterValues(name, values);
+    }
+
+
+    /**
      * Clear the collection of Cookies associated with this Request.
      */
     public void clearCookies() {
         cookiesParsed = true;
-        cookiesConverted = true;
         cookies = null;
+    }
+
+
+    /**
+     * Clear the collection of Headers associated with this Request.
+     */
+    @Deprecated
+    public void clearHeaders() {
+        // Not used
     }
 
 
@@ -1849,6 +1868,15 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Clear the collection of parameters associated with this Request.
+     */
+    @Deprecated
+    public void clearParameters() {
+        // Not used
+    }
+
+
+    /**
      * Set the authentication type used for this request, if any; otherwise
      * set the type to <code>null</code>.  Typical values are "BASIC",
      * "DIGEST", or "SSL".
@@ -1857,6 +1885,25 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     public void setAuthType(String type) {
         this.authType = type;
+    }
+
+
+    /**
+     * Set the context path for this Request.  This will normally be called
+     * when the associated Context is mapping the Request to a particular
+     * Wrapper.
+     *
+     * @param path The context path
+     */
+    @Deprecated
+    public void setContextPath(String path) {
+
+        if (path == null) {
+            mappingData.contextPath.setString("");
+        } else {
+            mappingData.contextPath.setString(path);
+        }
+
     }
 
 
@@ -1948,6 +1995,21 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Set the servlet path for this Request.  This will normally be called
+     * when the associated Context is mapping the Request to a particular
+     * Wrapper.
+     *
+     * @param path The servlet path
+     */
+    @Deprecated
+    public void setServletPath(String path) {
+        if (path != null) {
+            mappingData.wrapperPath.setString(path);
+        }
+    }
+
+
+    /**
      * Set the Principal who has been authenticated for this Request.  This
      * value is also used to calculate the value to be returned by the
      * <code>getRemoteUser()</code> method.
@@ -1987,66 +2049,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     // --------------------------------------------- HttpServletRequest Methods
-
-    /**
-     * Pulled forward from Servlet 4.0. The method signature may be modified,
-     * removed or replaced at any time until Servlet 4.0 becomes final.
-     *
-     * @return A builder to use to construct the push request
-     */
-    @Override
-    public PushBuilder newPushBuilder() {
-        return newPushBuilder(this);
-    }
-
-
-    public PushBuilder newPushBuilder(HttpServletRequest request) {
-        AtomicBoolean result = new AtomicBoolean();
-        coyoteRequest.action(ActionCode.IS_PUSH_SUPPORTED, result);
-        if (result.get()) {
-            return new ApplicationPushBuilder(this, request);
-        } else {
-            return null;
-        }
-    }
-
-
-    /**
-     * {@inheritDoc}
-     *
-     * @since Servlet 3.1
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T extends HttpUpgradeHandler> T upgrade(
-            Class<T> httpUpgradeHandlerClass) throws java.io.IOException, ServletException {
-        T handler;
-        InstanceManager instanceManager = null;
-        try {
-            // Do not go through the instance manager for internal Tomcat classes since they don't
-            // need injection
-            if (InternalHttpUpgradeHandler.class.isAssignableFrom(httpUpgradeHandlerClass)) {
-                handler = httpUpgradeHandlerClass.getConstructor().newInstance();
-            } else {
-                instanceManager = getContext().getInstanceManager();
-                handler = (T) instanceManager.newInstance(httpUpgradeHandlerClass);
-            }
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
-                NamingException | IllegalArgumentException | NoSuchMethodException |
-                SecurityException e) {
-            throw new ServletException(e);
-        }
-        UpgradeToken upgradeToken = new UpgradeToken(handler,
-                getContext(), instanceManager);
-
-        coyoteRequest.action(ActionCode.UPGRADE, upgradeToken);
-
-        // Output required by RFC2616. Protocol specific headers should have
-        // already been set.
-        response.setStatus(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
-
-        return handler;
-    }
 
     /**
      * Return the authentication type used for this Request.
@@ -2105,7 +2107,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             candidate = uri.substring(0, pos);
         }
         candidate = removePathParameters(candidate);
-        candidate = UDecoder.URLDecode(candidate, connector.getURICharset());
+        candidate = RequestUtil.URLDecode(candidate, connector.getURIEncoding());
         candidate = org.apache.tomcat.util.http.RequestUtil.normalize(candidate);
         boolean match = canonicalContextPath.equals(candidate);
         while (!match && pos != -1) {
@@ -2116,7 +2118,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                 candidate = uri.substring(0, pos);
             }
             candidate = removePathParameters(candidate);
-            candidate = UDecoder.URLDecode(candidate, connector.getURICharset());
+            candidate = RequestUtil.URLDecode(candidate, connector.getURIEncoding());
             candidate = org.apache.tomcat.util.http.RequestUtil.normalize(candidate);
             match = canonicalContextPath.equals(candidate);
         }
@@ -2177,6 +2179,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
+     * Get the context path.
+     *
+     * @return the context path
+     */
+    @Deprecated
+    public MessageBytes getContextPathMB() {
+        return mappingData.contextPath;
+    }
+
+
+    /**
      * Return the set of Cookies received with this Request. Triggers parsing of
      * the Cookie HTTP headers followed by conversion to Cookie objects if this
      * has not already been performed.
@@ -2185,23 +2198,22 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     @Override
     public Cookie[] getCookies() {
-        if (!cookiesConverted) {
-            convertCookies();
+
+        if (!cookiesParsed) {
+            parseCookies();
         }
         return cookies;
     }
 
 
     /**
-     * Return the server representation of the cookies associated with this
-     * request. Triggers parsing of the Cookie HTTP headers (but not conversion
-     * to Cookie objects) if the headers have not yet been parsed.
-     *
-     * @return the server cookies
+     * Set the set of cookies received with this Request.
      */
-    public ServerCookies getServerCookies() {
-        parseCookies();
-        return coyoteRequest.getCookies();
+    @Deprecated
+    public void setCookies(Cookie[] cookies) {
+
+        this.cookies = cookies;
+
     }
 
 
@@ -2290,12 +2302,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
-    @Override
-    public ServletMapping getServletMapping() {
-        return applicationMapping.getServletMapping();
-    }
-
-
     /**
      * @return the HTTP request method used in this Request.
      */
@@ -2311,6 +2317,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @Override
     public String getPathInfo() {
         return mappingData.pathInfo.toString();
+    }
+
+
+    /**
+     * Get the path info.
+     *
+     * @return the path info
+     */
+    @Deprecated
+    public MessageBytes getPathInfoMB() {
+        return mappingData.pathInfo;
     }
 
 
@@ -2393,7 +2410,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         String scheme = getScheme();
         int port = getServerPort();
         if (port < 0)
-         {
+        {
             port = 80; // Work around java.net.URL bug
         }
 
@@ -2401,7 +2418,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         url.append("://");
         url.append(getServerName());
         if ((scheme.equals("http") && (port != 80))
-            || (scheme.equals("https") && (port != 443))) {
+                || (scheme.equals("https") && (port != 443))) {
             url.append(':');
             url.append(port);
         }
@@ -2418,6 +2435,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @Override
     public String getServletPath() {
         return mappingData.wrapperPath.toString();
+    }
+
+
+    /**
+     * Get the servlet path.
+     *
+     * @return the servlet path
+     */
+    @Deprecated
+    public MessageBytes getServletPathMB() {
+        return mappingData.wrapperPath;
     }
 
 
@@ -2531,7 +2559,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                 return false;
             } else {
                 for (int i = (getMappingData().contexts.length); i > 0; i--) {
-                    Context ctxt = getMappingData().contexts[i - 1];
+                    Context ctxt = (Context) getMappingData().contexts[i - 1];
                     try {
                         if (ctxt.getManager().findSession(requestedSessionId) !=
                                 null) {
@@ -2569,25 +2597,13 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             return false;
         }
 
-        // If the role is "*" then the return value must be false
-        // Servlet 31, section 13.3
-        if ("*".equals(role)) {
-            return false;
-        }
-
-        // If the role is "**" then, unless the application defines a role with
-        // that name, only check if the user is authenticated
-        if ("**".equals(role) && !context.findSecurityRole("**")) {
-            return userPrincipal != null;
-        }
-
         Realm realm = context.getRealm();
         if (realm == null) {
             return false;
         }
 
         // Check for a role defined directly as a <security-role>
-        return realm.hasRole(getWrapper(), userPrincipal, role);
+        return realm.hasRole(wrapper, userPrincipal, role);
     }
 
 
@@ -2604,9 +2620,9 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     @Override
     public Principal getUserPrincipal() {
-        if (userPrincipal instanceof TomcatPrincipal) {
+        if (userPrincipal instanceof GenericPrincipal) {
             GSSCredential gssCredential =
-                    ((TomcatPrincipal) userPrincipal).getGssCredential();
+                    ((GenericPrincipal) userPrincipal).getGssCredential();
             if (gssCredential != null) {
                 int left = -1;
                 try {
@@ -2626,7 +2642,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                     return null;
                 }
             }
-            return ((TomcatPrincipal) userPrincipal).getUserPrincipal();
+            return ((GenericPrincipal) userPrincipal).getUserPrincipal();
         }
 
         return userPrincipal;
@@ -2674,31 +2690,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
-     * Changes the session ID of the session associated with this request.
-     *
-     * @return the old session ID before it was changed
-     * @see javax.servlet.http.HttpSessionIdListener
-     * @since Servlet 3.1
-     */
-    @Override
-    public String changeSessionId() {
-
-        Session session = this.getSessionInternal(false);
-        if (session == null) {
-            throw new IllegalStateException(
-                sm.getString("coyoteRequest.changeSessionId"));
-        }
-
-        Manager manager = this.getContext().getManager();
-        manager.changeSessionId(session);
-
-        String newSessionId = session.getId();
-        this.changeSessionId(newSessionId);
-
-        return newSessionId;
-    }
-
-    /**
      * @return the session associated with this Request, creating one
      * if necessary and requested.
      *
@@ -2706,6 +2697,34 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     public Session getSessionInternal(boolean create) {
         return doGetSession(create);
+    }
+
+
+    /**
+     * Get the event associated with the request.
+     * @return the event
+     */
+    public CometEventImpl getEvent() {
+        if (event == null) {
+            event = new CometEventImpl(this, response);
+        }
+        return event;
+    }
+
+
+    /**
+     * Return true if the current request is handling Comet traffic.
+     */
+    public boolean isComet() {
+        return comet;
+    }
+
+
+    /**
+     * Set comet state.
+     */
+    public void setComet(boolean comet) {
+        this.comet = comet;
     }
 
 
@@ -2718,11 +2737,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
-     * @return <code>true</code> if an attempt has been made to read the request
-     *         body and all of the request body has been read.
+     * @return true if bytes are available.
      */
-    public boolean isFinished() {
-        return coyoteRequest.isFinished();
+    public boolean getAvailable() {
+        return (inputBuffer.available() > 0);
     }
 
 
@@ -2738,8 +2756,29 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         }
     }
 
+    public void cometClose() {
+        coyoteRequest.action(ActionCode.COMET_CLOSE,getEvent());
+        setComet(false);
+    }
+
+    public void setCometTimeout(long timeout) {
+        coyoteRequest.action(ActionCode.COMET_SETTIMEOUT, Long.valueOf(timeout));
+    }
+
     /**
-     * {@inheritDoc}
+     * Not part of Servlet 3 spec but probably should be.
+     * @return true if the requested session ID was obtained from the SSL session
+     */
+    @Deprecated
+    public boolean isRequestedSessionIdFromSSL() {
+        return requestedSessionSSL;
+    }
+
+    /**
+     * @throws IOException If an I/O error occurs
+     * @throws IllegalStateException If the response has been committed
+     * @throws ServletException If the caller is responsible for handling the
+     *         error and the container has NOT set the HTTP response code etc.
      */
     @Override
     public boolean authenticate(HttpServletResponse response)
@@ -2749,7 +2788,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                     sm.getString("coyoteRequest.authenticate.ise"));
         }
 
-        return getContext().getAuthenticator().authenticate(this, response);
+        return context.getAuthenticator().authenticate(this, response);
     }
 
     /**
@@ -2764,7 +2803,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                     sm.getString("coyoteRequest.alreadyAuthenticated"));
         }
 
-        getContext().getAuthenticator().login(username, password, this);
+        if (context.getAuthenticator() == null) {
+            throw new ServletException("no authenticator");
+        }
+
+        context.getAuthenticator().login(username, password, this);
     }
 
     /**
@@ -2772,7 +2815,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     @Override
     public void logout() throws ServletException {
-        getContext().getAuthenticator().logout(this);
+        context.getAuthenticator().logout(this);
     }
 
     /**
@@ -2782,7 +2825,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     public Collection<Part> getParts() throws IOException, IllegalStateException,
             ServletException {
 
-        parseParts(true);
+        parseParts();
 
         if (partsParseException != null) {
             if (partsParseException instanceof IOException) {
@@ -2797,7 +2840,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         return parts;
     }
 
-    private void parseParts(boolean explicit) {
+    private void parseParts() {
 
         // Return immediately if the parts have already been parsed
         if (parts != null || partsParseException != null) {
@@ -2812,14 +2855,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                 mce = new MultipartConfigElement(null, connector.getMaxPostSize(),
                         connector.getMaxPostSize(), connector.getMaxPostSize());
             } else {
-                if (explicit) {
-                    partsParseException = new IllegalStateException(
-                            sm.getString("coyoteRequest.noMultipartConfig"));
-                    return;
-                } else {
-                    parts = Collections.emptyList();
-                    return;
-                }
+                parts = Collections.emptyList();
+                return;
             }
         }
 
@@ -2845,7 +2882,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
             if (!location.exists() && context.getCreateUploadTargets()) {
                 log.warn(sm.getString("coyoteRequest.uploadCreate",
-                        location.getAbsolutePath(), getMappingData().wrapper.getName()));
+                        location.getAbsolutePath(), ((Wrapper)getMappingData().wrapper).getName()));
                 if (!location.mkdirs()) {
                     log.warn(sm.getString("coyoteRequest.uploadCreateFail",
                             location.getAbsolutePath()));
@@ -2877,13 +2914,21 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             upload.setFileSizeMax(mce.getMaxFileSize());
             upload.setSizeMax(mce.getMaxRequestSize());
 
-            parts = new ArrayList<>();
+            parts = new ArrayList<Part>();
             try {
                 List<FileItem> items =
                         upload.parseRequest(new ServletRequestContext(this));
                 int maxPostSize = getConnector().getMaxPostSize();
                 int postSize = 0;
-                Charset charset = getCharset();
+                String enc = getCharacterEncoding();
+                Charset charset = null;
+                if (enc != null) {
+                    try {
+                        charset = B2CConverter.getCharset(enc);
+                    } catch (UnsupportedEncodingException e) {
+                        // Ignore
+                    }
+                }
                 for (FileItem item : items) {
                     ApplicationPart part = new ApplicationPart(item, location);
                     parts.add(part);
@@ -2891,14 +2936,31 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                         String name = part.getName();
                         String value = null;
                         try {
-                            value = part.getString(charset.name());
+                            String encoding = parameters.getEncoding();
+                            if (encoding == null) {
+                                if (enc == null) {
+                                    encoding = Parameters.DEFAULT_ENCODING;
+                                } else {
+                                    encoding = enc;
+                                }
+                            }
+                            value = part.getString(encoding);
                         } catch (UnsupportedEncodingException uee) {
-                            // Not possible
+                            try {
+                                value = part.getString(Parameters.DEFAULT_ENCODING);
+                            } catch (UnsupportedEncodingException e) {
+                                // Should not be possible
+                            }
                         }
                         if (maxPostSize >= 0) {
                             // Have to calculate equivalent size. Not completely
                             // accurate but close enough.
-                            postSize += name.getBytes(charset).length;
+                            if (charset == null) {
+                                // Name length
+                                postSize += name.getBytes().length;
+                            } else {
+                                postSize += name.getBytes(charset).length;
+                            }
                             if (value != null) {
                                 // Equals sign
                                 postSize++;
@@ -2957,6 +3019,59 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             }
         }
         return null;
+    }
+
+
+    // --------------------------------- Tomcat proprietary HTTP upgrade methods
+
+    /**
+     * @deprecated  Will be removed in Tomcat 8.0.x.
+     */
+    @Deprecated
+    public void doUpgrade(org.apache.coyote.http11.upgrade.UpgradeInbound inbound)
+            throws IOException {
+
+        coyoteRequest.action(ActionCode.UPGRADE_TOMCAT, inbound);
+
+        // Output required by RFC2616. Protocol specific headers should have
+        // already been set.
+        response.setStatus(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
+        response.flushBuffer();
+    }
+
+
+    // ---------------------------------- Servlet 3.1 based HTTP upgrade methods
+
+    @SuppressWarnings("unchecked")
+    public <T extends HttpUpgradeHandler> T upgrade(
+            Class<T> httpUpgradeHandlerClass) throws ServletException {
+
+        T handler;
+        try {
+            handler = (T) context.getInstanceManager().newInstance(httpUpgradeHandlerClass);
+        } catch (InstantiationException e) {
+            throw new ServletException(e);
+        } catch (IllegalAccessException e) {
+            throw new ServletException(e);
+        } catch (InvocationTargetException e) {
+            throw new ServletException(e);
+        } catch (NamingException e) {
+            throw new ServletException(e);
+        } catch (IllegalArgumentException e) {
+            throw new ServletException(e);
+        } catch (SecurityException e) {
+            throw new ServletException(e);
+        } catch (NoSuchMethodException e) {
+            throw new ServletException(e);
+        }
+
+        coyoteRequest.action(ActionCode.UPGRADE, handler);
+
+        // Output required by RFC2616. Protocol specific headers should have
+        // already been set.
+        response.setStatus(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
+
+        return handler;
     }
 
 
@@ -3091,42 +3206,13 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
     /**
-     * Parse cookies. This only parses the cookies into the memory efficient
-     * ServerCookies structure. It does not populate the Cookie objects.
+     * Parse cookies.
      */
     protected void parseCookies() {
-        if (cookiesParsed) {
-            return;
-        }
 
         cookiesParsed = true;
 
-        ServerCookies serverCookies = coyoteRequest.getCookies();
-        serverCookies.setLimit(connector.getMaxCookieCount());
-        CookieProcessor cookieProcessor = getContext().getCookieProcessor();
-        cookieProcessor.parseCookieHeader(coyoteRequest.getMimeHeaders(), serverCookies);
-    }
-
-    /**
-     * Converts the parsed cookies (parsing the Cookie headers first if they
-     * have not been parsed) into Cookie objects.
-     */
-    protected void convertCookies() {
-        if (cookiesConverted) {
-            return;
-        }
-
-        cookiesConverted = true;
-
-        if (getContext() == null) {
-            return;
-        }
-
-        parseCookies();
-
-        ServerCookies serverCookies = coyoteRequest.getCookies();
-        CookieProcessor cookieProcessor = getContext().getCookieProcessor();
-
+        Cookies serverCookies = coyoteRequest.getCookies();
         int count = serverCookies.getCookieCount();
         if (count <= 0) {
             return;
@@ -3142,7 +3228,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                 Cookie cookie = new Cookie(scookie.getName().toString(),null);
                 int version = scookie.getVersion();
                 cookie.setVersion(version);
-                scookie.getValue().getByteChunk().setCharset(cookieProcessor.getCharset());
                 cookie.setValue(unescape(scookie.getValue().toString()));
                 cookie.setPath(unescape(scookie.getPath().toString()));
                 String domain = scookie.getDomain().toString();
@@ -3179,15 +3264,22 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
             // getCharacterEncoding() may have been overridden to search for
             // hidden form field containing request encoding
-            Charset charset = getCharset();
+            String enc = getCharacterEncoding();
 
             boolean useBodyEncodingForURI = connector.getUseBodyEncodingForURI();
-            parameters.setCharset(charset);
-            if (useBodyEncodingForURI) {
-                parameters.setQueryStringCharset(charset);
+            if (enc != null) {
+                parameters.setEncoding(enc);
+                if (useBodyEncodingForURI) {
+                    parameters.setQueryStringEncoding(enc);
+                }
+            } else {
+                parameters.setEncoding
+                (org.apache.coyote.Constants.DEFAULT_CHARACTER_ENCODING);
+                if (useBodyEncodingForURI) {
+                    parameters.setQueryStringEncoding
+                    (org.apache.coyote.Constants.DEFAULT_CHARACTER_ENCODING);
+                }
             }
-            // Note: If !useBodyEncodingForURI, the query string encoding is
-            //       that set towards the start of CoyoyeAdapter.service()
 
             parameters.handleQueryParameters();
 
@@ -3208,7 +3300,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             }
 
             if ("multipart/form-data".equals(contentType)) {
-                parseParts(false);
+                parseParts();
                 success = true;
                 return;
             }
@@ -3375,7 +3467,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // a local collection, sorted by the quality value (so we can
         // add Locales in descending order).  The values will be ArrayLists
         // containing the corresponding Locales to be added
-        TreeMap<Double, ArrayList<Locale>> locales = new TreeMap<>();
+        TreeMap<Double, ArrayList<Locale>> locales = new TreeMap<Double, ArrayList<Locale>>();
 
         Enumeration<String> values = getHeaders("accept-language");
 
@@ -3402,24 +3494,79 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     protected void parseLocalesHeader(String value, TreeMap<Double, ArrayList<Locale>> locales) {
 
-        List<AcceptLanguage> acceptLanguages;
-        try {
-            acceptLanguages = AcceptLanguage.parse(new StringReader(value));
-        } catch (IOException e) {
-            // Mal-formed headers are ignore. Do the same in the unlikely event
-            // of an IOException.
-            return;
+        // Preprocess the value to remove all whitespace
+        int white = value.indexOf(' ');
+        if (white < 0) {
+            white = value.indexOf('\t');
+        }
+        if (white >= 0) {
+            StringBuilder sb = new StringBuilder();
+            int len = value.length();
+            for (int i = 0; i < len; i++) {
+                char ch = value.charAt(i);
+                if ((ch != ' ') && (ch != '\t')) {
+                    sb.append(ch);
+                }
+            }
+            parser.setString(sb.toString());
+        } else {
+            parser.setString(value);
         }
 
-        for (AcceptLanguage acceptLanguage : acceptLanguages) {
-            // Add a new Locale to the list of Locales for this quality level
-            Double key = Double.valueOf(-acceptLanguage.getQuality());  // Reverse the order
+        JreCompat jreCompat = JreCompat.getInstance();
+
+        // Process each comma-delimited language specification
+        int length = parser.getLength();
+        while (true) {
+
+            // Extract the next comma-delimited entry
+            int start = parser.getIndex();
+            if (start >= length) {
+                break;
+            }
+            int end = parser.findChar(',');
+            String entry = parser.extract(start, end).trim();
+            parser.advance();   // For the following entry
+
+            // Extract the quality factor for this entry
+            double quality = 1.0;
+            int semi = entry.indexOf(";q=");
+            if (semi >= 0) {
+                try {
+                    String strQuality = entry.substring(semi + 3);
+                    if (strQuality.length() <= 5) {
+                        quality = Double.parseDouble(strQuality);
+                    } else {
+                        quality = 0.0;
+                    }
+                } catch (NumberFormatException e) {
+                    quality = 0.0;
+                }
+                entry = entry.substring(0, semi);
+            }
+
+            // Skip entries we are not going to keep track of
+            if (quality < 0.00005)
+            {
+                continue;       // Zero (or effectively zero) quality factors
+            }
+            if ("*".equals(entry))
+            {
+                continue;       // FIXME - "*" entries are not handled
+            }
+
+            Locale locale = jreCompat.forLanguageTag(entry);
+            if (locale == null) {
+                continue;
+            }
+
+            Double key = Double.valueOf(-quality);  // Reverse the order
             ArrayList<Locale> values = locales.get(key);
             if (values == null) {
-                values = new ArrayList<>();
+                values = new ArrayList<Locale>();
                 locales.put(key, values);
             }
-            values.add(acceptLanguage.getLocale());
+            values.add(locale);
         }
     }
 
@@ -3435,7 +3582,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // void remove(Request request, String name);
     }
 
-    private static final Map<String, SpecialAttributeAdapter> specialAttributes = new HashMap<>();
+    private static final Map<String, SpecialAttributeAdapter> specialAttributes =
+            new HashMap<String, SpecialAttributeAdapter>();
 
     static {
         specialAttributes.put(Globals.DISPATCHER_TYPE_ATTR,
@@ -3483,8 +3631,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                 new SpecialAttributeAdapter() {
                     @Override
                     public Object get(Request request, String name) {
-                        if (request.userPrincipal instanceof TomcatPrincipal) {
-                            return ((TomcatPrincipal) request.userPrincipal)
+                        if (request.userPrincipal instanceof GenericPrincipal) {
+                            return ((GenericPrincipal) request.userPrincipal)
                                     .getGssCredential();
                         }
                         return null;
@@ -3523,22 +3671,5 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                         // NO-OP
                     }
                 });
-        specialAttributes.put(Globals.SENDFILE_SUPPORTED_ATTR,
-                new SpecialAttributeAdapter() {
-                    @Override
-                    public Object get(Request request, String name) {
-                        return Boolean.valueOf(
-                                request.getConnector().getProtocolHandler(
-                                        ).isSendfileSupported() && request.getCoyoteRequest().getSendfile());
-                    }
-                    @Override
-                    public void set(Request request, String name, Object value) {
-                        // NO-OP
-                    }
-                });
-
-        for (SimpleDateFormat sdf : formatsTemplate) {
-            sdf.setTimeZone(GMT_ZONE);
-        }
     }
 }

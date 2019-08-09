@@ -47,7 +47,7 @@ public class TestServletSecurityMappings extends TomcatBaseTest {
 
     @Parameters(name="{0}, {1}, {2}, {3}")
     public static Collection<Object[]> inputs() {
-        List<Object[]> result = new ArrayList<>();
+        List<Object[]> result = new ArrayList<Object[]>();
         result.add(new Object[] { Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.FALSE });
         result.add(new Object[] { Boolean.FALSE, Boolean.FALSE, Boolean.FALSE, Boolean.TRUE });
         result.add(new Object[] { Boolean.FALSE, Boolean.FALSE, Boolean.TRUE , Boolean.FALSE });

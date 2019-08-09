@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.realm;
+
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -29,74 +32,102 @@ import org.apache.catalina.Role;
 import org.apache.catalina.User;
 import org.apache.catalina.UserDatabase;
 import org.apache.catalina.Wrapper;
-import org.apache.catalina.users.MemoryUserDatabase;
 import org.apache.tomcat.util.ExceptionUtils;
 
+
 /**
- * Implementation of {@link org.apache.catalina.Realm} that is based on an
- * implementation of {@link UserDatabase} made available through the global JNDI
- * resources configured for this instance of Catalina. Set the
- * <code>resourceName</code> parameter to the global JNDI resources name for the
- * configured instance of <code>UserDatabase</code> that we should consult.
+ * <p>Implementation of {@link org.apache.catalina.Realm} that is based on an implementation of
+ * {@link UserDatabase} made available through the global JNDI resources
+ * configured for this instance of Catalina.  Set the <code>resourceName</code>
+ * parameter to the global JNDI resources name for the configured instance
+ * of <code>UserDatabase</code> that we should consult.</p>
  *
  * @author Craig R. McClanahan
  * @since 4.1
  */
-public class UserDatabaseRealm extends RealmBase {
+public class UserDatabaseRealm
+    extends RealmBase {
+
 
     // ----------------------------------------------------- Instance Variables
 
+
     /**
-     * The <code>UserDatabase</code> we will use to authenticate users and
-     * identify associated roles.
+     * The <code>UserDatabase</code> we will use to authenticate users
+     * and identify associated roles.
      */
     protected UserDatabase database = null;
 
+
     /**
      * Descriptive information about this Realm implementation.
-     * @deprecated This will be removed in Tomcat 9 onwards.
      */
-    @Deprecated
+    protected static final String info =
+        "org.apache.catalina.realm.UserDatabaseRealm/1.0";
+
+
+    /**
+     * Descriptive information about this Realm implementation.
+     */
     protected static final String name = "UserDatabaseRealm";
 
 
     /**
-     * The global JNDI name of the <code>UserDatabase</code> resource we will be
-     * utilizing.
+     * The global JNDI name of the <code>UserDatabase</code> resource
+     * we will be utilizing.
      */
     protected String resourceName = "UserDatabase";
 
 
     // ------------------------------------------------------------- Properties
 
+
     /**
-     * @return the global JNDI name of the <code>UserDatabase</code> resource we
-     *         will be using.
+     * Return descriptive information about this Realm implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
      */
-    public String getResourceName() {
-        return resourceName;
+    @Override
+    public String getInfo() {
+
+        return info;
+
     }
 
 
     /**
-     * Set the global JNDI name of the <code>UserDatabase</code> resource we
-     * will be using.
+     * Return the global JNDI name of the <code>UserDatabase</code> resource
+     * we will be using.
+     */
+    public String getResourceName() {
+
+        return resourceName;
+
+    }
+
+
+    /**
+     * Set the global JNDI name of the <code>UserDatabase</code> resource
+     * we will be using.
      *
      * @param resourceName The new global JNDI name
      */
     public void setResourceName(String resourceName) {
+
         this.resourceName = resourceName;
+
     }
 
 
     // --------------------------------------------------------- Public Methods
 
+
     /**
      * Return <code>true</code> if the specified Principal has the specified
      * security role, within the context of this Realm; otherwise return
-     * <code>false</code>. This implementation returns <code>true</code> if the
-     * <code>User</code> has the role, or if any <code>Group</code> that the
-     * <code>User</code> is a member of has the role.
+     * <code>false</code>. This implementation returns <code>true</code>
+     * if the <code>User</code> has the role, or if any <code>Group</code>
+     * that the <code>User</code> is a member of has the role.
      *
      * @param principal Principal for whom the role is to be checked
      * @param role Security role to be checked
@@ -109,54 +140,50 @@ public class UserDatabaseRealm extends RealmBase {
             if (realRole != null)
                 role = realRole;
         }
-        if (principal instanceof GenericPrincipal) {
-            GenericPrincipal gp = (GenericPrincipal) principal;
-            if (gp.getUserPrincipal() instanceof User) {
+        if( principal instanceof GenericPrincipal) {
+            GenericPrincipal gp = (GenericPrincipal)principal;
+            if(gp.getUserPrincipal() instanceof User) {
                 principal = gp.getUserPrincipal();
             }
         }
-        if (!(principal instanceof User)) {
-            // Play nice with SSO and mixed Realms
+        if(! (principal instanceof User) ) {
+            //Play nice with SSO and mixed Realms
             return super.hasRole(null, principal, role);
         }
-        if ("*".equals(role)) {
+        if("*".equals(role)) {
             return true;
-        } else if (role == null) {
+        } else if(role == null) {
             return false;
         }
-        User user = (User) principal;
+        User user = (User)principal;
         Role dbrole = database.findRole(role);
-        if (dbrole == null) {
+        if(dbrole == null) {
             return false;
         }
-        if (user.isInRole(dbrole)) {
+        if(user.isInRole(dbrole)) {
             return true;
         }
         Iterator<Group> groups = user.getGroups();
-        while (groups.hasNext()) {
+        while(groups.hasNext()) {
             Group group = groups.next();
-            if (group.isInRole(dbrole)) {
+            if(group.isInRole(dbrole)) {
                 return true;
             }
         }
         return false;
     }
 
-
     // ------------------------------------------------------ Protected Methods
 
+
+    /**
+     * Return a short name for this Realm implementation.
+     */
     @Override
-    @Deprecated
     protected String getName() {
-        return name;
-    }
 
+        return (name);
 
-    @Override
-    public void backgroundProcess() {
-        if (database instanceof MemoryUserDatabase) {
-            ((MemoryUserDatabase) database).backgroundProcess();
-        }
     }
 
 
@@ -165,13 +192,15 @@ public class UserDatabaseRealm extends RealmBase {
      */
     @Override
     protected String getPassword(String username) {
+
         User user = database.findUser(username);
 
         if (user == null) {
             return null;
         }
 
-        return user.getPassword();
+        return (user.getPassword());
+
     }
 
 
@@ -182,21 +211,21 @@ public class UserDatabaseRealm extends RealmBase {
     protected Principal getPrincipal(String username) {
 
         User user = database.findUser(username);
-        if (user == null) {
+        if(user == null) {
             return null;
         }
 
-        List<String> roles = new ArrayList<>();
+        List<String> roles = new ArrayList<String>();
         Iterator<Role> uroles = user.getRoles();
-        while (uroles.hasNext()) {
+        while(uroles.hasNext()) {
             Role role = uroles.next();
             roles.add(role.getName());
         }
         Iterator<Group> groups = user.getGroups();
-        while (groups.hasNext()) {
+        while(groups.hasNext()) {
             Group group = groups.next();
             uroles = group.getRoles();
-            while (uroles.hasNext()) {
+            while(uroles.hasNext()) {
                 Role role = uroles.next();
                 roles.add(role.getName());
             }
@@ -207,13 +236,14 @@ public class UserDatabaseRealm extends RealmBase {
 
     // ------------------------------------------------------ Lifecycle Methods
 
+
     /**
      * Prepare for the beginning of active use of the public methods of this
      * component and implement the requirements of
      * {@link org.apache.catalina.util.LifecycleBase#startInternal()}.
      *
      * @exception LifecycleException if this component detects a fatal error
-     *                that prevents this component from being used
+     *  that prevents this component from being used
      */
     @Override
     protected void startInternal() throws LifecycleException {
@@ -223,12 +253,14 @@ public class UserDatabaseRealm extends RealmBase {
             database = (UserDatabase) context.lookup(resourceName);
         } catch (Throwable e) {
             ExceptionUtils.handleThrowable(e);
-            containerLog.error(sm.getString("userDatabaseRealm.lookup", resourceName), e);
+            containerLog.error(sm.getString("userDatabaseRealm.lookup",
+                                            resourceName),
+                               e);
             database = null;
         }
         if (database == null) {
-            throw new LifecycleException(
-                    sm.getString("userDatabaseRealm.noDatabase", resourceName));
+            throw new LifecycleException
+                (sm.getString("userDatabaseRealm.noDatabase", resourceName));
         }
 
         super.startInternal();
@@ -241,7 +273,7 @@ public class UserDatabaseRealm extends RealmBase {
      * {@link org.apache.catalina.util.LifecycleBase#stopInternal()}.
      *
      * @exception LifecycleException if this component detects a fatal error
-     *                that needs to be reported
+     *  that needs to be reported
      */
     @Override
     protected void stopInternal() throws LifecycleException {
@@ -251,5 +283,6 @@ public class UserDatabaseRealm extends RealmBase {
 
         // Release reference to our user database
         database = null;
+
     }
 }

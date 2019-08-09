@@ -24,10 +24,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Test;
 
-import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.Context;
 import org.apache.catalina.startup.SimpleHttpClient;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
@@ -40,8 +39,6 @@ public class TestMaxConnections extends TomcatBaseTest {
     @Test
     public void testConnector() throws Exception {
         init();
-        Assume.assumeFalse("This feature is not available for NIO2 (BZ58103)",
-                getTomcatInstance().getConnector().getProtocolHandlerClassName().contains("Nio2"));
         ConnectThread[] t = new ConnectThread[10];
         for (int i=0; i<t.length; i++) {
             t[i] = new ConnectThread();
@@ -73,10 +70,10 @@ public class TestMaxConnections extends TomcatBaseTest {
 
     private synchronized void init() throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        StandardContext root = (StandardContext) tomcat.addContext("", SimpleHttpClient.TEMP_DIR);
-        root.setUnloadDelay(soTimeout);
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
         Tomcat.addServlet(root, "Simple", new SimpleServlet());
-        root.addServletMappingDecoded("/test", "Simple");
+        root.addServletMapping("/test", "Simple");
         tomcat.getConnector().setProperty("maxKeepAliveRequests", "1");
         tomcat.getConnector().setProperty("maxThreads", "10");
         tomcat.getConnector().setProperty("soTimeout", "20000");
@@ -132,10 +129,9 @@ public class TestMaxConnections extends TomcatBaseTest {
 
             increment();
 
-            System.out.println("Processing thread: " + Thread.currentThread().getName());
             try {
                 Thread.sleep(TestMaxConnections.soTimeout*4/5);
-            } catch (InterruptedException x) {
+            }catch (InterruptedException x) {
 
             }
             resp.setContentLength(0);

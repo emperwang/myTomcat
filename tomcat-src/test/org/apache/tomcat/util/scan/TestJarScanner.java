@@ -28,19 +28,43 @@ public class TestJarScanner extends TomcatBaseTest {
     @Test
     public void testJarsToSkipFormat() {
 
-        String jarList = System.getProperty(Constants.SKIP_JARS_PROPERTY);
-        Assert.assertNotNull("Jar skip list is null", jarList);
-        Assert.assertFalse("Jar skip list is empty", jarList.isEmpty());
+        testJarsToSkipFormat(
+                org.apache.tomcat.util.scan.Constants.SKIP_JARS_PROPERTY, false);
+        testJarsToSkipFormat(
+                org.apache.catalina.startup.Constants.PLUGGABILITY_JARS_TO_SKIP,
+                true);
+        testJarsToSkipFormat(
+                org.apache.catalina.startup.Constants.TLD_JARS_TO_SKIP,
+                true);
+
+    }
+
+    private static void testJarsToSkipFormat(String propertyName, boolean allowEmpty) {
+        String jarList = System.getProperty(propertyName);
+        if (jarList == null) {
+            if (!allowEmpty) {
+                Assert.fail("[" + propertyName + "]: Jar skip list property is not set");
+            }
+            return;
+        }
+        jarList = jarList.trim();
+        if (jarList.isEmpty()) {
+            if (!allowEmpty) {
+                Assert.fail("[" + propertyName + "]: Jar skip list is empty");
+            }
+            return;
+        }
+
         StringTokenizer tokenizer = new StringTokenizer(jarList, ",");
         String token;
         while (tokenizer.hasMoreElements()) {
-            token = tokenizer.nextToken();
-            Assert.assertTrue("Token \"" + token + "\" does not end with \".jar\"",
-                    token.endsWith(".jar"));
-            Assert.assertEquals("Token \"" + token + "\" contains sub string \".jar\"" +
-                    " or separator \",\" is missing",
-                    token.length() - ".jar".length(),
-                    token.indexOf(".jar"));
+            token = tokenizer.nextToken().trim();
+            Assert.assertTrue("[" + propertyName + "]: Token \"" + token
+                    + "\" does not end with \".jar\"", token.endsWith(".jar"));
+            Assert.assertEquals("[" + propertyName + "]: Token \"" + token
+                    + "\" contains sub string \".jar\""
+                    + " or separator \",\" is missing",
+                    token.length() - ".jar".length(), token.indexOf(".jar"));
         }
     }
 }

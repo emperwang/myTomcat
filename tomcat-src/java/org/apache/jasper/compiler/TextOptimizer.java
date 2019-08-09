@@ -26,12 +26,12 @@ public class TextOptimizer {
     /**
      * A visitor to concatenate contiguous template texts.
      */
-    private static class TextCatVisitor extends Node.Visitor {
+    static class TextCatVisitor extends Node.Visitor {
 
         private static final String EMPTY_TEXT = "";
 
-        private final Options options;
-        private final PageInfo pageInfo;
+        private Options options;
+        private PageInfo pageInfo;
         private int textNodeCount = 0;
         private Node.TemplateText firstTextNode = null;
         private StringBuilder textBuffer;

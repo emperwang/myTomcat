@@ -18,23 +18,13 @@ package org.apache.coyote;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.servlet.WriteListener;
-
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
+import org.apache.tomcat.util.http.parser.HttpParser;
 import org.apache.tomcat.util.http.parser.MediaType;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * Response object.
@@ -47,10 +37,6 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Remy Maucherat
  */
 public final class Response {
-
-    private static final StringManager sm = StringManager.getManager(Response.class);
-
-    private static final Log log = LogFactory.getLog(Response.class);
 
     // ----------------------------------------------------- Class Variables
 
@@ -101,7 +87,7 @@ public final class Response {
     /**
      * Action hook.
      */
-    volatile ActionHook hook;
+    public volatile ActionHook hook;
 
 
     /**
@@ -109,17 +95,18 @@ public final class Response {
      */
     String contentType = null;
     String contentLanguage = null;
-    Charset charset = null;
-    // Retain the original name used to set the charset so exactly that name is
-    // used in the ContentType header. Some (arguably non-specification
-    // compliant) user agents are very particular
-    String characterEncoding = null;
+    String characterEncoding = Constants.DEFAULT_CHARACTER_ENCODING;
     long contentLength = -1;
     private Locale locale = DEFAULT_LOCALE;
 
     // General informations
     private long contentWritten = 0;
     private long commitTime = -1;
+
+    /**
+     * Has the charset been explicitly set.
+     */
+    boolean charsetSet = false;
 
     /**
      * Holds request error exception.
@@ -170,6 +157,10 @@ public final class Response {
         this.req=req;
     }
 
+    public OutputBuffer getOutputBuffer() {
+        return outputBuffer;
+    }
+
 
     public void setOutputBuffer(OutputBuffer outputBuffer) {
         this.outputBuffer = outputBuffer;
@@ -181,7 +172,12 @@ public final class Response {
     }
 
 
-    protected void setHook(ActionHook hook) {
+    public ActionHook getHook() {
+        return hook;
+    }
+
+
+    public void setHook(ActionHook hook) {
         this.hook = hook;
     }
 
@@ -335,6 +331,19 @@ public final class Response {
         }
 
         recycle();
+
+        // Reset the stream
+        action(ActionCode.RESET, this);
+    }
+
+
+    public void finish() {
+        action(ActionCode.CLOSE, this);
+    }
+
+
+    public void acknowledge() {
+        action(ActionCode.ACK, this);
     }
 
 
@@ -365,21 +374,12 @@ public final class Response {
 
 
     public void addHeader(String name, String value) {
-        addHeader(name, value, null);
-    }
-
-
-    public void addHeader(String name, String value, Charset charset) {
         char cc=name.charAt(0);
         if( cc=='C' || cc=='c' ) {
             if( checkSpecialHeader(name, value) )
             return;
         }
-        MessageBytes mb = headers.addValue(name);
-        if (charset != null) {
-            mb.setCharset(charset);
-        }
-        mb.setString(value);
+        headers.addValue(name).setString( value );
     }
 
 
@@ -443,7 +443,17 @@ public final class Response {
         this.locale = locale;
 
         // Set the contentLanguage for header output
-        contentLanguage = locale.toLanguageTag();
+        contentLanguage = locale.getLanguage();
+        if ((contentLanguage != null) && (contentLanguage.length() > 0)) {
+            String country = locale.getCountry();
+            StringBuilder value = new StringBuilder(contentLanguage);
+            if ((country != null) && (country.length() > 0)) {
+                value.append('-');
+                value.append(country);
+            }
+            contentLanguage = value.toString();
+        }
+
     }
 
     /**
@@ -471,12 +481,8 @@ public final class Response {
             return;
         }
 
-        try {
-            this.charset = B2CConverter.getCharset(characterEncoding);
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalArgumentException(e);
-        }
         this.characterEncoding = characterEncoding;
+        charsetSet = true;
     }
 
 
@@ -485,11 +491,6 @@ public final class Response {
      */
     public String getCharacterEncoding() {
         return characterEncoding;
-    }
-
-
-    public Charset getCharset() {
-        return charset;
     }
 
 
@@ -511,7 +512,7 @@ public final class Response {
 
         MediaType m = null;
         try {
-             m = MediaType.parseMediaType(new StringReader(type));
+             m = HttpParser.parseMediaType(new StringReader(type));
         } catch (IOException e) {
             // Ignore - null test below handles this
         }
@@ -529,11 +530,8 @@ public final class Response {
         if (charsetValue != null) {
             charsetValue = charsetValue.trim();
             if (charsetValue.length() > 0) {
-                try {
-                    charset = B2CConverter.getCharset(charsetValue);
-                } catch (UnsupportedEncodingException e) {
-                    log.warn(sm.getString("response.encoding.invalid", charsetValue), e);
-                }
+                charsetSet = true;
+                this.characterEncoding = charsetValue;
             }
         }
     }
@@ -546,7 +544,7 @@ public final class Response {
 
         String ret = contentType;
 
-        if (ret != null && charset != null) {
+        if (ret != null && characterEncoding != null && charsetSet) {
             ret = ret + ";charset=" + characterEncoding;
         }
 
@@ -573,33 +571,14 @@ public final class Response {
 
     /**
      * Write a chunk of bytes.
-     *
-     * @param chunk The bytes to write
-     *
-     * @throws IOException If an I/O error occurs during the write
-     *
-     * @deprecated Unused. Will be removed in Tomcat 9. Use
-     *             {@link #doWrite(ByteBuffer)}
      */
-    @Deprecated
-    public void doWrite(ByteChunk chunk) throws IOException {
-        outputBuffer.doWrite(chunk);
+    public void doWrite(ByteChunk chunk)
+        throws IOException
+    {
+        outputBuffer.doWrite(chunk, this);
         contentWritten+=chunk.getLength();
     }
 
-
-    /**
-     * Write a chunk of bytes.
-     *
-     * @param chunk The ByteBuffer to write
-     *
-     * @throws IOException If an I/O error occurs during the write
-     */
-    public void doWrite(ByteBuffer chunk) throws IOException {
-        int len = chunk.remaining();
-        outputBuffer.doWrite(chunk);
-        contentWritten += len - chunk.remaining();
-    }
 
     // --------------------
 
@@ -608,8 +587,8 @@ public final class Response {
         contentType = null;
         contentLanguage = null;
         locale = DEFAULT_LOCALE;
-        charset = null;
-        characterEncoding = null;
+        characterEncoding = Constants.DEFAULT_CHARACTER_ENCODING;
+        charsetSet = false;
         contentLength = -1;
         status = 200;
         message = null;
@@ -618,10 +597,6 @@ public final class Response {
         errorException = null;
         errorState.set(0);
         headers.clear();
-        // Servlet 3.1 non-blocking write listener
-        listener = null;
-        fireListener = false;
-        registeredForWrite = false;
 
         // update counters
         contentWritten=0;
@@ -652,112 +627,5 @@ public final class Response {
             action(ActionCode.CLIENT_FLUSH, this);
         }
         return outputBuffer.getBytesWritten();
-    }
-
-    /*
-     * State for non-blocking output is maintained here as it is the one point
-     * easily reachable from the CoyoteOutputStream and the Processor which both
-     * need access to state.
-     */
-    volatile WriteListener listener;
-    private boolean fireListener = false;
-    private boolean registeredForWrite = false;
-    private final Object nonBlockingStateLock = new Object();
-
-    public WriteListener getWriteListener() {
-        return listener;
-}
-
-    public void setWriteListener(WriteListener listener) {
-        if (listener == null) {
-            throw new NullPointerException(
-                    sm.getString("response.nullWriteListener"));
-        }
-        if (getWriteListener() != null) {
-            throw new IllegalStateException(
-                    sm.getString("response.writeListenerSet"));
-        }
-        // Note: This class is not used for HTTP upgrade so only need to test
-        //       for async
-        AtomicBoolean result = new AtomicBoolean(false);
-        action(ActionCode.ASYNC_IS_ASYNC, result);
-        if (!result.get()) {
-            throw new IllegalStateException(
-                    sm.getString("response.notAsync"));
-        }
-
-        this.listener = listener;
-
-        // The container is responsible for the first call to
-        // listener.onWritePossible(). If isReady() returns true, the container
-        // needs to call listener.onWritePossible() from a new thread. If
-        // isReady() returns false, the socket will be registered for write and
-        // the container will call listener.onWritePossible() once data can be
-        // written.
-        if (isReady()) {
-            synchronized (nonBlockingStateLock) {
-                // Ensure we don't get multiple write registrations if
-                // ServletOutputStream.isReady() returns false during a call to
-                // onDataAvailable()
-                registeredForWrite = true;
-                // Need to set the fireListener flag otherwise when the
-                // container tries to trigger onWritePossible, nothing will
-                // happen
-                fireListener = true;
-            }
-            action(ActionCode.DISPATCH_WRITE, null);
-            if (!ContainerThreadMarker.isContainerThread()) {
-                // Not on a container thread so need to execute the dispatch
-                action(ActionCode.DISPATCH_EXECUTE, null);
-            }
-        }
-    }
-
-    public boolean isReady() {
-        if (listener == null) {
-            if (log.isDebugEnabled()) {
-                log.debug(sm.getString("response.notNonBlocking"));
-            }
-            return false;
-        }
-        // Assume write is not possible
-        boolean ready = false;
-        synchronized (nonBlockingStateLock) {
-            if (registeredForWrite) {
-                fireListener = true;
-                return false;
-            }
-            ready = checkRegisterForWrite();
-            fireListener = !ready;
-        }
-        return ready;
-    }
-
-    public boolean checkRegisterForWrite() {
-        AtomicBoolean ready = new AtomicBoolean(false);
-        synchronized (nonBlockingStateLock) {
-            if (!registeredForWrite) {
-                action(ActionCode.NB_WRITE_INTEREST, ready);
-                registeredForWrite = !ready.get();
-            }
-        }
-        return ready.get();
-    }
-
-    public void onWritePossible() throws IOException {
-        // Any buffered data left over from a previous non-blocking write is
-        // written in the Processor so if this point is reached the app is able
-        // to write data.
-        boolean fire = false;
-        synchronized (nonBlockingStateLock) {
-            registeredForWrite = false;
-            if (fireListener) {
-                fireListener = false;
-                fire = true;
-            }
-        }
-        if (fire) {
-            listener.onWritePossible();
-        }
     }
 }

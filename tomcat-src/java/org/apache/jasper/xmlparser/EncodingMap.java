@@ -33,450 +33,447 @@ import java.util.Hashtable;
  * encoding names used in XML instance documents <strong>must</strong>
  * be the IANA encoding names specified or one of the aliases for those names
  * which IANA defines.
- * <TABLE WIDTH="100%">
- *  <caption>Mapping of IANA encoding names and Java encoding names</caption>
+ * <p>
+ * <TABLE BORDER="0" WIDTH="100%">
  *  <TR>
- *      <TD>
- *          <P><B>Common Name</B>
+ *      <TD WIDTH="33%">
+ *          <P ALIGN="CENTER"><B>Common Name</B>
  *      </TD>
- *      <TD>
- *          <P><B>Use this name in XML files</B>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER"><B>Use this name in XML files</B>
  *      </TD>
- *      <TD>
- *          <P><B>Name Type</B>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER"><B>Name Type</B>
  *      </TD>
- *      <TD>
- *          <P><B>Xerces converts to this Java Encoder Name</B>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER"><B>Xerces converts to this Java Encoder Name</B>
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>8 bit Unicode</TD>
- *      <TD>
- *          <P>UTF-8
+ *      <TD WIDTH="33%">8 bit Unicode</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">UTF-8
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>UTF8
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>ISO Latin 1</TD>
- *      <TD>
- *          <P>ISO-8859-1
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>ISO-8859-1
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">UTF8
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>ISO Latin 2</TD>
- *      <TD>
- *          <P>ISO-8859-2
+ *      <TD WIDTH="33%">ISO Latin 1</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-1
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>ISO-8859-2
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>ISO Latin 3</TD>
- *      <TD>
- *          <P>ISO-8859-3
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>ISO-8859-3
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-1
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>ISO Latin 4</TD>
- *      <TD>
- *          <P>ISO-8859-4
+ *      <TD WIDTH="33%">ISO Latin 2</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-2
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>ISO-8859-4
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>ISO Latin Cyrillic</TD>
- *      <TD>
- *          <P>ISO-8859-5
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>ISO-8859-5
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-2
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>ISO Latin Arabic</TD>
- *      <TD>
- *          <P>ISO-8859-6
+ *      <TD WIDTH="33%">ISO Latin 3</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-3
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>ISO-8859-6
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>ISO Latin Greek</TD>
- *      <TD>
- *          <P>ISO-8859-7
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>ISO-8859-7
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-3
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>ISO Latin Hebrew</TD>
- *      <TD>
- *          <P>ISO-8859-8
+ *      <TD WIDTH="33%">ISO Latin 4</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-4
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>ISO-8859-8
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>ISO Latin 5</TD>
- *      <TD>
- *          <P>ISO-8859-9
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>ISO-8859-9
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-4
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: US</TD>
- *      <TD>
- *          <P>ebcdic-cp-us
+ *      <TD WIDTH="33%">ISO Latin Cyrillic</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-5
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>cp037
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Canada</TD>
- *      <TD>
- *          <P>ebcdic-cp-ca
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp037
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-5
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Netherlands</TD>
- *      <TD>
- *          <P>ebcdic-cp-nl
+ *      <TD WIDTH="33%">ISO Latin Arabic</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-6
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>cp037
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Denmark</TD>
- *      <TD>
- *          <P>ebcdic-cp-dk
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp277
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-6
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Norway</TD>
- *      <TD>
- *          <P>ebcdic-cp-no
+ *      <TD WIDTH="33%">ISO Latin Greek</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-7
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>cp277
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Finland</TD>
- *      <TD>
- *          <P>ebcdic-cp-fi
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp278
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-7
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Sweden</TD>
- *      <TD>
- *          <P>ebcdic-cp-se
+ *      <TD WIDTH="33%">ISO Latin Hebrew</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-8
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>cp278
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Italy</TD>
- *      <TD>
- *          <P>ebcdic-cp-it
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp280
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-8
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Spain, Latin America</TD>
- *      <TD>
- *          <P>ebcdic-cp-es
+ *      <TD WIDTH="33%">ISO Latin 5</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ISO-8859-9
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
  *      </TD>
- *      <TD>
- *          <P>cp284
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Great Britain</TD>
- *      <TD>
- *          <P>ebcdic-cp-gb
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp285
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">ISO-8859-9
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: France</TD>
- *      <TD>
- *          <P>ebcdic-cp-fr
+ *      <TD WIDTH="33%">EBCDIC: US</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-us
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>cp297
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Arabic</TD>
- *      <TD>
- *          <P>ebcdic-cp-ar1
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp420
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp037
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Hebrew</TD>
- *      <TD>
- *          <P>ebcdic-cp-he
+ *      <TD WIDTH="33%">EBCDIC: Canada</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-ca
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>cp424
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Switzerland</TD>
- *      <TD>
- *          <P>ebcdic-cp-ch
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp500
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp037
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Roece</TD>
- *      <TD>
- *          <P>ebcdic-cp-roece
+ *      <TD WIDTH="33%">EBCDIC: Netherlands</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-nl
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>cp870
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Yugoslavia</TD>
- *      <TD>
- *          <P>ebcdic-cp-yu
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp870
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp037
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>EBCDIC: Iceland</TD>
- *      <TD>
- *          <P>ebcdic-cp-is
+ *      <TD WIDTH="33%">EBCDIC: Denmark</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-dk
  *      </TD>
- *      <TD>
- *          <P>IANA
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>cp871
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>EBCDIC: Urdu</TD>
- *      <TD>
- *          <P>ebcdic-cp-ar2
- *      </TD>
- *      <TD>
- *          <P>IANA
- *      </TD>
- *      <TD>
- *          <P>cp918
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp277
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>Chinese for PRC, mixed 1/2 byte</TD>
- *      <TD>
- *          <P>gb2312
+ *      <TD WIDTH="33%">EBCDIC: Norway</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-no
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>GB2312
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>Extended Unix Code, packed for Japanese</TD>
- *      <TD>
- *          <P>euc-jp
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>eucjis
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp277
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>Japanese: iso-2022-jp</TD>
- *      <TD>
- *          <P>iso-2020-jp
+ *      <TD WIDTH="33%">EBCDIC: Finland</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-fi
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>JIS
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>Japanese: Shift JIS</TD>
- *      <TD>
- *          <P>Shift_JIS
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>SJIS
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp278
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>Chinese: Big5</TD>
- *      <TD>
- *          <P>Big5
+ *      <TD WIDTH="33%">EBCDIC: Sweden</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-se
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>Big5
- *      </TD>
- *  </TR>
- *  <TR>
- *      <TD>Extended Unix Code, packed for Korean</TD>
- *      <TD>
- *          <P>euc-kr
- *      </TD>
- *      <TD>
- *          <P>MIME
- *      </TD>
- *      <TD>
- *          <P>iso2022kr
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp278
  *      </TD>
  *  </TR>
  *  <TR>
- *      <TD>Cyrillic</TD>
- *      <TD>
- *          <P>koi8-r
+ *      <TD WIDTH="33%">EBCDIC: Italy</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-it
  *      </TD>
- *      <TD>
- *          <P>MIME
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
  *      </TD>
- *      <TD>
- *          <P>koi8-r
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp280
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Spain, Latin America</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-es
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp284
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Great Britain</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-gb
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp285
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: France</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-fr
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp297
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Arabic</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-ar1
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp420
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Hebrew</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-he
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp424
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Switzerland</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-ch
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp500
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Roece</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-roece
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp870
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Yugoslavia</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-yu
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp870
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Iceland</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-is
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp871
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">EBCDIC: Urdu</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">ebcdic-cp-ar2
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">IANA
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">cp918
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Chinese for PRC, mixed 1/2 byte</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">gb2312
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">GB2312
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Extended Unix Code, packed for Japanese</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">euc-jp
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">eucjis
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Japanese: iso-2022-jp</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">iso-2020-jp
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">JIS
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Japanese: Shift JIS</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">Shift_JIS
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">SJIS
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Chinese: Big5</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">Big5
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">Big5
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Extended Unix Code, packed for Korean</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">euc-kr
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">iso2022kr
+ *      </TD>
+ *  </TR>
+ *  <TR>
+ *      <TD WIDTH="33%">Cyrillic</TD>
+ *      <TD WIDTH="15%">
+ *          <P ALIGN="CENTER">koi8-r
+ *      </TD>
+ *      <TD WIDTH="12%">
+ *          <P ALIGN="CENTER">MIME
+ *      </TD>
+ *      <TD WIDTH="31%">
+ *          <P ALIGN="CENTER">koi8-r
  *      </TD>
  *  </TR>
  * </TABLE>
  *
  * @author TAMURA Kent, IBM
  * @author Andy Clark, IBM
- *
- * @deprecated Will be removed in Tomcat 9.0.x onwards
  */
-@Deprecated
 public class EncodingMap {
 
     //
@@ -484,8 +481,12 @@ public class EncodingMap {
     //
 
     /** fIANA2JavaMap */
-    private static final Hashtable<String,String> fIANA2JavaMap =
-            new Hashtable<>();
+    protected static final Hashtable<String,String> fIANA2JavaMap =
+        new Hashtable<String,String>();
+
+    /** fJava2IANAMap */
+    protected static final Hashtable<String,String> fJava2IANAMap =
+        new Hashtable<String,String>();
 
     //
     // Static initialization
@@ -863,15 +864,95 @@ public class EncodingMap {
         // REVISIT:
         //   j:CNS11643 -> EUC-TW?
         //   ISO-2022-CN? ISO-2022-CN-EXT?
+
+        // add Java to IANA encoding mappings
+        //fJava2IANAMap.put("8859_1",    "US-ASCII"); // ?
+        fJava2IANAMap.put("ISO8859_1",    "ISO-8859-1");
+        fJava2IANAMap.put("ISO8859_2",    "ISO-8859-2");
+        fJava2IANAMap.put("ISO8859_3",    "ISO-8859-3");
+        fJava2IANAMap.put("ISO8859_4",    "ISO-8859-4");
+        fJava2IANAMap.put("ISO8859_5",    "ISO-8859-5");
+        fJava2IANAMap.put("ISO8859_6",    "ISO-8859-6");
+        fJava2IANAMap.put("ISO8859_7",    "ISO-8859-7");
+        fJava2IANAMap.put("ISO8859_8",    "ISO-8859-8");
+        fJava2IANAMap.put("ISO8859_9",    "ISO-8859-9");
+        fJava2IANAMap.put("ISO8859_13",    "ISO-8859-13");
+        fJava2IANAMap.put("ISO8859_15",    "ISO-8859-15");
+        fJava2IANAMap.put("ISO8859_15_FDIS",    "ISO-8859-15");
+        fJava2IANAMap.put("Big5",      "BIG5");
+        fJava2IANAMap.put("CP037",     "EBCDIC-CP-US");
+        fJava2IANAMap.put("CP273",     "IBM273");
+        fJava2IANAMap.put("CP277",     "EBCDIC-CP-DK");
+        fJava2IANAMap.put("CP278",     "EBCDIC-CP-FI");
+        fJava2IANAMap.put("CP280",     "EBCDIC-CP-IT");
+        fJava2IANAMap.put("CP284",     "EBCDIC-CP-ES");
+        fJava2IANAMap.put("CP285",     "EBCDIC-CP-GB");
+        fJava2IANAMap.put("CP290",     "EBCDIC-JP-KANA");
+        fJava2IANAMap.put("CP297",     "EBCDIC-CP-FR");
+        fJava2IANAMap.put("CP420",     "EBCDIC-CP-AR1");
+        fJava2IANAMap.put("CP424",     "EBCDIC-CP-HE");
+        fJava2IANAMap.put("CP437",     "IBM437");
+        fJava2IANAMap.put("CP500",     "EBCDIC-CP-CH");
+        fJava2IANAMap.put("CP775",     "IBM775");
+        fJava2IANAMap.put("CP850",     "IBM850");
+        fJava2IANAMap.put("CP852",     "IBM852");
+        fJava2IANAMap.put("CP855",     "IBM855");
+        fJava2IANAMap.put("CP857",     "IBM857");
+        fJava2IANAMap.put("CP858",     "IBM00858");
+        fJava2IANAMap.put("CP860",     "IBM860");
+        fJava2IANAMap.put("CP861",     "IBM861");
+        fJava2IANAMap.put("CP862",     "IBM862");
+        fJava2IANAMap.put("CP863",     "IBM863");
+        fJava2IANAMap.put("CP864",     "IBM864");
+        fJava2IANAMap.put("CP865",     "IBM865");
+        fJava2IANAMap.put("CP866",     "IBM866");
+        fJava2IANAMap.put("CP868",     "IBM868");
+        fJava2IANAMap.put("CP869",     "IBM869");
+        fJava2IANAMap.put("CP870",     "EBCDIC-CP-ROECE");
+        fJava2IANAMap.put("CP871",     "EBCDIC-CP-IS");
+        fJava2IANAMap.put("CP918",     "EBCDIC-CP-AR2");
+        fJava2IANAMap.put("CP924",     "IBM00924");
+        fJava2IANAMap.put("CP1026",     "IBM1026");
+        fJava2IANAMap.put("Cp01140",     "IBM01140");
+        fJava2IANAMap.put("Cp01141",     "IBM01141");
+        fJava2IANAMap.put("Cp01142",     "IBM01142");
+        fJava2IANAMap.put("Cp01143",     "IBM01143");
+        fJava2IANAMap.put("Cp01144",     "IBM01144");
+        fJava2IANAMap.put("Cp01145",     "IBM01145");
+        fJava2IANAMap.put("Cp01146",     "IBM01146");
+        fJava2IANAMap.put("Cp01147",     "IBM01147");
+        fJava2IANAMap.put("Cp01148",     "IBM01148");
+        fJava2IANAMap.put("Cp01149",     "IBM01149");
+        fJava2IANAMap.put("EUCJIS",    "EUC-JP");
+        fJava2IANAMap.put("KS_C_5601-1987",          "KS_C_5601-1987");
+        fJava2IANAMap.put("GB2312",    "GB2312");
+        fJava2IANAMap.put("ISO2022KR", "ISO-2022-KR");
+        fJava2IANAMap.put("ISO2022CN", "ISO-2022-CN");
+        fJava2IANAMap.put("JIS",       "ISO-2022-JP");
+        fJava2IANAMap.put("KOI8_R",    "KOI8-R");
+        fJava2IANAMap.put("KSC5601",   "EUC-KR");
+        fJava2IANAMap.put("GB18030",      "GB18030");
+        fJava2IANAMap.put("GBK",       "GBK");
+        fJava2IANAMap.put("SJIS",      "SHIFT_JIS");
+        fJava2IANAMap.put("MS932",      "WINDOWS-31J");
+        fJava2IANAMap.put("UTF8",      "UTF-8");
+        fJava2IANAMap.put("Unicode",   "UTF-16");
+        fJava2IANAMap.put("UnicodeBig",   "UTF-16BE");
+        fJava2IANAMap.put("UnicodeLittle",   "UTF-16LE");
+        fJava2IANAMap.put("JIS0201",  "X0201");
+        fJava2IANAMap.put("JIS0208",  "X0208");
+        fJava2IANAMap.put("JIS0212",  "ISO-IR-159");
+
+        // proposed addition (see above for details):
+        fJava2IANAMap.put("CP1047",    "IBM1047");
+
     }
 
     //
     // Constructors
     //
 
-    /**
-     * Default constructor.
-     */
+    /** Default constructor. */
     public EncodingMap() {}
 
     //
@@ -879,12 +960,61 @@ public class EncodingMap {
     //
 
     /**
+     * Adds an IANA to Java encoding name mapping.
+     *
+     * @param ianaEncoding The IANA encoding name.
+     * @param javaEncoding The Java encoding name.
+     */
+    public static void putIANA2JavaMapping(String ianaEncoding,
+                                           String javaEncoding) {
+        fIANA2JavaMap.put(ianaEncoding, javaEncoding);
+    }
+
+    /**
      * Returns the Java encoding name for the specified IANA encoding name.
      *
      * @param ianaEncoding The IANA encoding name.
-     * @return the Java encoding
      */
     public static String getIANA2JavaMapping(String ianaEncoding) {
         return fIANA2JavaMap.get(ianaEncoding);
     }
+
+    /**
+     * Removes an IANA to Java encoding name mapping.
+     *
+     * @param ianaEncoding The IANA encoding name.
+     */
+    public static String removeIANA2JavaMapping(String ianaEncoding) {
+        return fIANA2JavaMap.remove(ianaEncoding);
+    }
+
+    /**
+     * Adds a Java to IANA encoding name mapping.
+     *
+     * @param javaEncoding The Java encoding name.
+     * @param ianaEncoding The IANA encoding name.
+     */
+    public static void putJava2IANAMapping(String javaEncoding,
+                                           String ianaEncoding) {
+        fJava2IANAMap.put(javaEncoding, ianaEncoding);
+    }
+
+    /**
+     * Returns the IANA encoding name for the specified Java encoding name.
+     *
+     * @param javaEncoding The Java encoding name.
+     */
+    public static String getJava2IANAMapping(String javaEncoding) {
+        return fJava2IANAMap.get(javaEncoding);
+    }
+
+    /**
+     * Removes a Java to IANA encoding name mapping.
+     *
+     * @param javaEncoding The Java encoding name.
+     */
+    public static String removeJava2IANAMapping(String javaEncoding) {
+        return fJava2IANAMap.remove(javaEncoding);
+    }
+
 }

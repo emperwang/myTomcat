@@ -16,7 +16,6 @@
  */
 package org.apache.coyote.ajp;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,8 +27,8 @@ import java.util.List;
  */
 public class TesterAjpMessage extends AjpMessage {
 
-    private final List<Header> headers = new ArrayList<>();
-    private final List<Attribute> attributes = new ArrayList<>();
+    private final List<Header> headers = new ArrayList<Header>();
+    private final List<Attribute> attributes = new ArrayList<Attribute>();
 
 
     public TesterAjpMessage(int packetSize) {
@@ -130,10 +129,6 @@ public class TesterAjpMessage extends AjpMessage {
     }
 
 
-    public void appendString(String string) {
-        byte[] bytes = string.getBytes(StandardCharsets.ISO_8859_1);
-        appendBytes(bytes, 0, bytes.length);
-    }
 
 
     private static class Header {

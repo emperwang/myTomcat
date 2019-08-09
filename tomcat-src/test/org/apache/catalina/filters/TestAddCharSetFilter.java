@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.servlet.ServletException;
@@ -33,11 +32,11 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.deploy.FilterDef;
+import org.apache.catalina.deploy.FilterMap;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
-import org.apache.tomcat.util.descriptor.web.FilterMap;
 
 public class TestAddCharSetFilter extends TomcatBaseTest {
 
@@ -100,7 +99,7 @@ public class TestAddCharSetFilter extends TomcatBaseTest {
         // Add the Servlet
         CharsetServlet servlet = new CharsetServlet(mode, useSetContentType);
         Tomcat.addServlet(ctx, "servlet", servlet);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         // Add the Filter
         FilterDef filterDef = new FilterDef();
@@ -117,13 +116,13 @@ public class TestAddCharSetFilter extends TomcatBaseTest {
 
         tomcat.start();
 
-        Map<String, List<String>> headers = new HashMap<>();
+        Map<String, List<String>> headers = new HashMap<String, List<String>>();
         getUrl("http://localhost:" + getPort() + "/", new ByteChunk(), headers);
 
         List<String> ctHeaders = headers.get("Content-Type");
         Assert.assertEquals(1, ctHeaders.size());
-        String ct = ctHeaders.get(0).toLowerCase(Locale.ENGLISH);
-        Assert.assertEquals("text/plain;charset=" + expected.toLowerCase(Locale.ENGLISH), ct);
+        String ct = ctHeaders.get(0);
+        Assert.assertEquals("text/plain;charset=" + expected, ct);
     }
 
     private static class CharsetServlet extends HttpServlet {

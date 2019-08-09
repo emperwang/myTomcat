@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -88,7 +88,7 @@ privileged property of the Context element).</p>
 <section name="Servlet Configuration">
 
 <p>There are several servlet init parameters which can be used to
-configure the behaviour of the SSI servlet.</p>
+configure the behaviour of the SSI servlet.
 <ul>
 <li><strong>buffered</strong> - Should output from this servlet be buffered?
 (0=false, 1=true) Default 0 (false).</li>
@@ -108,14 +108,14 @@ of the SSI processing. Default is UTF-8.</li>
 <li><strong>allowExec</strong> - Is the exec command enabled? Default is
 false.</li>
 </ul>
-
+</p>
 
 </section>
 
 <section name="Filter Configuration">
 
 <p>There are several filter init parameters which can be used to
-configure the behaviour of the SSI filter.</p>
+configure the behaviour of the SSI filter.
 <ul>
 <li><strong>contentType</strong> - A regex pattern that must be matched before
 SSI processing is applied. When crafting your own pattern, don't forget that a
@@ -133,7 +133,7 @@ root? Default false.</li>
 <li><strong>allowExec</strong> - Is the exec command enabled? Default is
 false.</li>
 </ul>
-
+</p>
 
 </section>
 
@@ -143,7 +143,7 @@ false.</li>
  comment. The directive is replaced by the results of interpreting it before sending the
  page to the client. The general form of a directive is: </p>
 <p> <code>&lt;!--#directive [parm=value] --&gt;</code></p>
-<p>The directives are:</p>
+<p>The directives are:
 <ul>
 <li>
 <strong>config</strong> - <code>&lt;!--#config errmsg=&quot;Error occured&quot; sizefmt=&quot;abbrev&quot;
@@ -213,20 +213,19 @@ Returns the list of all the defined variables.
 is used to assign a value to a user-defined variable.
 </li>
 <li>
-<strong>if elif endif else</strong> - Used to create conditional sections. For example:
-<source><![CDATA[<!--#config timefmt="%A" -->
-<!--#if expr="$DATE_LOCAL = /Monday/" -->
-<p>Meeting at 10:00 on Mondays</p>
-<!--#elif expr="$DATE_LOCAL = /Friday/" -->
-<p>Turn in your time card</p>
-<!--#else -->
-<p>Yoga class at noon.</p>
-<!--#endif -->]]></source>
-</li>
-</ul>
-<p>
+<strong>if elif endif else</strong> - Used to create conditional sections. For example:</li>
+<code>&lt;!--#config timefmt="%A" --&gt;<br />
+  &lt;!--#if expr="$DATE_LOCAL = /Monday/" --&gt;<br />
+  &lt;p&gt;Meeting at 10:00 on Mondays&lt;/p&gt;<br />
+  &lt;!--#elif expr="$DATE_LOCAL = /Friday/" --&gt;<br />
+  &lt;p&gt;Turn in your time card&lt;/p&gt;<br />
+  &lt;!--#else --&gt;<br />
+  &lt;p&gt;Yoga class at noon.&lt;/p&gt;<br />
+  &lt;!--#endif --&gt;</code>
+ </ul>
+</p>
 See the
-<a href="https://httpd.apache.org/docs/howto/ssi.html#basicssidirectives">
+<p> <a href="https://httpd.apache.org/docs/howto/ssi.html#basicssidirectives">
 Apache Introduction to SSI</a> for more information on using SSI directives.</p>
 </section>
 
@@ -239,7 +238,7 @@ and cannot be used.
 </p>
 <p>The SSI servlet currently implements the following variables:
 </p>
-<table class="defaultTable">
+<table border="1">
 <tr>
 <th>Variable Name</th>
 <th>Description</th>

@@ -34,7 +34,7 @@ import org.apache.tomcat.util.res.StringManager;
 public class HttpMessages {
 
     private static final Map<Locale,HttpMessages> instances =
-            new ConcurrentHashMap<>();
+            new ConcurrentHashMap<Locale, HttpMessages>();
 
     private static final HttpMessages DEFAULT = new HttpMessages(
             StringManager.getManager("org.apache.tomcat.util.http.res",
@@ -55,14 +55,13 @@ public class HttpMessages {
     }
 
 
-    /**
-     * Get the status string associated with a status code. Common messages are
-     * cached.
+    /** Get the status string associated with a status code.
+     *  No I18N - return the messages defined in the HTTP spec.
+     *  ( the user isn't supposed to see them, this is the last
+     *  thing to translate)
      *
-     * @param status The HTTP status code to retrieve the message for
+     *  Common messages are cached.
      *
-     * @return The HTTP status string that conforms to the requirements of the
-     *         HTTP specification
      */
     public String getMessage(int status) {
         // method from Response.
@@ -115,6 +114,43 @@ public class HttpMessages {
         return result;
     }
 
+
+    /**
+     * Filter the specified message string for characters that are sensitive
+     * in HTML.  This avoids potential attacks caused by including JavaScript
+     * codes in the request URL that is often reported in error messages.
+     *
+     * @param message The message string to be filtered
+     */
+    public static String filter(String message) {
+
+        if (message == null) {
+            return (null);
+        }
+
+        char content[] = new char[message.length()];
+        message.getChars(0, message.length(), content, 0);
+        StringBuilder result = new StringBuilder(content.length + 50);
+        for (int i = 0; i < content.length; i++) {
+            switch (content[i]) {
+            case '<':
+                result.append("&lt;");
+                break;
+            case '>':
+                result.append("&gt;");
+                break;
+            case '&':
+                result.append("&amp;");
+                break;
+            case '"':
+                result.append("&quot;");
+                break;
+            default:
+                result.append(content[i]);
+            }
+        }
+        return (result.toString());
+    }
 
     /**
      * Is the provided message safe to use in an HTTP header. Safe messages must

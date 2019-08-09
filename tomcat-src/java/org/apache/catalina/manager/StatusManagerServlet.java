@@ -63,25 +63,25 @@ public class StatusManagerServlet
     /**
      * Vector of protocol handlers object names.
      */
-    protected final Vector<ObjectName> protocolHandlers = new Vector<>();
+    protected Vector<ObjectName> protocolHandlers = new Vector<ObjectName>();
 
 
     /**
      * Vector of thread pools object names.
      */
-    protected final Vector<ObjectName> threadPools = new Vector<>();
+    protected Vector<ObjectName> threadPools = new Vector<ObjectName>();
 
 
     /**
      * Vector of request processors object names.
      */
-    protected final Vector<ObjectName> requestProcessors = new Vector<>();
+    protected Vector<ObjectName> requestProcessors = new Vector<ObjectName>();
 
 
     /**
      * Vector of global request processors object names.
      */
-    protected final Vector<ObjectName> globalRequestProcessors = new Vector<>();
+    protected Vector<ObjectName> globalRequestProcessors = new Vector<ObjectName>();
 
 
     /**
@@ -119,15 +119,10 @@ public class StatusManagerServlet
             onStr = "*:type=ThreadPool,*";
             objectName = new ObjectName(onStr);
             set = mBeanServer.queryMBeans(objectName, null);
-            onStr = "*:type=ThreadPool,*,subType=SocketProperties";
-            objectName = new ObjectName(onStr);
-            Set<ObjectInstance> set2 = mBeanServer.queryMBeans(objectName, null);
             iterator = set.iterator();
             while (iterator.hasNext()) {
                 ObjectInstance oi = iterator.next();
-                if (!set2.contains(oi)) {
-                    threadPools.addElement(oi.getObjectName());
-                }
+                threadPools.addElement(oi.getObjectName());
             }
 
             // Query Global Request Processors

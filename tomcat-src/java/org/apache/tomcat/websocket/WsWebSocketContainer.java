@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -68,16 +69,46 @@ import javax.websocket.WebSocketContainer;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.InstanceManager;
-import org.apache.tomcat.util.buf.StringUtils;
 import org.apache.tomcat.util.codec.binary.Base64;
-import org.apache.tomcat.util.collections.CaseInsensitiveKeyMap;
 import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.security.KeyStoreUtil;
 import org.apache.tomcat.websocket.pojo.PojoEndpointClient;
 
-public class WsWebSocketContainer implements WebSocketContainer, BackgroundProcess {
+public class WsWebSocketContainer
+        implements WebSocketContainer, BackgroundProcess {
 
-    private static final StringManager sm = StringManager.getManager(WsWebSocketContainer.class);
+    /**
+     * Property name to set to configure the value that is passed to
+     * {@link SSLEngine#setEnabledProtocols(String[])}. The value should be a
+     * comma separated string.
+     */
+    public static final String SSL_PROTOCOLS_PROPERTY =
+            "org.apache.tomcat.websocket.SSL_PROTOCOLS";
+    public static final String SSL_TRUSTSTORE_PROPERTY =
+            "org.apache.tomcat.websocket.SSL_TRUSTSTORE";
+    public static final String SSL_TRUSTSTORE_PWD_PROPERTY =
+            "org.apache.tomcat.websocket.SSL_TRUSTSTORE_PWD";
+    public static final String SSL_TRUSTSTORE_PWD_DEFAULT = "changeit";
+    /**
+     * Property name to set to configure used SSLContext. The value should be an
+     * instance of SSLContext. If this property is present, the SSL_TRUSTSTORE*
+     * properties are ignored.
+     */
+    public static final String SSL_CONTEXT_PROPERTY =
+            "org.apache.tomcat.websocket.SSL_CONTEXT";
+
+    /**
+     * Property name to set to configure the timeout (in milliseconds) when
+     * establishing a WebSocket connection to server. The default is
+     * {@link #IO_TIMEOUT_MS_DEFAULT}.
+     */
+    public static final String IO_TIMEOUT_MS_PROPERTY =
+            "org.apache.tomcat.websocket.IO_TIMEOUT_MS";
+
+    public static final long IO_TIMEOUT_MS_DEFAULT = 5000;
+
+    private static final StringManager sm =
+            StringManager.getManager(Constants.PACKAGE_NAME);
     private static final Random RANDOM = new Random();
     private static final byte[] CRLF = new byte[] { 13, 10 };
 
@@ -92,8 +123,8 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     private final Log log = LogFactory.getLog(WsWebSocketContainer.class); // must not be static
     // Server side uses the endpoint path as the key
     // Client side uses the client endpoint instance
-    private final Map<Object, Set<WsSession>> endpointSessionMap = new HashMap<>();
-    private final Map<WsSession,WsSession> sessions = new ConcurrentHashMap<>();
+    private final Map<Object, Set<WsSession>> endpointSessionMap = new HashMap<Object, Set<WsSession>>();
+    private final Map<WsSession,WsSession> sessions = new ConcurrentHashMap<WsSession, WsSession>();
     private final Object endPointSessionMapLock = new Object();
 
     private long defaultAsyncTimeout = -1;
@@ -134,8 +165,11 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         if (!ClientEndpointConfig.Configurator.class.equals(
                 configuratorClazz)) {
             try {
-                configurator = configuratorClazz.getConstructor().newInstance();
-            } catch (ReflectiveOperationException e) {
+                configurator = configuratorClazz.newInstance();
+            } catch (InstantiationException e) {
+                throw new DeploymentException(sm.getString(
+                        "wsWebSocketContainer.defaultConfiguratorFail"), e);
+            } catch (IllegalAccessException e) {
                 throw new DeploymentException(sm.getString(
                         "wsWebSocketContainer.defaultConfiguratorFail"), e);
             }
@@ -161,8 +195,12 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
         Object pojo;
         try {
-            pojo = annotatedEndpointClass.getConstructor().newInstance();
-        } catch (ReflectiveOperationException e) {
+            pojo = annotatedEndpointClass.newInstance();
+        } catch (InstantiationException e) {
+            throw new DeploymentException(sm.getString(
+                    "wsWebSocketContainer.endpointCreateFail",
+                    annotatedEndpointClass.getName()), e);
+        } catch (IllegalAccessException e) {
             throw new DeploymentException(sm.getString(
                     "wsWebSocketContainer.endpointCreateFail",
                     annotatedEndpointClass.getName()), e);
@@ -179,8 +217,12 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
         Endpoint endpoint;
         try {
-            endpoint = clazz.getConstructor().newInstance();
-        } catch (ReflectiveOperationException e) {
+            endpoint = clazz.newInstance();
+        } catch (InstantiationException e) {
+            throw new DeploymentException(sm.getString(
+                    "wsWebSocketContainer.endpointCreateFail", clazz.getName()),
+                    e);
+        } catch (IllegalAccessException e) {
             throw new DeploymentException(sm.getString(
                     "wsWebSocketContainer.endpointCreateFail", clazz.getName()),
                     e);
@@ -270,7 +312,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         clientEndpointConfiguration.getConfigurator().beforeRequest(reqHeaders);
         if (Constants.DEFAULT_ORIGIN_HEADER_VALUE != null
                 && !reqHeaders.containsKey(Constants.ORIGIN_HEADER_NAME)) {
-            List<String> originValues = new ArrayList<>(1);
+            List<String> originValues = new ArrayList<String>(1);
             originValues.add(Constants.DEFAULT_ORIGIN_HEADER_VALUE);
             reqHeaders.put(Constants.ORIGIN_HEADER_NAME, originValues);
         }
@@ -287,8 +329,8 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         Map<String,Object> userProperties = clientEndpointConfiguration.getUserProperties();
 
         // Get the connection timeout
-        long timeout = Constants.IO_TIMEOUT_MS_DEFAULT;
-        String timeoutValue = (String) userProperties.get(Constants.IO_TIMEOUT_MS_PROPERTY);
+        long timeout = IO_TIMEOUT_MS_DEFAULT;
+        String timeoutValue = (String) userProperties.get(IO_TIMEOUT_MS_PROPERTY);
         if (timeoutValue != null) {
             timeout = Long.valueOf(timeoutValue).intValue();
         }
@@ -298,7 +340,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         ByteBuffer response = ByteBuffer.allocate(getDefaultMaxBinaryMessageBufferSize());
         String subProtocol;
         boolean success = false;
-        List<Extension> extensionsAgreed = new ArrayList<>();
+        List<Extension> extensionsAgreed = new ArrayList<Extension>();
         Transformation transformation = null;
 
         // Open the connection
@@ -317,8 +359,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
                             "wsWebSocketContainer.proxyConnectFail", selectedProxy,
                             Integer.toString(httpResponse.getStatus())));
                 }
-            } catch (TimeoutException | InterruptedException | ExecutionException |
-                    EOFException e) {
+            } catch (Exception e) {
                 if (channel != null) {
                     channel.close();
                 }
@@ -467,7 +508,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
             // Build the transformations
             TransformationFactory factory = TransformationFactory.getInstance();
             for (Extension extension : extensionsAgreed) {
-                List<List<Extension.Parameter>> wrapper = new ArrayList<>(1);
+                List<List<Extension.Parameter>> wrapper = new ArrayList<List<Extension.Parameter>>(1);
                 wrapper.add(extension.getParameters());
                 Transformation t = factory.create(extension.getName(), wrapper, false);
                 if (t == null) {
@@ -482,8 +523,25 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
             }
 
             success = true;
-        } catch (ExecutionException | InterruptedException | SSLException |
-                EOFException | TimeoutException | URISyntaxException | AuthenticationException e) {
+        } catch (ExecutionException e) {
+            throw new DeploymentException(
+                    sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
+        } catch (InterruptedException e) {
+            throw new DeploymentException(
+                    sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
+        } catch (AuthenticationException e) {
+            throw new DeploymentException(
+                    sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
+        } catch (SSLException e) {
+            throw new DeploymentException(
+                    sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
+        } catch (EOFException e) {
+            throw new DeploymentException(
+                    sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
+        } catch (TimeoutException e) {
+            throw new DeploymentException(
+                    sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
+        } catch (URISyntaxException e) {
             throw new DeploymentException(
                     sm.getString("wsWebSocketContainer.httpRequestFailed"), e);
         } finally {
@@ -592,7 +650,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
             }
             Set<WsSession> wsSessions = endpointSessionMap.get(key);
             if (wsSessions == null) {
-                wsSessions = new HashSet<>();
+                wsSessions = new HashSet<WsSession>();
                 endpointSessionMap.put(key, wsSessions);
             }
             wsSessions.add(wsSession);
@@ -620,7 +678,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
 
     Set<Session> getOpenSessions(Object key) {
-        HashSet<Session> result = new HashSet<>();
+        HashSet<Session> result = new HashSet<Session>();
         synchronized (endPointSessionMapLock) {
             Set<WsSession> sessions = endpointSessionMap.get(key);
             if (sessions != null) {
@@ -633,19 +691,19 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     private static Map<String, List<String>> createRequestHeaders(String host, int port,
             ClientEndpointConfig clientEndpointConfiguration) {
 
-        Map<String, List<String>> headers = new HashMap<>();
+        Map<String, List<String>> headers = new HashMap<String, List<String>>();
         List<Extension> extensions = clientEndpointConfiguration.getExtensions();
         List<String> subProtocols = clientEndpointConfiguration.getPreferredSubprotocols();
         Map<String, Object> userProperties = clientEndpointConfiguration.getUserProperties();
 
         if (userProperties.get(Constants.AUTHORIZATION_HEADER_NAME) != null) {
-            List<String> authValues = new ArrayList<>(1);
+            List<String> authValues = new ArrayList<String>(1);
             authValues.add((String) userProperties.get(Constants.AUTHORIZATION_HEADER_NAME));
             headers.put(Constants.AUTHORIZATION_HEADER_NAME, authValues);
         }
 
         // Host header
-        List<String> hostValues = new ArrayList<>(1);
+        List<String> hostValues = new ArrayList<String>(1);
         if (port == -1) {
             hostValues.add(host);
         } else {
@@ -655,22 +713,22 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         headers.put(Constants.HOST_HEADER_NAME, hostValues);
 
         // Upgrade header
-        List<String> upgradeValues = new ArrayList<>(1);
+        List<String> upgradeValues = new ArrayList<String>(1);
         upgradeValues.add(Constants.UPGRADE_HEADER_VALUE);
         headers.put(Constants.UPGRADE_HEADER_NAME, upgradeValues);
 
         // Connection header
-        List<String> connectionValues = new ArrayList<>(1);
+        List<String> connectionValues = new ArrayList<String>(1);
         connectionValues.add(Constants.CONNECTION_HEADER_VALUE);
         headers.put(Constants.CONNECTION_HEADER_NAME, connectionValues);
 
         // WebSocket version header
-        List<String> wsVersionValues = new ArrayList<>(1);
+        List<String> wsVersionValues = new ArrayList<String>(1);
         wsVersionValues.add(Constants.WS_VERSION_HEADER_VALUE);
         headers.put(Constants.WS_VERSION_HEADER_NAME, wsVersionValues);
 
         // WebSocket key
-        List<String> wsKeyValues = new ArrayList<>(1);
+        List<String> wsKeyValues = new ArrayList<String>(1);
         wsKeyValues.add(generateWsKeyValue());
         headers.put(Constants.WS_KEY_HEADER_NAME, wsKeyValues);
 
@@ -690,7 +748,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
 
     private static List<String> generateExtensionHeaders(List<Extension> extensions) {
-        List<String> result = new ArrayList<>(extensions.size());
+        List<String> result = new ArrayList<String>(extensions.size());
         for (Extension extension : extensions) {
             StringBuilder header = new StringBuilder();
             header.append(extension.getName());
@@ -721,11 +779,9 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
         // Request line
         result.put(GET_BYTES);
-        if (null == uri.getPath() || "".equals(uri.getPath())) {
-            result.put(ROOT_URI_BYTES);
-        } else {
-            result.put(uri.getRawPath().getBytes(StandardCharsets.ISO_8859_1));
-        }
+        byte[] path = (null == uri.getPath() || "".equals(uri.getPath()))
+                ? ROOT_URI_BYTES : uri.getRawPath().getBytes(StandardCharsets.ISO_8859_1);
+        result.put(path);
         String query = uri.getRawQuery();
         if (query != null) {
             result.put((byte) '?');
@@ -748,13 +804,21 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
 
     private static ByteBuffer addHeader(ByteBuffer result, String key, List<String> values) {
-        if (values.isEmpty()) {
+        StringBuilder sb = new StringBuilder();
+
+        Iterator<String> iter = values.iterator();
+        if (!iter.hasNext()) {
             return result;
+        }
+        sb.append(iter.next());
+        while (iter.hasNext()) {
+            sb.append(',');
+            sb.append(iter.next());
         }
 
         result = putWithExpand(result, key.getBytes(StandardCharsets.ISO_8859_1));
         result = putWithExpand(result, ": ".getBytes(StandardCharsets.ISO_8859_1));
-        result = putWithExpand(result, StringUtils.join(values).getBytes(StandardCharsets.ISO_8859_1));
+        result = putWithExpand(result, sb.toString().getBytes(StandardCharsets.ISO_8859_1));
         result = putWithExpand(result, CRLF);
 
         return result;
@@ -790,7 +854,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
             ExecutionException, DeploymentException, EOFException,
             TimeoutException {
 
-        Map<String,List<String>> headers = new CaseInsensitiveKeyMap<>();
+        Map<String,List<String>> headers = new CaseInsensitiveKeyMap<List<String>>();
 
         int status = 0;
         boolean readStatus = false;
@@ -865,11 +929,12 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
         List<String> values = headers.get(headerName);
         if (values == null) {
-            values = new ArrayList<>(1);
+            values = new ArrayList<String>(1);
             headers.put(headerName, values);
         }
         values.add(headerValue);
     }
+
 
     private String readLine(ByteBuffer response) {
         // All ISO-8859-1
@@ -894,7 +959,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
         try {
             // See if a custom SSLContext has been provided
             SSLContext sslContext =
-                    (SSLContext) userProperties.get(Constants.SSL_CONTEXT_PROPERTY);
+                    (SSLContext) userProperties.get(SSL_CONTEXT_PROPERTY);
 
             if (sslContext == null) {
                 // Create the SSL Context
@@ -902,18 +967,28 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
 
                 // Trust store
                 String sslTrustStoreValue =
-                        (String) userProperties.get(Constants.SSL_TRUSTSTORE_PROPERTY);
+                        (String) userProperties.get(SSL_TRUSTSTORE_PROPERTY);
                 if (sslTrustStoreValue != null) {
                     String sslTrustStorePwdValue = (String) userProperties.get(
-                            Constants.SSL_TRUSTSTORE_PWD_PROPERTY);
+                            SSL_TRUSTSTORE_PWD_PROPERTY);
                     if (sslTrustStorePwdValue == null) {
-                        sslTrustStorePwdValue = Constants.SSL_TRUSTSTORE_PWD_DEFAULT;
+                        sslTrustStorePwdValue = SSL_TRUSTSTORE_PWD_DEFAULT;
                     }
 
                     File keyStoreFile = new File(sslTrustStoreValue);
                     KeyStore ks = KeyStore.getInstance("JKS");
-                    try (InputStream is = new FileInputStream(keyStoreFile)) {
+                    InputStream is = null;
+                    try {
+                        is = new FileInputStream(keyStoreFile);
                         KeyStoreUtil.load(ks, is, sslTrustStorePwdValue.toCharArray());
+                    } finally {
+                        if (is != null) {
+                            try {
+                                is.close();
+                            } catch (IOException ioe) {
+                               // Ignore
+                            }
+                        }
                     }
 
                     TrustManagerFactory tmf = TrustManagerFactory.getInstance(
@@ -929,7 +1004,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
             SSLEngine engine = sslContext.createSSLEngine(host, port);
 
             String sslProtocolsValue =
-                    (String) userProperties.get(Constants.SSL_PROTOCOLS_PROPERTY);
+                    (String) userProperties.get(SSL_PROTOCOLS_PROPERTY);
             if (sslProtocolsValue != null) {
                 engine.setEnabledProtocols(sslProtocolsValue.split(","));
             }
@@ -1074,6 +1149,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     public void backgroundProcess() {
         // This method gets called once a second.
         backgroundProcessCount ++;
+
         if (backgroundProcessCount >= processPeriod) {
             backgroundProcessCount = 0;
 

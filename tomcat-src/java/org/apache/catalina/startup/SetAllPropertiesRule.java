@@ -28,6 +28,7 @@ import org.xml.sax.Attributes;
  * Rule that uses the introspection utils to set properties.
  *
  * @author Remy Maucherat
+ * @author Filip Hanik
  */
 public class SetAllPropertiesRule extends Rule {
 
@@ -40,7 +41,7 @@ public class SetAllPropertiesRule extends Rule {
     }
 
     // ----------------------------------------------------- Instance Variables
-    protected final HashMap<String,String> excludes = new HashMap<>();
+    protected HashMap<String,String> excludes = new HashMap<String,String>();
 
     // --------------------------------------------------------- Public Methods
 

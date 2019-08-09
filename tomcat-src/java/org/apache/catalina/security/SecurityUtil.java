@@ -35,8 +35,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Globals;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
+import org.apache.catalina.comet.CometFilter;
+import org.apache.catalina.comet.CometProcessor;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.res.StringManager;
 /**
@@ -47,6 +47,8 @@ import org.apache.tomcat.util.res.StringManager;
  * Servlet/Filter.
  *
  * This class uses reflection to invoke the methods.
+ *
+ * @author Jean-Francois Arcand
  */
 
 public final class SecurityUtil{
@@ -71,11 +73,12 @@ public final class SecurityUtil{
     /**
      * Cache every class for which we are creating methods.
      */
-    private static final Map<Class<?>,Method[]> classCache = new ConcurrentHashMap<>();
+    private static final Map<Object,Method[]> classCache = new ConcurrentHashMap<Object,Method[]>();
 
-    private static final Log log = LogFactory.getLog(SecurityUtil.class);
+    private static final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog( SecurityUtil.class );
 
-    private static final boolean packageDefinitionEnabled =
+    private static boolean packageDefinitionEnabled =
          (System.getProperty("package.definition") == null &&
            System.getProperty("package.access")  == null) ? false : true;
 
@@ -87,22 +90,21 @@ public final class SecurityUtil{
 
 
     /**
-     * Perform work as a particular <code>Subject</code>. Here the work
+     * Perform work as a particular </code>Subject</code>. Here the work
      * will be granted to a <code>null</code> subject.
      *
      * @param methodName the method to apply the security restriction
      * @param targetObject the <code>Servlet</code> on which the method will
      * be called.
-     * @throws Exception an execution error occurred
      */
     public static void doAsPrivilege(final String methodName,
-                                     final Servlet targetObject) throws Exception {
+                                     final Servlet targetObject) throws java.lang.Exception{
          doAsPrivilege(methodName, targetObject, null, null, null);
     }
 
 
     /**
-     * Perform work as a particular <code>Subject</code>. Here the work
+     * Perform work as a particular </code>Subject</code>. Here the work
      * will be granted to a <code>null</code> subject.
      *
      * @param methodName the method to apply the security restriction
@@ -112,13 +114,12 @@ public final class SecurityUtil{
      * <code>Method</code> object.
      * @param targetArguments <code>Object</code> array contains the runtime
      * parameters instance.
-     * @throws Exception an execution error occurred
      */
     public static void doAsPrivilege(final String methodName,
                                      final Servlet targetObject,
                                      final Class<?>[] targetType,
                                      final Object[] targetArguments)
-        throws Exception {
+        throws java.lang.Exception{
 
          doAsPrivilege(methodName,
                        targetObject,
@@ -129,39 +130,43 @@ public final class SecurityUtil{
 
 
     /**
-     * Perform work as a particular <code>Subject</code>. Here the work
+     * Perform work as a particular </code>Subject</code>. Here the work
      * will be granted to a <code>null</code> subject.
      *
      * @param methodName the method to apply the security restriction
      * @param targetObject the <code>Servlet</code> on which the method will
-     *  be called.
+     * be called.
      * @param targetParameterTypes <code>Class</code> array used to instantiate a
-     *  <code>Method</code> object.
+     * <code>Method</code> object.
      * @param targetArguments <code>Object</code> array contains the
-     *  runtime parameters instance.
+     * runtime parameters instance.
      * @param principal the <code>Principal</code> to which the security
-     *  privilege applies
-     * @throws Exception an execution error occurred
+     * privilege apply..
      */
     public static void doAsPrivilege(final String methodName,
                                      final Servlet targetObject,
                                      final Class<?>[] targetParameterTypes,
                                      final Object[] targetArguments,
                                      Principal principal)
-        throws Exception {
+        throws java.lang.Exception{
+
+        // CometProcessor instances must not be cached as Servlet or
+        // NoSuchMethodException will be thrown.
+        Class<? extends Servlet> targetType =
+                targetObject instanceof CometProcessor ? CometProcessor.class : Servlet.class;
 
         Method method = null;
         Method[] methodsCache = classCache.get(Servlet.class);
         if(methodsCache == null) {
-            method = createMethodAndCacheIt(null,
-                                            Servlet.class,
+            method = createMethodAndCacheIt(methodsCache,
+                                            targetType,
                                             methodName,
                                             targetParameterTypes);
         } else {
             method = findMethod(methodsCache, methodName);
             if (method == null) {
                 method = createMethodAndCacheIt(methodsCache,
-                                                Servlet.class,
+                                                targetType,
                                                 methodName,
                                                 targetParameterTypes);
             }
@@ -172,17 +177,16 @@ public final class SecurityUtil{
 
 
     /**
-     * Perform work as a particular <code>Subject</code>. Here the work
+     * Perform work as a particular </code>Subject</code>. Here the work
      * will be granted to a <code>null</code> subject.
      *
      * @param methodName the method to apply the security restriction
      * @param targetObject the <code>Filter</code> on which the method will
-     *  be called.
-     * @throws Exception an execution error occurred
+     * be called.
      */
     public static void doAsPrivilege(final String methodName,
                                      final Filter targetObject)
-        throws Exception {
+        throws java.lang.Exception{
 
          doAsPrivilege(methodName, targetObject, null, null);
     }
@@ -194,18 +198,17 @@ public final class SecurityUtil{
      *
      * @param methodName the method to apply the security restriction
      * @param targetObject the <code>Filter</code> on which the method will
-     *  be called.
+     * be called.
      * @param targetType <code>Class</code> array used to instantiate a
-     *  <code>Method</code> object.
+     * <code>Method</code> object.
      * @param targetArguments <code>Object</code> array contains the
-     *  runtime parameters instance.
-     * @throws Exception an execution error occurred
+     * runtime parameters instance.
      */
     public static void doAsPrivilege(final String methodName,
                                      final Filter targetObject,
                                      final Class<?>[] targetType,
                                      final Object[] targetArguments)
-        throws Exception {
+        throws java.lang.Exception{
 
         doAsPrivilege(
                 methodName, targetObject, targetType, targetArguments, null);
@@ -217,34 +220,38 @@ public final class SecurityUtil{
      *
      * @param methodName the method to apply the security restriction
      * @param targetObject the <code>Filter</code> on which the method will
-     *  be called.
+     * be called.
      * @param targetParameterTypes <code>Class</code> array used to instantiate a
-     *  <code>Method</code> object.
+     * <code>Method</code> object.
      * @param targetParameterValues <code>Object</code> array contains the
-     *  runtime parameters instance.
+     * runtime parameters instance.
      * @param principal the <code>Principal</code> to which the security
-     *  privilege applies
-     * @throws Exception an execution error occurred
+     * privilege apply
      */
     public static void doAsPrivilege(final String methodName,
                                      final Filter targetObject,
                                      final Class<?>[] targetParameterTypes,
                                      final Object[] targetParameterValues,
                                      Principal principal)
-        throws Exception {
+        throws java.lang.Exception{
+
+        // CometFilter instances must not be cached as Filter or
+        // NoSuchMethodException will be thrown.
+        Class<? extends Filter> targetType =
+                targetObject instanceof CometFilter ? CometFilter.class : Filter.class;
 
         Method method = null;
         Method[] methodsCache = classCache.get(Filter.class);
         if(methodsCache == null) {
-            method = createMethodAndCacheIt(null,
-                                            Filter.class,
+            method = createMethodAndCacheIt(methodsCache,
+                                            targetType,
                                             methodName,
                                             targetParameterTypes);
         } else {
             method = findMethod(methodsCache, methodName);
             if (method == null) {
                 method = createMethodAndCacheIt(methodsCache,
-                                                Filter.class,
+                                                targetType,
                                                 methodName,
                                                 targetParameterTypes);
             }
@@ -255,23 +262,22 @@ public final class SecurityUtil{
 
 
     /**
-     * Perform work as a particular <code>Subject</code>. Here the work
+     * Perform work as a particular </code>Subject</code>. Here the work
      * will be granted to a <code>null</code> subject.
      *
      * @param method the method to apply the security restriction
      * @param targetObject the <code>Servlet</code> on which the method will
-     *  be called.
+     * be called.
      * @param targetArguments <code>Object</code> array contains the
-     *  runtime parameters instance.
+     * runtime parameters instance.
      * @param principal the <code>Principal</code> to which the security
-     *  privilege applies
-     * @throws Exception an execution error occurred
+     * privilege applies
      */
     private static void execute(final Method method,
                                 final Object targetObject,
                                 final Object[] targetArguments,
                                 Principal principal)
-        throws Exception {
+        throws java.lang.Exception{
 
         try{
             Subject subject = null;
@@ -370,9 +376,8 @@ public final class SecurityUtil{
      * @param targetType the class on which the method will be called.
      * @param methodName the method to apply the security restriction
      * @param parameterTypes <code>Class</code> array used to instantiate a
-     *  <code>Method</code> object.
+     * <code>Method</code> object.
      * @return the method instance.
-     * @throws Exception an execution error occurred
      */
     private static Method createMethodAndCacheIt(Method[] methodsCache,
                                                  Class<?> targetType,
@@ -419,7 +424,6 @@ public final class SecurityUtil{
     /**
      * Return the <code>SecurityManager</code> only if Security is enabled AND
      * package protection mechanism is enabled.
-     * @return <code>true</code> if package level protection is enabled
      */
     public static boolean isPackageProtectionEnabled(){
         if (packageDefinitionEnabled && Globals.IS_SECURITY_ENABLED){

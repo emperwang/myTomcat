@@ -45,6 +45,11 @@ public class Constants {
         System.getProperty("org.apache.jasper.Constants.SERVICE_METHOD_NAME", "_jspService");
 
     /**
+     * Default servlet content type.
+     */
+    public static final String SERVLET_CONTENT_TYPE = "text/html";
+
+    /**
      * These classes/packages are automatically imported by the
      * generated code.
      */
@@ -65,6 +70,19 @@ public class Constants {
         System.getProperty("org.apache.jasper.Constants.SERVLET_CLASSPATH", "org.apache.catalina.jsp_classpath");
 
     /**
+     * Request attribute for <code>&lt;jsp-file&gt;</code> element of a
+     * servlet definition.  If present on a request, this overrides the
+     * value returned by <code>request.getServletPath()</code> to select
+     * the JSP page to be executed.
+     * @deprecated  This will be removed in Tomcat 9.0.x onwards. It is replaced
+     *              by the use of the jspFile servlet initialisation parameter
+     */
+    @Deprecated
+    public static final String JSP_FILE =
+        System.getProperty("org.apache.jasper.Constants.JSP_FILE", "org.apache.catalina.jsp_file");
+
+
+    /**
      * Default size of the JSP buffer.
      */
     public static final int DEFAULT_BUFFER_SIZE = 8 * 1024;
@@ -78,6 +96,11 @@ public class Constants {
      * Default tag handler pool size.
      */
     public static final int MAX_POOL_SIZE = 5;
+
+    /**
+     * Platform specific new line sequence.
+     */
+    public static final String NEWLINE = System.getProperty("line.separator");
 
     /**
      * The query parameter that causes the JSP engine to just
@@ -97,6 +120,62 @@ public class Constants {
      */
     public static final String TAG_FILE_PACKAGE_NAME =
         System.getProperty("org.apache.jasper.Constants.TAG_FILE_PACKAGE_NAME", "org.apache.jsp.tag");
+
+    // Must be kept in sync with org/apache/catalina/Globals.java
+    public static final String ALT_DD_ATTR =
+        System.getProperty("org.apache.jasper.Constants.ALT_DD_ATTR", "org.apache.catalina.deploy.alt_dd");
+
+    /**
+     * Public Id and the Resource path (of the cached copy)
+     * of the DTDs for tag library descriptors.
+     */
+    public static final String TAGLIB_DTD_PUBLIC_ID_11 =
+        "-//Sun Microsystems, Inc.//DTD JSP Tag Library 1.1//EN";
+    public static final String TAGLIB_DTD_RESOURCE_PATH_11 =
+        "/javax/servlet/jsp/resources/web-jsptaglibrary_1_1.dtd";
+    public static final String TAGLIB_DTD_PUBLIC_ID_12 =
+        "-//Sun Microsystems, Inc.//DTD JSP Tag Library 1.2//EN";
+    public static final String TAGLIB_DTD_RESOURCE_PATH_12 =
+        "/javax/servlet/jsp/resources/web-jsptaglibrary_1_2.dtd";
+
+    /**
+     * Public Id and the Resource path (of the cached copy)
+     * of the DTDs for web application deployment descriptors
+     */
+    public static final String WEBAPP_DTD_PUBLIC_ID_22 =
+        "-//Sun Microsystems, Inc.//DTD Web Application 2.2//EN";
+    public static final String WEBAPP_DTD_RESOURCE_PATH_22 =
+        "/javax/servlet/resources/web-app_2_2.dtd";
+    public static final String WEBAPP_DTD_PUBLIC_ID_23 =
+        "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN";
+    public static final String WEBAPP_DTD_RESOURCE_PATH_23 =
+        "/javax/servlet/resources/web-app_2_3.dtd";
+
+    /**
+     * List of the Public IDs that we cache, and their
+     * associated location. This is used by
+     * an EntityResolver to return the location of the
+     * cached copy of a DTD.
+     */
+    // TODO Add 2.4, 2.5, 3.0
+    private static final String[] PRIVATE_CACHED_DTD_PUBLIC_IDS = {
+        TAGLIB_DTD_PUBLIC_ID_11,
+        TAGLIB_DTD_PUBLIC_ID_12,
+        WEBAPP_DTD_PUBLIC_ID_22,
+        WEBAPP_DTD_PUBLIC_ID_23,
+    };
+    public static final List<String> CACHED_DTD_PUBLIC_IDS =
+        Collections.unmodifiableList(
+                Arrays.asList(PRIVATE_CACHED_DTD_PUBLIC_IDS));
+    private static final String[] PRIVATE_CACHED_DTD_RESOURCE_PATHS = {
+        TAGLIB_DTD_RESOURCE_PATH_11,
+        TAGLIB_DTD_RESOURCE_PATH_12,
+        WEBAPP_DTD_RESOURCE_PATH_22,
+        WEBAPP_DTD_RESOURCE_PATH_23,
+    };
+    public static final List<String> CACHED_DTD_RESOURCE_PATHS =
+        Collections.unmodifiableList(
+                Arrays.asList(PRIVATE_CACHED_DTD_RESOURCE_PATHS));
 
     /**
      * Default URLs to download the plugin for Netscape and IE.
@@ -136,6 +215,26 @@ public class Constants {
      */
     public static final String CATALINA_HOME_PROP = "catalina.home";
 
+    /**
+     * Name of the system property containing
+     * the tomcat instance installation path
+     */
+    public static final String CATALINA_BASE_PROP = "catalina.base";
+
+    /**
+     * Name of system property containing default list of JARs to skip when
+     * scanning JARs for configuration elements such as TLDs.
+     */
+    public static final String DEFAULT_JAR_SKIP_PROP=
+            "tomcat.util.scan.DefaultJarScanner.jarsToSkip";
+
+    /**
+     * Name of system property containing additional list of JARs to skip when
+     * scanning for TLDs.
+     */
+    public static final String TLD_JAR_SKIP_PROP=
+            "org.apache.catalina.startup.TldConfig.jarsToSkip";
+
 
     /**
      * Name of the ServletContext init-param that determines if the XML parsers
@@ -145,6 +244,15 @@ public class Constants {
      */
     public static final String XML_VALIDATION_TLD_INIT_PARAM =
             "org.apache.jasper.XML_VALIDATE_TLD";
+
+    /**
+     * Name of the ServletContext init-param that determines if the XML parsers
+     * used for web.xml files will be validating or not.
+     * <p>
+     * This must be kept in sync with org.apache.catalina.Globals
+     */
+    public static final String XML_VALIDATION_INIT_PARAM =
+            "org.apache.jasper.XML_VALIDATE";
 
     /**
      * Name of the ServletContext init-param that determines if the XML parsers

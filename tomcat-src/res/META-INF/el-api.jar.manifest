@@ -4,8 +4,8 @@ X-Compile-Target-JDK: @target.jdk@
 
 Name: javax/el/
 Specification-Title: Expression Language
-Specification-Version: 3.0
+Specification-Version: 2.2
 Specification-Vendor: Sun Microsystems, Inc.
 Implementation-Title: javax.el
-Implementation-Version: 3.0.@el.revision@
+Implementation-Version: 2.2.@el.revision@
 Implementation-Vendor: Apache Software Foundation

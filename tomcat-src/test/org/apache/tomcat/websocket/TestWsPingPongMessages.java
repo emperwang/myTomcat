@@ -50,12 +50,14 @@ public class TestWsPingPongMessages extends WebSocketBaseTest {
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
 
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
         WebSocketContainer wsContainer = ContainerProvider
                 .getWebSocketContainer();
+
+        tomcat.start();
 
         Session wsSession = wsContainer.connectToServer(
                 TesterProgrammaticEndpoint.class, ClientEndpointConfig.Builder

@@ -50,7 +50,8 @@ public class TcclThreadFactory implements ThreadFactory {
 
     @Override
     public Thread newThread(Runnable r) {
-        final Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement());
+        final Thread t = new Thread(group, r, namePrefix +
+                threadNumber.getAndIncrement());
 
         if (IS_SECURITY_ENABLED) {
             AccessController.doPrivileged(new PrivilegedAction<Void>() {

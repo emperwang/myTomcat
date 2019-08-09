@@ -37,7 +37,6 @@ import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
-import javax.servlet.ServletRequestWrapper;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -45,8 +44,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Globals;
-import org.apache.catalina.connector.RequestFacade;
-import org.apache.catalina.servlet4preview.http.PushBuilder;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -116,11 +113,10 @@ import org.apache.juli.logging.LogFactory;
  * {@link java.util.regex.Pattern java.util.regex})</td>
  * <td>10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|
  *     169\.254\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|
- *     172\.1[6-9]{1}\.\d{1,3}\.\d{1,3}|172\.2[0-9]{1}\.\d{1,3}\.\d{1,3}|
- *     172\.3[0-1]{1}\.\d{1,3}\.\d{1,3}|
  *     0:0:0:0:0:0:0:1|::1
  *     <br>
- * By default, 10/8, 192.168/16, 169.254/16, 127/8, 172.16/12, and 0:0:0:0:0:0:0:1 are allowed.</td>
+ * By default, 10/8, 192.168/16, 169.254/16, 127/8 and 0:0:0:0:0:0:0:1 are allowed.</td>
+ * </tr>
  * </tr>
  * <tr>
  * <td>proxiesHeader</td>
@@ -459,7 +455,7 @@ public class RemoteIpFilter implements Filter {
             }
         };
 
-        protected final Map<String, List<String>> headers;
+        protected Map<String, List<String>> headers;
 
         protected int localPort;
 
@@ -482,7 +478,7 @@ public class RemoteIpFilter implements Filter {
             this.secure = request.isSecure();
             this.serverPort = request.getServerPort();
 
-            headers = new HashMap<>();
+            headers = new HashMap<String, List<String>>();
             for (Enumeration<String> headerNames = request.getHeaderNames(); headerNames.hasMoreElements();) {
                 String header = headerNames.nextElement();
                 headers.put(header, Collections.list(request.getHeaders(header)));
@@ -644,18 +640,6 @@ public class RemoteIpFilter implements Filter {
 
             return url;
         }
-
-        public PushBuilder getPushBuilder() {
-            ServletRequest current = getRequest();
-            while (current instanceof ServletRequestWrapper) {
-                current = ((ServletRequestWrapper) current).getRequest();
-            }
-            if (current instanceof RequestFacade) {
-                return ((RequestFacade) current).newPushBuilder(this);
-            } else {
-                return null;
-            }
-        }
     }
 
 
@@ -740,9 +724,6 @@ public class RemoteIpFilter implements Filter {
             "192\\.168\\.\\d{1,3}\\.\\d{1,3}|" +
             "169\\.254\\.\\d{1,3}\\.\\d{1,3}|" +
             "127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|" +
-            "172\\.1[6-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" +
-            "172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" +
-            "172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}|" +
             "0:0:0:0:0:0:0:1|::1");
 
     /**
@@ -790,7 +771,7 @@ public class RemoteIpFilter implements Filter {
                 trustedProxies.matcher(request.getRemoteAddr()).matches())) {
             String remoteIp = null;
             // In java 6, proxiesHeaderValue should be declared as a java.util.Deque
-            LinkedList<String> proxiesHeaderValue = new LinkedList<>();
+            LinkedList<String> proxiesHeaderValue = new LinkedList<String>();
             StringBuilder concatRemoteIpHeaderValue = new StringBuilder();
 
             for (Enumeration<String> e = request.getHeaders(remoteIpHeader); e.hasMoreElements();) {
@@ -821,7 +802,7 @@ public class RemoteIpFilter implements Filter {
                 }
             }
             // continue to loop on remoteIpHeaderValue to build the new value of the remoteIpHeader
-            LinkedList<String> newRemoteIpHeaderValue = new LinkedList<>();
+            LinkedList<String> newRemoteIpHeaderValue = new LinkedList<String>();
             for (; idx >= 0; idx--) {
                 String currentRemoteIp = remoteIpHeaderValue[idx];
                 newRemoteIpHeaderValue.addFirst(currentRemoteIp);

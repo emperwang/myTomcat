@@ -22,14 +22,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 
 public class ListELResolver extends ELResolver {
 
     private final boolean readOnly;
 
     private static final Class<?> UNMODIFIABLE =
-        Collections.unmodifiableList(new ArrayList<>()).getClass();
+        Collections.unmodifiableList(new ArrayList<Object>()).getClass();
 
     public ListELResolver() {
         this.readOnly = false;
@@ -41,10 +40,12 @@ public class ListELResolver extends ELResolver {
 
     @Override
     public Class<?> getType(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof List<?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             List<?> list = (List<?>) base;
             int idx = coerce(property);
             if (idx < 0 || idx >= list.size()) {
@@ -59,10 +60,12 @@ public class ListELResolver extends ELResolver {
 
     @Override
     public Object getValue(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof List<?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             List<?> list = (List<?>) base;
             int idx = coerce(property);
             if (idx < 0 || idx >= list.size()) {
@@ -77,10 +80,12 @@ public class ListELResolver extends ELResolver {
     @Override
     public void setValue(ELContext context, Object base, Object property,
             Object value) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof List<?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             @SuppressWarnings("unchecked") // Must be OK to cast to Object
             List<Object> list = (List<Object>) base;
 
@@ -102,10 +107,12 @@ public class ListELResolver extends ELResolver {
 
     @Override
     public boolean isReadOnly(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof List<?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             List<?> list = (List<?>) base;
             try {
                 int idx = coerce(property);

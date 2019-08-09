@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -86,7 +86,7 @@
             The TCD is not packaged with the Tomcat core
             distribution, and must therefore be downloaded separately from
             the Downloads area. The download is usually labelled
-            <i>apache-tomcat-<version-major-minor/>.x-deployer</i>.
+            <i>apache-tomcat-7.0.x-deployer</i>.
         </p>
         <p>
             TCD has prerequisites of Apache Ant 1.6.2+ and a Java installation.
@@ -165,10 +165,12 @@
             <li>Any Context Descriptors will be deployed first.</li>
             <li>
                 Exploded web applications not referenced by any Context
-                Descriptor will then be deployed. If they have an associated
-                .WAR file in the appBase and it is newer than the exploded web application,
-                the exploded directory will be removed and the webapp will be
-                redeployed from the .WAR
+                Descriptor will then be deployed. Note that if an exploded web
+                application has an associated .WAR file in the appBase, Tomcat
+                will not detect if the associated .WAR has been updated while
+                Tomcat was stopped and will deploy the exploded web application
+                as is. The exploded web application will not be removed and
+                replaced with the contents of the updated .WAR file.
             </li>
             <li>.WAR files will be deployed</li>
         </ol>

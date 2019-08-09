@@ -53,6 +53,12 @@ public class CompressionFilter implements Filter {
     private static final int MIN_BUFFER = 8192;
 
     /**
+     * The filter configuration object we are associated with.  If this value
+     * is null, this filter instance is not currently configured.
+     */
+    private FilterConfig config = null;
+
+    /**
      * The threshold number to compress.
      */
     protected int compressionThreshold = 0;
@@ -80,61 +86,62 @@ public class CompressionFilter implements Filter {
     @Override
     public void init(FilterConfig filterConfig) {
 
+        config = filterConfig;
         if (filterConfig != null) {
             String value = filterConfig.getInitParameter("debug");
             if (value!=null) {
                 debug = Integer.parseInt(value);
-        }
+            }
 
             String str = filterConfig.getInitParameter("compressionThreshold");
-        if (str != null) {
-            compressionThreshold = Integer.parseInt(str);
-            if (compressionThreshold != 0 && compressionThreshold < MIN_THRESHOLD) {
-                if (debug > 0) {
-                    System.out.println("compressionThreshold should be either 0 - no compression or >= " + MIN_THRESHOLD);
-                    System.out.println("compressionThreshold set to " + MIN_THRESHOLD);
+            if (str!=null) {
+                compressionThreshold = Integer.parseInt(str);
+                if (compressionThreshold != 0 && compressionThreshold < MIN_THRESHOLD) {
+                    if (debug > 0) {
+                        System.out.println("compressionThreshold should be either 0 - no compression or >= " + MIN_THRESHOLD);
+                        System.out.println("compressionThreshold set to " + MIN_THRESHOLD);
+                    }
+                    compressionThreshold = MIN_THRESHOLD;
                 }
-                compressionThreshold = MIN_THRESHOLD;
             }
-        }
 
             str = filterConfig.getInitParameter("compressionBuffer");
-        if (str != null) {
-            compressionBuffer = Integer.parseInt(str);
-            if (compressionBuffer < MIN_BUFFER) {
-                if (debug > 0) {
-                    System.out.println("compressionBuffer should be >= " + MIN_BUFFER);
-                    System.out.println("compressionBuffer set to " + MIN_BUFFER);
+            if (str!=null) {
+                compressionBuffer = Integer.parseInt(str);
+                if (compressionBuffer < MIN_BUFFER) {
+                    if (debug > 0) {
+                        System.out.println("compressionBuffer should be >= " + MIN_BUFFER);
+                        System.out.println("compressionBuffer set to " + MIN_BUFFER);
+                    }
+                    compressionBuffer = MIN_BUFFER;
                 }
-                compressionBuffer = MIN_BUFFER;
             }
-        }
 
             str = filterConfig.getInitParameter("compressionMimeTypes");
-        if (str != null) {
-            List<String> values = new ArrayList<>();
-            StringTokenizer st = new StringTokenizer(str, ",");
+            if (str!=null) {
+                List<String> values = new ArrayList<String>();
+                StringTokenizer st = new StringTokenizer(str, ",");
 
-            while (st.hasMoreTokens()) {
-                String token = st.nextToken().trim();
-                if (token.length() > 0) {
-                    values.add(token);
+                while (st.hasMoreTokens()) {
+                    String token = st.nextToken().trim();
+                    if (token.length() > 0) {
+                        values.add(token);
+                    }
+                }
+
+                if (values.size() > 0) {
+                    compressionMimeTypes = values.toArray(
+                            new String[values.size()]);
+                } else {
+                    compressionMimeTypes = null;
+                }
+
+                if (debug > 0) {
+                    System.out.println("compressionMimeTypes set to " +
+                            Arrays.toString(compressionMimeTypes));
                 }
             }
-
-            if (values.size() > 0) {
-                compressionMimeTypes = values.toArray(
-                        new String[values.size()]);
-            } else {
-                compressionMimeTypes = null;
-            }
-
-            if (debug > 0) {
-                System.out.println("compressionMimeTypes set to " +
-                        Arrays.toString(compressionMimeTypes));
-            }
         }
-    }
 
     }
 
@@ -143,6 +150,9 @@ public class CompressionFilter implements Filter {
     */
     @Override
     public void destroy() {
+
+        this.config = null;
+
     }
 
     /**
@@ -162,8 +172,8 @@ public class CompressionFilter implements Filter {
      * (<code>chain.doFilter()</code>), <br>
      **/
     @Override
-    public void doFilter (ServletRequest request, ServletResponse response, FilterChain chain )
-            throws IOException, ServletException {
+    public void doFilter ( ServletRequest request, ServletResponse response,
+                        FilterChain chain ) throws IOException, ServletException {
 
         if (debug > 0) {
             System.out.println("@doFilter");
@@ -235,6 +245,25 @@ public class CompressionFilter implements Filter {
             chain.doFilter(request, response);
             return;
         }
+    }
+
+    /**
+     * Set filter config
+     * This function is equivalent to init. Required by Weblogic 6.1
+     *
+     * @param filterConfig The filter configuration object
+     */
+    public void setFilterConfig(FilterConfig filterConfig) {
+        init(filterConfig);
+    }
+
+    /**
+     * Required by Weblogic 6.1
+     *
+     * @return the FilterConfig that was used to initialise this filter.
+     */
+    public FilterConfig getFilterConfig() {
+        return config;
     }
 }
 

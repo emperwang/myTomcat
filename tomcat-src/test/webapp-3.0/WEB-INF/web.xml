@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="ISO-8859-1"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -22,15 +22,116 @@
   version="3.0"
   metadata-complete="true">
 
-  <display-name>Tomcat Servlet 3.0 Tests</display-name>
+  <display-name>Tomcat Test Application</display-name>
   <description>
-    Provides a web application used by the Tomcat unit tests to ensure that
-    Tomcat meets the requirements of the current JSP and Servlet specification
-    for web applications that declare that they follow version 3.0 of the
-    Servlet specification and version 2.2 of the JSP specification. This
-    typically means ensuring that features introduced in later versions of the
-    specification do not change the behaviour of applications that declared an
-    earlier version of the specification.
+     Used as part of the Tomcat unit tests when a full web application is
+     required.
   </description>
+
+  <!--  Bug 49922 -->
+  <filter>
+    <filter-name>Bug49922</filter-name>
+    <filter-class>
+      org.apache.catalina.core.TestStandardContext$Bug49922Filter
+    </filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>Bug49922</filter-name>
+    <url-pattern>/bug49922/servlet/*</url-pattern>
+    <url-pattern>*.do</url-pattern>
+    <servlet-name>Bug49922</servlet-name>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>Bug49922</filter-name>
+    <servlet-name>Bug49922Target</servlet-name>
+    <dispatcher>FORWARD</dispatcher>
+    <dispatcher>INCLUDE</dispatcher>
+  </filter-mapping>
+  <servlet>
+    <servlet-name>Bug49922Forward</servlet-name>
+    <servlet-class>
+      org.apache.catalina.core.TestStandardContext$Bug49922ForwardServlet
+    </servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Bug49922Forward</servlet-name>
+    <url-pattern>/bug49922/forward</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>Bug49922Include</servlet-name>
+    <servlet-class>
+      org.apache.catalina.core.TestStandardContext$Bug49922IncludeServlet
+    </servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Bug49922Include</servlet-name>
+    <url-pattern>/bug49922/include</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>Bug49922Target</servlet-name>
+    <servlet-class>
+      org.apache.catalina.core.TestStandardContext$Bug49922TargetServlet
+    </servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Bug49922Target</servlet-name>
+    <url-pattern>/bug49922/target</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>Bug49922</servlet-name>
+    <servlet-class>
+      org.apache.catalina.core.TestStandardContext$Bug49922Servlet
+    </servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Bug49922</servlet-name>
+    <url-pattern>/bug49922/servlet</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Bug49922</servlet-name>
+    <url-pattern>*.do</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Bug49922</servlet-name>
+    <url-pattern>*.od</url-pattern>
+  </servlet-mapping>
+
+  <jsp-config>
+    <jsp-property-group>
+      <url-pattern>/bug49nnn/bug49726a.jsp</url-pattern>
+      <url-pattern>/bug49nnn/bug49726b.jsp</url-pattern>
+      <default-content-type>text/plain</default-content-type>
+    </jsp-property-group>
+  </jsp-config>
+
+  <servlet>
+    <servlet-name>DenyByAnnotation</servlet-name>
+    <servlet-class>org.apache.catalina.core.TestStandardWrapper$DenyAllServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>DenyByAnnotation</servlet-name>
+    <url-pattern>/testStandardWrapper/securityAnnotationsMetaDataPriority</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>Bug53574</servlet-name>
+    <jsp-file>/WEB-INF/jsp/bug53574.jsp</jsp-file>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Bug53574</servlet-name>
+    <url-pattern>/bug53574</url-pattern>
+  </servlet-mapping>
+
+  <login-config>
+    <auth-method>BASIC</auth-method>
+  </login-config>
+
+  <env-entry>
+    <description>Resource for testing bug 53465</description>
+    <env-entry-name>bug53465</env-entry-name>
+    <env-entry-type>java.lang.Integer</env-entry-type>
+    <env-entry-value>10</env-entry-value>
+    <mapped-name>Bug53465MappedName</mapped-name>
+  </env-entry>
 
 </web-app>

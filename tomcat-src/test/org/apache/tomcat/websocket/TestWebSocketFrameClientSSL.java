@@ -17,16 +17,12 @@
 package org.apache.tomcat.websocket;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.net.URI;
-import java.security.KeyStore;
+import java.net.URL;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
 import javax.websocket.ClientEndpointConfig;
 import javax.websocket.ContainerProvider;
 import javax.websocket.MessageHandler;
@@ -34,6 +30,7 @@ import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
@@ -46,14 +43,17 @@ import org.apache.tomcat.websocket.TesterMessageCountClient.TesterProgrammaticEn
 
 public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
 
+
     @Test
     public void testConnectToServerEndpoint() throws Exception {
+
         Tomcat tomcat = getTomcatInstance();
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterFirehoseServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
+
 
         TesterSupport.initSsl(tomcat);
 
@@ -63,10 +63,12 @@ public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
                 ContainerProvider.getWebSocketContainer();
         ClientEndpointConfig clientEndpointConfig =
                 ClientEndpointConfig.Builder.create().build();
-
+        URL truststoreUrl = this.getClass().getClassLoader().getResource(
+                TesterSupport.CA_JKS);
+        File truststoreFile = new File(truststoreUrl.toURI());
         clientEndpointConfig.getUserProperties().put(
-                Constants.SSL_CONTEXT_PROPERTY, createSSLContext());
-
+                WsWebSocketContainer.SSL_TRUSTSTORE_PROPERTY,
+                truststoreFile.getAbsolutePath());
         Session wsSession = wsContainer.connectToServer(
                 TesterProgrammaticEndpoint.class,
                 clientEndpointConfig,
@@ -96,12 +98,19 @@ public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
 
     @Test
     public void testBug56032() throws Exception {
+        // TODO Investigate options to get this test to pass with the HTTP BIO
+        //      connector.
+        Assume.assumeFalse(
+                "Skip this test on BIO. TODO: investigate options to make it pass with HTTP BIO connector",
+                getTomcatInstance().getConnector().getProtocolHandlerClassName().equals(
+                        "org.apache.coyote.http11.Http11Protocol"));
+
         Tomcat tomcat = getTomcatInstance();
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterFirehoseServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         TesterSupport.initSsl(tomcat);
 
@@ -111,10 +120,9 @@ public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
                 ContainerProvider.getWebSocketContainer();
         ClientEndpointConfig clientEndpointConfig =
                 ClientEndpointConfig.Builder.create().build();
-
         clientEndpointConfig.getUserProperties().put(
-                Constants.SSL_CONTEXT_PROPERTY, createSSLContext());
-
+                WsWebSocketContainer.SSL_TRUSTSTORE_PROPERTY,
+                "test/" + TesterSupport.CA_JKS);
         Session wsSession = wsContainer.connectToServer(
                 TesterProgrammaticEndpoint.class,
                 clientEndpointConfig,
@@ -130,7 +138,7 @@ public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
         int count = 0;
         int limit = TesterFirehoseServer.WAIT_TIME_MILLIS / 100;
 
-        System.out.println("Waiting for server to report an error");
+        System.err.println("Waiting for server to report an error");
         while (TesterFirehoseServer.Endpoint.getErrorCount() == 0 && count < limit) {
             Thread.sleep(100);
             count ++;
@@ -140,11 +148,10 @@ public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
             Assert.fail("No error reported by Endpoint when timeout was expected");
         }
 
-        // Wait up to another 10 seconds for the connection to be closed -
-        // should be a lot faster.
-        System.out.println("Waiting for connection to be closed");
+        // Wait up to another 20 seconds for the connection to be closed
+        System.err.println("Waiting for connection to be closed");
         count = 0;
-        limit = (TesterFirehoseServer.SEND_TIME_OUT_MILLIS * 2) / 100;
+        limit = (TesterFirehoseServer.SEND_TIME_OUT_MILLIS * 4) / 100;
         while (TesterFirehoseServer.Endpoint.getOpenConnectionCount() != 0 && count < limit) {
             Thread.sleep(100);
             count ++;
@@ -159,25 +166,4 @@ public class TestWebSocketFrameClientSSL extends WebSocketBaseTest {
         wsSession.close();
     }
 
-
-    private SSLContext createSSLContext() throws Exception {
-        // Create the SSL Context
-        // Java 7 doesn't default to TLSv1.2 but the tests do
-        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-
-        // Trust store
-        File keyStoreFile = new File(TesterSupport.CA_JKS);
-        KeyStore ks = KeyStore.getInstance("JKS");
-        try (InputStream is = new FileInputStream(keyStoreFile)) {
-            ks.load(is, Constants.SSL_TRUSTSTORE_PWD_DEFAULT.toCharArray());
-        }
-
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                TrustManagerFactory.getDefaultAlgorithm());
-        tmf.init(ks);
-
-        sslContext.init(null, tmf.getTrustManagers(), null);
-
-        return sslContext;
-    }
 }

@@ -58,7 +58,6 @@
         <div id="console"/>
     </div>
     <script type="application/javascript"><![CDATA[
-        "use strict";
 
         var Game = {};
 
@@ -83,7 +82,7 @@
 
         Game.initialize = function() {
             this.entities = [];
-            var canvas = document.getElementById('playground');
+            canvas = document.getElementById('playground');
             if (!canvas.getContext) {
                 Console.log('Error: 2d canvas not supported by this browser.');
                 return;
@@ -210,7 +209,8 @@
             };
 
             Game.socket.onmessage = function (message) {
-                var packet = JSON.parse(message.data);
+                // _Potential_ security hole, consider using json lib to parse data in production.
+                var packet = eval('(' + message.data + ')');
                 switch (packet.type) {
                     case 'update':
                         for (var i = 0; i < packet.data.length; i++) {

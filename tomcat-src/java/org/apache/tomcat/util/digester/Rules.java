@@ -36,7 +36,7 @@ public interface Rules {
 
 
     /**
-     * @return the Digester instance with which this Rules instance is
+     * Return the Digester instance with which this Rules instance is
      * associated.
      */
     public Digester getDigester();
@@ -51,12 +51,9 @@ public interface Rules {
 
 
     /**
-     * @return the namespace URI that will be applied to all subsequently
+     * Return the namespace URI that will be applied to all subsequently
      * added <code>Rule</code> objects.
-     *
-     * @deprecated Unused. Will be removed in Tomcat 9
      */
-    @Deprecated
     public String getNamespaceURI();
 
 
@@ -67,10 +64,7 @@ public interface Rules {
      * @param namespaceURI Namespace URI that must match on all
      *  subsequently added rules, or <code>null</code> for matching
      *  regardless of the current namespace URI
-     *
-     * @deprecated Unused. Will be removed in Tomcat 9
      */
-    @Deprecated
     public void setNamespaceURI(String namespaceURI);
 
 
@@ -102,7 +96,6 @@ public interface Rules {
      * @param namespaceURI Namespace URI for which to select matching rules,
      *  or <code>null</code> to match regardless of namespace URI
      * @param pattern Nesting pattern to be matched
-     * @return a rules list
      */
     public List<Rule> match(String namespaceURI, String pattern);
 
@@ -113,7 +106,6 @@ public interface Rules {
      * instance has been registered, they <strong>must</strong> be returned
      * in the order originally registered through the <code>add()</code>
      * method.
-     * @return a rules list
      */
     public List<Rule> rules();
 

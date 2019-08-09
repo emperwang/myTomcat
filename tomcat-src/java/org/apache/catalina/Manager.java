@@ -14,14 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina;
+
 
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 
+
 /**
  * A <b>Manager</b> manages the pool of Sessions that are associated with a
- * particular Context. Different Manager implementations may support
+ * particular Container.  Different Manager implementations may support
  * value-added features such as the persistent storage of session data,
  * as well as migrating sessions for distributable web applications.
  * <p>
@@ -39,40 +43,102 @@ import java.io.IOException;
  */
 public interface Manager {
 
+
     // ------------------------------------------------------------- Properties
 
+
     /**
-     * Get the Context with which this Manager is associated.
+     * Return the Container with which this Manager is associated.
+     */
+    public Container getContainer();
+
+
+    /**
+     * Set the Container with which this Manager is associated. The Container
+     * must be set to a non-null value before the Manager is first used.
+     * Multiple calls to this method before first use are permitted. Once the
+     * Manager has been used, this method may not be used to change the
+     * Container (including setting a {@code null} value) that the Manager is
+     * associated with.
      *
-     * @return The associated Context
+     * @param container The newly associated Container
      */
-    public Context getContext();
+    public void setContainer(Container container);
 
 
     /**
-     * Set the Context with which this Manager is associated. The Context must
-     * be set to a non-null value before the Manager is first used. Multiple
-     * calls to this method before first use are permitted. Once the Manager has
-     * been used, this method may not be used to change the Context (including
-     * setting a {@code null} value) that the Manager is associated with.
+     * Return the distributable flag for the sessions supported by
+     * this Manager.
      *
-     * @param context The newly associated Context
+     * @deprecated Ignored. {@link Context#getDistributable()} always takes
+     *             precedence. Will be removed in Tomcat 9.0.x.
      */
-    public void setContext(Context context);
+    @Deprecated
+    public boolean getDistributable();
 
 
     /**
-     * @return the session id generator
-     */
-    public SessionIdGenerator getSessionIdGenerator();
-
-
-    /**
-     * Sets the session id generator
+     * Set the distributable flag for the sessions supported by this
+     * Manager.  If this flag is set, all user data objects added to
+     * sessions associated with this manager must implement Serializable.
      *
-     * @param sessionIdGenerator The session id generator
+     * @param distributable The new distributable flag
+     *
+     * @deprecated Ignored. {@link Context#getDistributable()} always takes
+     *             precedence. Will be removed in Tomcat 9.0.x.
      */
-    public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator);
+    @Deprecated
+    public void setDistributable(boolean distributable);
+
+
+    /**
+     * Return descriptive information about this Manager implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    public String getInfo();
+
+
+    /**
+     * Return the default maximum inactive interval (in seconds)
+     * for Sessions created by this Manager.
+     *
+     * @deprecated Ignored. {@link Context#getSessionTimeout()} always takes
+     *             precedence. Will be removed in Tomcat 9.0.x.
+     */
+    @Deprecated
+    public int getMaxInactiveInterval();
+
+
+    /**
+     * Set the default maximum inactive interval (in seconds)
+     * for Sessions created by this Manager.
+     *
+     * @param interval The new default value
+     *
+     * @deprecated Ignored. {@link Context#getSessionTimeout()} always takes
+     *             precedence. Will be removed in Tomcat 9.0.x.
+     */
+    @Deprecated
+    public void setMaxInactiveInterval(int interval);
+
+
+    /**
+     * Gets the session id length (in bytes) of Sessions created by
+     * this Manager.
+     *
+     * @return The session id length
+     */
+    public int getSessionIdLength();
+
+
+    /**
+     * Sets the session id length (in bytes) for Sessions created by this
+     * Manager.
+     *
+     * @param idLength The session id length
+     */
+    public void setSessionIdLength(int idLength);
 
 
     /**
@@ -190,9 +256,8 @@ public interface Manager {
      * @return  The current rate (in sessions per minute) of session expiration
      */
     public int getSessionExpireRate();
-
-
     // --------------------------------------------------------- Public Methods
+
 
     /**
      * Add this Session to the set of active Sessions for this Manager.
@@ -220,20 +285,9 @@ public interface Manager {
 
 
     /**
-     * Change the session ID of the current session to a specified session ID.
-     *
-     * @param session   The session to change the session ID for
-     * @param newId   new session ID
-     */
-    public void changeSessionId(Session session, String newId);
-
-
-    /**
      * Get a session from the recycled ones or create a new empty one.
      * The PersistentManager manager does not need to create session data
      * because it reads it from the Store.
-     *
-     * @return An empty Session object
      */
     public Session createEmptySession();
 
@@ -251,9 +305,6 @@ public interface Manager {
      *  method of the returned session.
      * @exception IllegalStateException if a new session cannot be
      *  instantiated for any reason
-     *
-     * @return An empty Session object with the given ID or a newly created
-     *         session ID if none was specified
      */
     public Session createSession(String sessionId);
 
@@ -268,9 +319,6 @@ public interface Manager {
      *  instantiated for any reason
      * @exception IOException if an input/output error occurs while
      *  processing this request
-     *
-     * @return the request session or {@code null} if a session with the
-     *         requested ID could not be found
      */
     public Session findSession(String id) throws IOException;
 
@@ -278,8 +326,6 @@ public interface Manager {
     /**
      * Return the set of active Sessions associated with this Manager.
      * If this Manager has no active Sessions, a zero-length array is returned.
-     *
-     * @return All the currently active sessions managed by this manager
      */
     public Session[] findSessions();
 
@@ -330,13 +376,13 @@ public interface Manager {
      */
     public void unload() throws IOException;
 
+     /**
+      * This method will be invoked by the context/container on a periodic
+      * basis and allows the manager to implement
+      * a method that executes periodic tasks, such as expiring sessions etc.
+      */
+     public void backgroundProcess();
 
-    /**
-     * This method will be invoked by the context/container on a periodic
-     * basis and allows the manager to implement
-     * a method that executes periodic tasks, such as expiring sessions etc.
-     */
-    public void backgroundProcess();
 
 
     /**

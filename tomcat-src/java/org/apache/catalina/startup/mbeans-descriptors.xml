@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -67,6 +67,10 @@
                description="The base directory for Context configuration files"
                type="java.lang.String"
                writeable="false" />
+
+    <attribute name="configClass"
+               description="The Java class name of the Context configuration class we should use"
+               type="java.lang.String"/>
 
     <attribute name="contextClass"
                description="The Java class name of the Context implementation we should use"

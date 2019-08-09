@@ -40,7 +40,7 @@ public class Constants {
     public static final Set<String> excludedAttributeNames;
 
     static {
-        Set<String> names = new HashSet<>();
+        Set<String> names = new HashSet<String>();
         names.add(Globals.SUBJECT_ATTR);
         names.add(Globals.GSS_CREDENTIAL_ATTR);
         names.add(CrawlerSessionManagerValve.class.getName());

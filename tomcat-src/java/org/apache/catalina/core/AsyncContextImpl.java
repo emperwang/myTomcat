@@ -17,7 +17,9 @@
 package org.apache.catalina.core;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.lang.reflect.InvocationTargetException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,14 +42,16 @@ import org.apache.catalina.Globals;
 import org.apache.catalina.Host;
 import org.apache.catalina.Valve;
 import org.apache.catalina.connector.Request;
+import org.apache.catalina.util.URLEncoder;
 import org.apache.coyote.ActionCode;
 import org.apache.coyote.AsyncContextCallback;
 import org.apache.coyote.RequestInfo;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
-import org.apache.tomcat.util.buf.UDecoder;
 import org.apache.tomcat.util.res.StringManager;
+import org.apache.tomcat.util.security.PrivilegedGetTccl;
+import org.apache.tomcat.util.security.PrivilegedSetTccl;
 
 public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
 
@@ -67,7 +71,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
 
     private volatile ServletRequest servletRequest = null;
     private volatile ServletResponse servletResponse = null;
-    private final List<AsyncListenerWrapper> listeners = new ArrayList<>();
+    private final List<AsyncListenerWrapper> listeners = new ArrayList<AsyncListenerWrapper>();
     private boolean hasOriginalRequestAndResponse = true;
     private volatile Runnable dispatch = null;
     private Context context = null;
@@ -94,11 +98,25 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
 
     @Override
     public void fireOnComplete() {
-        List<AsyncListenerWrapper> listenersCopy = new ArrayList<>();
+        List<AsyncListenerWrapper> listenersCopy = new ArrayList<AsyncListenerWrapper>();
         listenersCopy.addAll(listeners);
 
-        ClassLoader oldCL = context.bind(Globals.IS_SECURITY_ENABLED, null);
+        ClassLoader oldCL;
+        if (Globals.IS_SECURITY_ENABLED) {
+            PrivilegedAction<ClassLoader> pa = new PrivilegedGetTccl();
+            oldCL = AccessController.doPrivileged(pa);
+        } else {
+            oldCL = Thread.currentThread().getContextClassLoader();
+        }
+        ClassLoader newCL = context.getLoader().getClassLoader();
+
         try {
+            if (Globals.IS_SECURITY_ENABLED) {
+                PrivilegedAction<Void> pa = new PrivilegedSetTccl(newCL);
+                AccessController.doPrivileged(pa);
+            } else {
+                Thread.currentThread().setContextClassLoader(newCL);
+            }
             for (AsyncListenerWrapper listener : listenersCopy) {
                 try {
                     listener.fireOnComplete(event);
@@ -112,7 +130,12 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
             context.fireRequestDestroyEvent(request.getRequest());
             clearServletRequestResponse();
             this.context.decrementInProgressAsyncCount();
-            context.unbind(Globals.IS_SECURITY_ENABLED, oldCL);
+            if (Globals.IS_SECURITY_ENABLED) {
+                PrivilegedAction<Void> pa = new PrivilegedSetTccl(oldCL);
+                AccessController.doPrivileged(pa);
+            } else {
+                Thread.currentThread().setContextClassLoader(oldCL);
+            }
         }
     }
 
@@ -120,13 +143,15 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
     public boolean timeout() {
         AtomicBoolean result = new AtomicBoolean();
         request.getCoyoteRequest().action(ActionCode.ASYNC_TIMEOUT, result);
-        // Avoids NPEs during shutdown. A call to recycle will null this field.
-        Context context = this.context;
 
         if (result.get()) {
-            ClassLoader oldCL = context.bind(false, null);
+
+            ClassLoader oldCL = Thread.currentThread().getContextClassLoader();
+            ClassLoader newCL = request.getContext().getLoader().getClassLoader();
             try {
-                List<AsyncListenerWrapper> listenersCopy = new ArrayList<>();
+                Thread.currentThread().setContextClassLoader(newCL);
+                List<AsyncListenerWrapper> listenersCopy =
+                    new ArrayList<AsyncListenerWrapper>();
                 listenersCopy.addAll(listeners);
                 for (AsyncListenerWrapper listener : listenersCopy) {
                     try {
@@ -140,7 +165,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
                 request.getCoyoteRequest().action(
                         ActionCode.ASYNC_IS_TIMINGOUT, result);
             } finally {
-                context.unbind(false, oldCL);
+                Thread.currentThread().setContextClassLoader(oldCL);
             }
         }
         return !result.get();
@@ -164,7 +189,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
             path = path.substring(cpath.length());
         }
         if (!context.getDispatchersUseEncodedPaths()) {
-            path = UDecoder.URLDecode(path, StandardCharsets.UTF_8);
+            path = URLEncoder.DEFAULT.encode(path, "UTF-8");
         }
         dispatch(path);
     }
@@ -273,7 +298,20 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         try {
              listener = (T) context.getInstanceManager().newInstance(
                      clazz.getName(), clazz.getClassLoader());
-        } catch (ReflectiveOperationException | NamingException e) {
+        } catch (InstantiationException e) {
+            ServletException se = new ServletException(e);
+            throw se;
+        } catch (IllegalAccessException e) {
+            ServletException se = new ServletException(e);
+            throw se;
+        } catch (InvocationTargetException e) {
+            ExceptionUtils.handleThrowable(e.getCause());
+            ServletException se = new ServletException(e);
+            throw se;
+        } catch (NamingException e) {
+            ServletException se = new ServletException(e);
+            throw se;
+        } catch (ClassNotFoundException e) {
             ServletException se = new ServletException(e);
             throw se;
         } catch (Exception e) {
@@ -324,7 +362,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
             this.hasOriginalRequestAndResponse = originalRequestResponse;
             this.event = new AsyncEvent(this, request, response);
 
-            List<AsyncListenerWrapper> listenersCopy = new ArrayList<>();
+            List<AsyncListenerWrapper> listenersCopy = new ArrayList<AsyncListenerWrapper>();
             listenersCopy.addAll(listeners);
             listeners.clear();
             for (AsyncListenerWrapper listener : listenersCopy) {
@@ -403,7 +441,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         if (fireOnError) {
             AsyncEvent errorEvent = new AsyncEvent(event.getAsyncContext(),
                     event.getSuppliedRequest(), event.getSuppliedResponse(), t);
-            List<AsyncListenerWrapper> listenersCopy = new ArrayList<>();
+            List<AsyncListenerWrapper> listenersCopy = new ArrayList<AsyncListenerWrapper>();
             listenersCopy.addAll(listeners);
             for (AsyncListenerWrapper listener : listenersCopy) {
                 try {
@@ -529,8 +567,23 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
 
         @Override
         public void run() {
-            ClassLoader oldCL = context.bind(Globals.IS_SECURITY_ENABLED, null);
+            ClassLoader oldCL;
+            if (Globals.IS_SECURITY_ENABLED) {
+                PrivilegedAction<ClassLoader> pa = new PrivilegedGetTccl();
+                oldCL = AccessController.doPrivileged(pa);
+            } else {
+                oldCL = Thread.currentThread().getContextClassLoader();
+            }
+
             try {
+                if (Globals.IS_SECURITY_ENABLED) {
+                    PrivilegedAction<Void> pa = new PrivilegedSetTccl(
+                            context.getLoader().getClassLoader());
+                    AccessController.doPrivileged(pa);
+                } else {
+                    Thread.currentThread().setContextClassLoader
+                            (context.getLoader().getClassLoader());
+                }
                 wrapped.run();
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
@@ -540,13 +593,14 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
                 coyoteResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 coyoteResponse.setError();
             } finally {
-                context.unbind(Globals.IS_SECURITY_ENABLED, oldCL);
+                if (Globals.IS_SECURITY_ENABLED) {
+                    PrivilegedAction<Void> pa = new PrivilegedSetTccl(
+                            oldCL);
+                    AccessController.doPrivileged(pa);
+                } else {
+                    Thread.currentThread().setContextClassLoader(oldCL);
+                }
             }
-
-            // Since this runnable is not executing as a result of a socket
-            // event, we need to ensure that any registered dispatches are
-            // executed.
-            coyoteRequest.action(ActionCode.DISPATCH_EXECUTE, null);
         }
     }
 

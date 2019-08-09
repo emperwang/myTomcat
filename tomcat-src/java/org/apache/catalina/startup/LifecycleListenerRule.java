@@ -69,13 +69,13 @@ public class LifecycleListenerRule extends Rule {
      * The attribute name of an attribute that can override the
      * implementation class name.
      */
-    private final String attributeName;
+    private String attributeName;
 
 
     /**
      * The name of the <code>LifecycleListener</code> implementation class.
      */
-    private final String listenerClass;
+    private String listenerClass;
 
 
     // --------------------------------------------------------- Public Methods
@@ -124,7 +124,8 @@ public class LifecycleListenerRule extends Rule {
 
         // Instantiate a new LifecycleListener implementation object
         Class<?> clazz = Class.forName(className);
-        LifecycleListener listener = (LifecycleListener) clazz.getConstructor().newInstance();
+        LifecycleListener listener =
+            (LifecycleListener) clazz.newInstance();
 
         // Add this LifecycleListener to our associated component
         c.addLifecycleListener(listener);

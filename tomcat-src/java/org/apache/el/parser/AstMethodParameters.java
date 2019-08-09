@@ -28,26 +28,18 @@ public final class AstMethodParameters extends SimpleNode {
     }
 
     public Object[] getParameters(EvaluationContext ctx) {
-        ArrayList<Object> params = new ArrayList<>();
+        ArrayList<Object> params = new ArrayList<Object>();
         for (int i = 0; i < this.jjtGetNumChildren(); i++) {
             params.add(this.jjtGetChild(i).getValue(ctx));
         }
         return params.toArray(new Object[params.size()]);
     }
 
-    @Override
-    public String toString() {
-        // Purely for debug purposes. May not be complete or correct. Certainly
-        // is not efficient. Be sure not to call this from 'real' code.
-        StringBuilder result = new StringBuilder();
-        result.append('(');
-        if (children != null) {
-            for (Node n : children) {
-                result.append(n.toString());
-                result.append(',');
-            }
+    public Class<?>[] getParameterTypes(EvaluationContext ctx) {
+        ArrayList<Class<?>> paramTypes = new ArrayList<Class<?>>();
+        for (int i = 0; i < this.jjtGetNumChildren(); i++) {
+            paramTypes.add(this.jjtGetChild(i).getType(ctx));
         }
-        result.append(')');
-        return result.toString();
+        return paramTypes.toArray(new Class<?>[paramTypes.size()]);
     }
 }

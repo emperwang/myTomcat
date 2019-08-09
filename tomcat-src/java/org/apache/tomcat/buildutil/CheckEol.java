@@ -41,8 +41,10 @@ import org.apache.tools.ant.types.FileSet;
  */
 public class CheckEol extends Task {
 
+    private static final String eoln = System.getProperty("line.separator");
+
     /** The files to be checked */
-    private final List<FileSet> filesets = new LinkedList<>();
+    private final List<FileSet> filesets = new LinkedList<FileSet>();
 
     /**
      * Sets the files to be checked
@@ -63,9 +65,9 @@ public class CheckEol extends Task {
     public void execute() throws BuildException {
 
         Mode mode = null;
-        if ("\n".equals(System.lineSeparator())) {
+        if ("\n".equals(eoln)) {
             mode = Mode.LF;
-        } else if ("\r\n".equals(System.lineSeparator())) {
+        } else if ("\r\n".equals(eoln)) {
             mode = Mode.CRLF;
         } else {
             log("Line ends check skipped, because OS line ends setting is neither LF nor CRLF.",
@@ -75,7 +77,7 @@ public class CheckEol extends Task {
 
         int count = 0;
 
-        List<CheckFailure> errors = new ArrayList<>();
+        List<CheckFailure> errors = new ArrayList<CheckFailure>();
 
         // Step through each file and check.
         for (FileSet fs : filesets) {
@@ -130,13 +132,15 @@ public class CheckEol extends Task {
 
         @Override
         public String toString() {
-            return System.lineSeparator() + file + ": uses " + value + " on line " + line;
+            return eoln + file + ": uses " + value + " on line " + line;
         }
     }
 
-    private void check(File file, List<CheckFailure> errors, Mode mode) throws IOException {
-        try (FileInputStream fis = new FileInputStream(file);
-                BufferedInputStream is = new BufferedInputStream(fis)) {
+    private void check(File file, List<CheckFailure> errors, Mode mode)
+            throws IOException {
+        BufferedInputStream is = new BufferedInputStream(new FileInputStream(
+                file));
+        try {
             int line = 1;
             int prev = -1;
             int ch;
@@ -156,6 +160,8 @@ public class CheckEol extends Task {
                 }
                 prev = ch;
             }
+        } finally {
+            is.close();
         }
     }
 }

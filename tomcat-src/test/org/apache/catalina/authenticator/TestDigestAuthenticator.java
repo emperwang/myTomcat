@@ -29,16 +29,15 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.connector.Request;
-import org.apache.catalina.startup.TesterMapRealm;
+import org.apache.catalina.deploy.LoginConfig;
+import org.apache.catalina.deploy.SecurityCollection;
+import org.apache.catalina.deploy.SecurityConstraint;
+import org.apache.catalina.startup.TestTomcat.MapRealm;
 import org.apache.catalina.startup.TesterServlet;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.unittest.TesterContext;
-import org.apache.tomcat.unittest.TesterServletContext;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
-import org.apache.tomcat.util.descriptor.web.SecurityCollection;
-import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.apache.tomcat.util.security.ConcurrentMessageDigest;
 import org.apache.tomcat.util.security.MD5Encoder;
 
@@ -61,14 +60,12 @@ public class TestDigestAuthenticator extends TomcatBaseTest {
     @Test
     public void bug54521() throws LifecycleException {
         DigestAuthenticator digestAuthenticator = new DigestAuthenticator();
-        TesterContext context = new TesterContext();
-        context.setServletContext(new TesterServletContext());
-        digestAuthenticator.setContainer(context);
+        digestAuthenticator.setContainer(new TesterContext());
         digestAuthenticator.start();
         Request request = new TesterRequest();
         final int count = 1000;
 
-        Set<String> nonces = new HashSet<>();
+        Set<String> nonces = new HashSet<String>();
 
         for (int i = 0; i < count; i++) {
             nonces.add(digestAuthenticator.generateNonce(request));
@@ -200,13 +197,14 @@ public class TestDigestAuthenticator extends TomcatBaseTest {
         } else {
             digestUri = uri;
         }
-        List<String> auth = new ArrayList<>();
+        List<String> auth = new ArrayList<String>();
         auth.add(buildDigestResponse(user, pwd, digestUri, realm, "null",
                 "null", nc1, cnonce, qop));
-        Map<String,List<String>> reqHeaders = new HashMap<>();
+        Map<String,List<String>> reqHeaders = new HashMap<String,List<String>>();
         reqHeaders.put(CLIENT_AUTH_HEADER, auth);
 
-        Map<String,List<String>> respHeaders = new HashMap<>();
+        Map<String,List<String>> respHeaders =
+            new HashMap<String,List<String>>();
 
         // The first request will fail - but we need to extract the nonce
         ByteChunk bc = new ByteChunk();
@@ -245,6 +243,7 @@ public class TestDigestAuthenticator extends TomcatBaseTest {
         // Third request should succeed if we increment nc
         auth.clear();
         bc.recycle();
+        bc.reset();
         auth.add(buildDigestResponse(user, pwd, digestUri, realm,
                 getNonce(respHeaders), getOpaque(respHeaders), nc2, cnonce,
                 qop));
@@ -272,16 +271,16 @@ public class TestDigestAuthenticator extends TomcatBaseTest {
 
         // Add protected servlet
         Tomcat.addServlet(ctxt, "TesterServlet", new TesterServlet());
-        ctxt.addServletMappingDecoded(URI, "TesterServlet");
+        ctxt.addServletMapping(URI, "TesterServlet");
         SecurityCollection collection = new SecurityCollection();
-        collection.addPatternDecoded(URI);
+        collection.addPattern(URI);
         SecurityConstraint sc = new SecurityConstraint();
         sc.addAuthRole(ROLE);
         sc.addCollection(collection);
         ctxt.addConstraint(sc);
 
         // Configure the Realm
-        TesterMapRealm realm = new TesterMapRealm();
+        MapRealm realm = new MapRealm();
         realm.addUser(USER, PWD);
         realm.addUserRole(USER, ROLE);
         ctxt.setRealm(realm);

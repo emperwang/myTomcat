@@ -82,7 +82,6 @@ public class LimitLatch {
 
     /**
      * Obtain the current limit.
-     * @return the limit
      */
     public long getLimit() {
         return limit;
@@ -108,7 +107,6 @@ public class LimitLatch {
     /**
      * Acquires a shared latch if one is available or waits for one if no shared
      * latch is current available.
-     * @throws InterruptedException If the current thread is interrupted
      */
     public void countUpOrAwait() throws InterruptedException {
         if (log.isDebugEnabled()) {
@@ -133,7 +131,6 @@ public class LimitLatch {
     /**
      * Releases all waiting threads and causes the {@link #limit} to be ignored
      * until {@link #reset()} is called.
-     * @return <code>true</code> if release was done
      */
     public boolean releaseAll() {
         released = true;
@@ -152,7 +149,6 @@ public class LimitLatch {
     /**
      * Returns <code>true</code> if there is at least one thread waiting to
      * acquire the shared lock, otherwise returns <code>false</code>.
-     * @return <code>true</code> if threads are waiting
      */
     public boolean hasQueuedThreads() {
         return sync.hasQueuedThreads();
@@ -161,7 +157,6 @@ public class LimitLatch {
     /**
      * Provide access to the list of threads waiting to acquire this limited
      * shared latch.
-     * @return a collection of threads
      */
     public Collection<Thread> getQueuedThreads() {
         return sync.getQueuedThreads();

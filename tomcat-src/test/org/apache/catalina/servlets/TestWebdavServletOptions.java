@@ -35,7 +35,7 @@ public class TestWebdavServletOptions extends ServletOptionsBaseTest {
         String[] methods = new String[] { "GET", "POST", "HEAD", "TRACE", "PUT", "DELETE",
                 "MKCOL", "LOCK", "UNLOCK", "COPY", "MOVE", "PROPFIND", "PROPPATCH" };
 
-        List<Object[]> result = new ArrayList<>();
+        List<Object[]> result = new ArrayList<Object[]>();
 
         for (Boolean listingsValue : booleans) {
             for (Boolean readOnlyValue : booleans) {

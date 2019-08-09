@@ -42,31 +42,31 @@ public class ContextBindings {
     /**
      * Bindings object - naming context. Keyed by object.
      */
-    private static final Hashtable<Object,Context> objectBindings = new Hashtable<>();
+    private static final Hashtable<Object,Context> objectBindings = new Hashtable<Object,Context>();
 
 
     /**
      * Bindings thread - naming context. Keyed by thread.
      */
-    private static final Hashtable<Thread,Context> threadBindings = new Hashtable<>();
+    private static final Hashtable<Thread,Context> threadBindings = new Hashtable<Thread,Context>();
 
 
     /**
      * Bindings thread - object. Keyed by thread.
      */
-    private static final Hashtable<Thread,Object> threadObjectBindings = new Hashtable<>();
+    private static final Hashtable<Thread,Object> threadObjectBindings = new Hashtable<Thread,Object>();
 
 
     /**
      * Bindings class loader - naming context. Keyed by class loader.
      */
-    private static final Hashtable<ClassLoader,Context> clBindings = new Hashtable<>();
+    private static final Hashtable<ClassLoader,Context> clBindings = new Hashtable<ClassLoader,Context>();
 
 
     /**
      * Bindings class loader - object. Keyed by class loader.
      */
-    private static final Hashtable<ClassLoader,Object> clObjectBindings = new Hashtable<>();
+    private static final Hashtable<ClassLoader,Object> clObjectBindings = new Hashtable<ClassLoader,Object>();
 
 
     /**
@@ -106,6 +106,19 @@ public class ContextBindings {
      * Unbinds an object and a naming context.
      *
      * @param obj   Object to unbind
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void unbindContext(Object obj) {
+        unbindContext(obj, null);
+    }
+
+
+    /**
+     * Unbinds an object and a naming context.
+     *
+     * @param obj   Object to unbind
      * @param token Security token
      */
     public static void unbindContext(Object obj, Object token) {
@@ -129,6 +142,20 @@ public class ContextBindings {
      * Binds a naming context to a thread.
      *
      * @param obj   Object bound to the required naming context
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void bindThread(Object obj)
+        throws NamingException {
+        bindThread(obj, null);
+    }
+
+
+    /**
+     * Binds a naming context to a thread.
+     *
+     * @param obj   Object bound to the required naming context
      * @param token Security token
      *
      * @throws NamingException If no naming context is bound to the provided
@@ -144,6 +171,19 @@ public class ContextBindings {
             threadBindings.put(Thread.currentThread(), context);
             threadObjectBindings.put(Thread.currentThread(), obj);
         }
+    }
+
+
+    /**
+     * Unbinds a thread and a naming context.
+     *
+     * @param obj   Object bound to the required naming context
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void unbindThread(Object obj) {
+        unbindThread(obj, null);
     }
 
 
@@ -183,7 +223,7 @@ public class ContextBindings {
      * Retrieves the name of the object bound to the naming context that is also
      * bound to the current thread.
      */
-    static String getThreadName() throws NamingException {
+    static Object getThreadName() throws NamingException {
         Object obj = threadObjectBindings.get(Thread.currentThread());
         if (obj == null) {
             throw new NamingException
@@ -208,6 +248,42 @@ public class ContextBindings {
      * Binds a naming context to a class loader.
      *
      * @param obj           Object bound to the required naming context
+     *
+     * @throws NamingException If no naming context is bound to the provided
+     *         object
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void bindClassLoader(Object obj)
+        throws NamingException {
+        bindClassLoader(obj, null);
+    }
+
+
+    /**
+     * Binds a naming context to a class loader.
+     *
+     * @param obj           Object bound to the required naming context
+     * @param token         Security token
+     *
+     * @throws NamingException If no naming context is bound to the provided
+     *         object
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void bindClassLoader(Object obj, Object token)
+        throws NamingException {
+        bindClassLoader
+            (obj, token, Thread.currentThread().getContextClassLoader());
+    }
+
+
+    /**
+     * Binds a naming context to a class loader.
+     *
+     * @param obj           Object bound to the required naming context
      * @param token         Security token
      * @param classLoader   The class loader to bind to the naming context
      *
@@ -225,6 +301,34 @@ public class ContextBindings {
             clBindings.put(classLoader, context);
             clObjectBindings.put(classLoader, obj);
         }
+    }
+
+
+    /**
+     * Unbinds a naming context and a class loader.
+     *
+     * @param obj           Object bound to the required naming context
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void unbindClassLoader(Object obj) {
+        unbindClassLoader(obj, null);
+    }
+
+
+    /**
+     * Unbinds a naming context and a class loader.
+     *
+     * @param obj           Object bound to the required naming context
+     * @param token         Security token
+     *
+     * @deprecated - unused
+     */
+    @Deprecated
+    public static void unbindClassLoader(Object obj, Object token) {
+        unbindClassLoader(obj, token,
+                          Thread.currentThread().getContextClassLoader());
     }
 
 
@@ -273,7 +377,7 @@ public class ContextBindings {
      * Retrieves the name of the object bound to the naming context that is also
      * bound to the thread context class loader.
      */
-    static String getClassLoaderName() throws NamingException {
+    static Object getClassLoaderName() throws NamingException {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         Object obj = null;
         do {

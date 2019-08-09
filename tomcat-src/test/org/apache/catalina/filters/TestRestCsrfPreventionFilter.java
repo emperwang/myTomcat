@@ -17,8 +17,12 @@
 package org.apache.catalina.filters;
 
 import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.servlet.FilterChain;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -28,8 +32,6 @@ import javax.servlet.http.HttpSession;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import org.easymock.EasyMock;
 
 public class TestRestCsrfPreventionFilter {
 
@@ -68,7 +70,7 @@ public class TestRestCsrfPreventionFilter {
         request = new TesterRequest();
         response = new TesterResponse();
         filterChain = new TesterFilterChain();
-        session = EasyMock.createMock(HttpSession.class);
+        session = new TesterSession();
     }
 
     @Test
@@ -112,14 +114,8 @@ public class TestRestCsrfPreventionFilter {
     @Test
     public void testGetFetchRequestSessionNoNonce() throws Exception {
         setRequestExpectations(GET_METHOD, session, Constants.CSRF_REST_NONCE_HEADER_FETCH_VALUE);
-        EasyMock.expect(session.getAttribute(Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME))
-                .andReturn(null);
-        session.setAttribute(Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME, NONCE);
-        EasyMock.expectLastCall();
-        EasyMock.replay(session);
         filter.doFilter(request, response, filterChain);
         verifyContinueChainNonceAvailable();
-        EasyMock.verify(session);
     }
 
     @Test
@@ -131,12 +127,9 @@ public class TestRestCsrfPreventionFilter {
     @Test
     public void testGetFetchRequestSessionNonce() throws Exception {
         setRequestExpectations(GET_METHOD, session, Constants.CSRF_REST_NONCE_HEADER_FETCH_VALUE);
-        EasyMock.expect(session.getAttribute(Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME))
-                .andReturn(NONCE);
-        EasyMock.replay(session);
+        session.setAttribute(Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME, NONCE);
         filter.doFilter(request, response, filterChain);
         verifyContinueChainNonceAvailable();
-        EasyMock.verify(session);
     }
 
     @Test
@@ -241,9 +234,7 @@ public class TestRestCsrfPreventionFilter {
 
     private void testPostRequestParamsScenarios(String sessionAttr, boolean denyResponse,
             boolean configurePaths) throws Exception {
-        EasyMock.expect(session.getAttribute(Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME))
-                .andReturn(sessionAttr);
-        EasyMock.replay(session);
+        session.setAttribute(Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME, sessionAttr);
         if (configurePaths) {
             filter.setPathsAcceptingParams(ACCEPTED_PATHS);
         }
@@ -253,7 +244,6 @@ public class TestRestCsrfPreventionFilter {
         } else {
             verifyContinueChain();
         }
-        EasyMock.verify(session);
     }
 
     private void setRequestExpectations(String method, HttpSession session, String headerValue) {
@@ -347,5 +337,91 @@ public class TestRestCsrfPreventionFilter {
         public void sendError(int status, String message) throws IOException {
             setStatus(status);
         }
+    }
+
+    private static class TesterSession implements HttpSession {
+        Map<String,Object> attributes = new HashMap<String, Object>();
+
+        @Override
+        public long getCreationTime() {
+            return 0;
+        }
+
+        @Override
+        public String getId() {
+            return null;
+        }
+
+        @Override
+        public long getLastAccessedTime() {
+            return 0;
+        }
+
+        @Override
+        public ServletContext getServletContext() {
+            return null;
+        }
+
+        @Override
+        public void setMaxInactiveInterval(int interval) {
+        }
+
+        @Override
+        public int getMaxInactiveInterval() {
+            return 0;
+        }
+
+        @Override
+        @Deprecated
+        public javax.servlet.http.HttpSessionContext getSessionContext() {
+            return null;
+        }
+
+        @Override
+        public Object getAttribute(String name) {
+            return attributes.get(name);
+        }
+
+        @Override
+        public Object getValue(String name) {
+            return null;
+        }
+
+        @Override
+        public Enumeration<String> getAttributeNames() {
+            return null;
+        }
+
+        @Override
+        public String[] getValueNames() {
+            return null;
+        }
+
+        @Override
+        public void setAttribute(String name, Object value) {
+            attributes.put(name, value);
+        }
+
+        @Override
+        public void putValue(String name, Object value) {
+        }
+
+        @Override
+        public void removeAttribute(String name) {
+        }
+
+        @Override
+        public void removeValue(String name) {
+        }
+
+        @Override
+        public void invalidate() {
+        }
+
+        @Override
+        public boolean isNew() {
+            return false;
+        }
+
     }
 }

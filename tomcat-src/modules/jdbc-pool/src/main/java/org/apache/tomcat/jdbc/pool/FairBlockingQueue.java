@@ -36,8 +36,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * lock per thread basis so that order is guaranteed once the thread goes into a suspended monitor state.
  * <br>
  * Not all of the methods of the {@link java.util.concurrent.BlockingQueue} are implemented.
+ * @author Filip Hanik
  *
- * @param <E> Type of element in the queue
  */
 
 public class FairBlockingQueue<E> implements BlockingQueue<E> {
@@ -77,8 +77,8 @@ public class FairBlockingQueue<E> implements BlockingQueue<E> {
      * Creates a new fair blocking queue.
      */
     public FairBlockingQueue() {
-        items = new LinkedList<>();
-        waiters = new LinkedList<>();
+        items = new LinkedList<E>();
+        waiters = new LinkedList<ExchangeCountDownLatch<E>>();
     }
 
     //------------------------------------------------------------------
@@ -134,18 +134,19 @@ public class FairBlockingQueue<E> implements BlockingQueue<E> {
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         E result = null;
         final ReentrantLock lock = this.lock;
-        //acquire the global lock until we know what to do
-        lock.lock();
         try {
+            //acquire the global lock until we know what to do
+            lock.lock();
             //check to see if we have objects
             result = items.poll();
             if (result==null && timeout>0) {
                 //the queue is empty we will wait for an object
-                ExchangeCountDownLatch<E> c = new ExchangeCountDownLatch<>(1);
+                ExchangeCountDownLatch<E> c = new ExchangeCountDownLatch<E>(1);
                 //add to the bottom of the wait list
                 waiters.addLast(c);
                 //unlock the global lock
                 lock.unlock();
+                //wait for the specified timeout
                 boolean didtimeout = true;
                 InterruptedException interruptedException = null;
                 try {
@@ -168,7 +169,7 @@ public class FairBlockingQueue<E> implements BlockingQueue<E> {
                 result = c.getItem();
                 if (null!=interruptedException) {
                     //we got interrupted
-                    if ( null!=result) {
+                    if (null!=result) {
                         //we got a result - clear the interrupt status
                         //don't propagate cause we have removed a connection from pool
                         Thread.interrupted();
@@ -195,20 +196,20 @@ public class FairBlockingQueue<E> implements BlockingQueue<E> {
     public Future<E> pollAsync() {
         Future<E> result = null;
         final ReentrantLock lock = this.lock;
-        //grab the global lock
-        lock.lock();
         try {
+            //grab the global lock
+            lock.lock();
             //check to see if we have objects in the queue
             E item = items.poll();
             if (item==null) {
                 //queue is empty, add ourselves as waiters
-                ExchangeCountDownLatch<E> c = new ExchangeCountDownLatch<>(1);
+                ExchangeCountDownLatch<E> c = new ExchangeCountDownLatch<E>(1);
                 waiters.addLast(c);
                 //return a future that will wait for the object
-                result = new ItemFuture<>(c);
+                result = new ItemFuture<E>(c);
             } else {
                 //return a future with the item
-                result = new ItemFuture<>(item);
+                result = new ItemFuture<E>(item);
             }
         } finally {
             lock.unlock();

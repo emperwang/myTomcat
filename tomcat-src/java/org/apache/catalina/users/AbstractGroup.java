@@ -59,7 +59,9 @@ public abstract class AbstractGroup implements Group {
      */
     @Override
     public String getDescription() {
-        return this.description;
+
+        return (this.description);
+
     }
 
 
@@ -70,7 +72,9 @@ public abstract class AbstractGroup implements Group {
      */
     @Override
     public void setDescription(String description) {
+
         this.description = description;
+
     }
 
 
@@ -80,7 +84,9 @@ public abstract class AbstractGroup implements Group {
      */
     @Override
     public String getGroupname() {
-        return this.groupname;
+
+        return (this.groupname);
+
     }
 
 
@@ -92,7 +98,9 @@ public abstract class AbstractGroup implements Group {
      */
     @Override
     public void setGroupname(String groupname) {
+
         this.groupname = groupname;
+
     }
 
 
@@ -163,7 +171,9 @@ public abstract class AbstractGroup implements Group {
      */
     @Override
     public String getName() {
-        return getGroupname();
+
+        return (getGroupname());
+
     }
 
 

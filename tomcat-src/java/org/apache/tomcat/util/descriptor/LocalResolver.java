@@ -39,8 +39,7 @@ public class LocalResolver implements EntityResolver2 {
 
     private static final String[] JAVA_EE_NAMESPACES = {
         XmlIdentifiers.JAVAEE_1_4_NS,
-        XmlIdentifiers.JAVAEE_5_NS,
-        XmlIdentifiers.JAVAEE_7_NS};
+        XmlIdentifiers.JAVAEE_5_NS };
 
 
     private final Map<String,String> publicIds;
@@ -89,7 +88,7 @@ public class LocalResolver implements EntityResolver2 {
         // If there is no systemId, can't try anything else
         if (systemId == null) {
             throw new FileNotFoundException(sm.getString("localResolver.unresolvedEntity",
-                    name, publicId, null, base));
+                    name, publicId, systemId, base));
         }
 
         // Try resolving with the supplied systemId

@@ -117,14 +117,14 @@ public class VersionLoggerListener implements LifecycleListener {
         }
 
         if (logEnv) {
-            SortedMap<String, String> sortedMap = new TreeMap<>(System.getenv());
+            SortedMap<String, String> sortedMap = new TreeMap<String, String>(System.getenv());
             for (Map.Entry<String, String> e : sortedMap.entrySet()) {
                 log.info(sm.getString("versionLoggerListener.env", e.getKey(), e.getValue()));
             }
         }
 
         if (logProps) {
-            SortedMap<String, String> sortedMap = new TreeMap<>();
+            SortedMap<String, String> sortedMap = new TreeMap<String, String>();
             for (Map.Entry<Object, Object> e : System.getProperties().entrySet()) {
                 sortedMap.put(String.valueOf(e.getKey()), String.valueOf(e.getValue()));
             }

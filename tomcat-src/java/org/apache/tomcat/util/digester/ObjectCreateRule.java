@@ -47,6 +47,18 @@ public class ObjectCreateRule extends Rule {
 
 
     /**
+     * Construct an object create rule with the specified class.
+     *
+     * @param clazz Java class name of the object to be created
+     */
+    public ObjectCreateRule(Class<?> clazz) {
+
+        this(clazz.getName(), (String) null);
+
+    }
+
+
+    /**
      * Construct an object create rule with the specified class name and an
      * optional attribute name containing an override.
      *
@@ -63,7 +75,23 @@ public class ObjectCreateRule extends Rule {
     }
 
 
+    /**
+     * Construct an object create rule with the specified class and an
+     * optional attribute name containing an override.
+     *
+     * @param attributeName Attribute name which, if present, contains an
+     * @param clazz Java class name of the object to be created
+     *  override of the class name to create
+     */
+    public ObjectCreateRule(String attributeName,
+                            Class<?> clazz) {
+
+        this(clazz.getName(), attributeName);
+
+    }
+
     // ----------------------------------------------------- Instance Variables
+
 
     /**
      * The attribute containing an override class name if it is present.
@@ -114,7 +142,7 @@ public class ObjectCreateRule extends Rule {
 
         // Instantiate the new object and push it on the context stack
         Class<?> clazz = digester.getClassLoader().loadClass(realClassName);
-        Object instance = clazz.getConstructor().newInstance();
+        Object instance = clazz.newInstance();
         digester.push(instance);
     }
 
@@ -145,13 +173,15 @@ public class ObjectCreateRule extends Rule {
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("ObjectCreateRule[");
         sb.append("className=");
         sb.append(className);
         sb.append(", attributeName=");
         sb.append(attributeName);
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 

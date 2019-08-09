@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="ISO-8859-1"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -15,10 +15,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project name="Apache Tomcat 8 Configuration Reference"
+<project name="Apache Tomcat 7 Configuration Reference"
         href="https://tomcat.apache.org/">
 
-  <title>Apache Tomcat 8 Configuration Reference</title>
+  <title>Apache Tomcat 7 Configuration Reference</title>
 
   <logo href="/images/tomcat.gif">
     The Apache Tomcat Servlet/JSP Container
@@ -44,8 +44,7 @@
     </menu>
 
     <menu name="Connectors">
-        <item name="HTTP/1.1"              href="http.html"/>
-        <item name="HTTP/2"                href="http2.html"/>
+        <item name="HTTP"                  href="http.html"/>
         <item name="AJP"                   href="ajp.html"/>
     </menu>
 
@@ -57,11 +56,8 @@
     </menu>
 
     <menu name="Nested Components">
-        <item name="CookieProcessor"       href="cookie-processor.html"/>
-        <item name="CredentialHandler"     href="credentialhandler.html"/>
         <item name="Global Resources"      href="globalresources.html"/>
         <item name="JarScanner"            href="jar-scanner.html"/>
-        <item name="JarScanFilter"         href="jar-scan-filter.html"/>
         <item name="Listeners"             href="listeners.html"/>
         <item name="Loader"                href="loader.html"/>
         <item name="Manager"               href="manager.html"/>
@@ -90,7 +86,6 @@
 
     <menu name="Other">
         <item name="System properties"     href="systemprops.html"/>
-        <item name="JASPIC"                href="jaspic.html"/>
     </menu>
   </body>
 

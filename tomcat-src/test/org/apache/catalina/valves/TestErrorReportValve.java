@@ -44,7 +44,7 @@ public class TestErrorReportValve extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "errorServlet", new ErrorServlet());
-        ctx.addServletMappingDecoded("/", "errorServlet");
+        ctx.addServletMapping("/", "errorServlet");
 
         tomcat.start();
 
@@ -77,7 +77,7 @@ public class TestErrorReportValve extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "bug54220", new Bug54220Servlet(false));
-        ctx.addServletMappingDecoded("/", "bug54220");
+        ctx.addServletMapping("/", "bug54220");
 
         tomcat.start();
 
@@ -97,7 +97,7 @@ public class TestErrorReportValve extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "bug54220", new Bug54220Servlet(true));
-        ctx.addServletMappingDecoded("/", "bug54220");
+        ctx.addServletMapping("/", "bug54220");
 
         tomcat.start();
 
@@ -141,7 +141,7 @@ public class TestErrorReportValve extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "bug54536", new Bug54536Servlet());
-        ctx.addServletMappingDecoded("/", "bug54536");
+        ctx.addServletMapping("/", "bug54536");
 
         tomcat.start();
 
@@ -180,7 +180,7 @@ public class TestErrorReportValve extends TomcatBaseTest {
         Wrapper wrapper =
             Tomcat.addServlet(ctx, "bug56042Servlet", bug56042Servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/bug56042Servlet", "bug56042Servlet");
+        ctx.addServletMapping("/bug56042Servlet", "bug56042Servlet");
 
         tomcat.start();
 

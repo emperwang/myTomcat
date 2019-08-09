@@ -16,11 +16,6 @@
  */
 package org.apache.catalina.tribes.group.interceptors;
 
-import java.net.ConnectException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.catalina.tribes.Channel;
@@ -37,7 +32,6 @@ import org.apache.catalina.tribes.io.XByteBuffer;
 import org.apache.catalina.tribes.membership.MemberImpl;
 import org.apache.catalina.tribes.membership.Membership;
 import org.apache.catalina.tribes.util.Arrays;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.catalina.tribes.util.UUIDGenerator;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -102,7 +96,7 @@ import org.apache.juli.logging.LogFactory;
  * Lets assume that C1 arrives, C1 has lower priority than C, but higher priority than D.<br>
  * Lets also assume that C1 sees the following view {B,D,E}<br>
  * C1 waits for a token to arrive. When the token arrives, the same scenario as above will happen.<br>
- * In the scenario where C1 sees {D,E} and A,B,C cannot see C1, no token will ever arrive.<br>
+ * In the scenario where C1 sees {D,E} and A,B,C can not see C1, no token will ever arrive.<br>
  * In this case, C1 sends a Z{C1-ldr, C1-src, mbrs-C1,D,E} to D<br>
  * D receives Z{C1-ldr, C1-src, mbrs-C1,D,E} and sends Z{A-ldr, C1-src, mbrs-A,B,C,C1,D,E} to E<br>
  * E receives Z{A-ldr, C1-src, mbrs-A,B,C,C1,D,E} and sends it to A<br>
@@ -121,6 +115,7 @@ import org.apache.juli.logging.LogFactory;
  * <a href="https://people.apache.org/~fhanik/tribes/docs/leader-election-initiate-election.jpg">Initiate an election</a><br><br>
  * <a href="https://people.apache.org/~fhanik/tribes/docs/leader-election-message-arrives.jpg">Receive an election message</a><br><br>
  *
+ * @author Filip Hanik
  * @version 1.0
  *
  *
@@ -129,7 +124,6 @@ import org.apache.juli.logging.LogFactory;
 public class NonBlockingCoordinator extends ChannelInterceptorBase {
 
     private static final Log log = LogFactory.getLog(NonBlockingCoordinator.class);
-    protected static final StringManager sm = StringManager.getManager(NonBlockingCoordinator.class);
 
     /**
      * header for a coordination message
@@ -154,11 +148,11 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
     /**
      * Time to wait for coordination timeout
      */
-    protected final long waitForCoordMsgTimeout = 15000;
+    protected long waitForCoordMsgTimeout = 15000;
     /**
      * Our current view
      */
-    protected volatile Membership view = null;
+    protected Membership view = null;
     /**
      * Out current viewId
      */
@@ -174,14 +168,14 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
      * and this is the one we are running
      */
     protected UniqueId suggestedviewId;
-    protected volatile Membership suggestedView;
+    protected Membership suggestedView;
 
-    protected volatile boolean started = false;
+    protected boolean started = false;
     protected final int startsvc = 0xFFFF;
 
-    protected final Object electionMutex = new Object();
+    protected Object electionMutex = new Object();
 
-    protected final AtomicBoolean coordMsgReceived = new AtomicBoolean(false);
+    protected AtomicBoolean coordMsgReceived = new AtomicBoolean(false);
 
     public NonBlockingCoordinator() {
         super();
@@ -193,13 +187,13 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
 
     public void startElection(boolean force) throws ChannelException {
         synchronized (electionMutex) {
-            Member local = getLocalMember(false);
-            Member[] others = membership.getMembers();
+            MemberImpl local = (MemberImpl)getLocalMember(false);
+            MemberImpl[] others = membership.getMembers();
             fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_START_ELECT,this,"Election initiated"));
             if ( others.length == 0 ) {
                 this.viewId = new UniqueId(UUIDGenerator.randomUUID(false));
                 this.view = new Membership(local,AbsoluteOrder.comp, true);
-                this.handleViewConf(createElectionMsg(local,others,local), view);
+                this.handleViewConf(this.createElectionMsg(local,others,local),local,view);
                 return; //the only member, no need for an election
             }
             if ( suggestedviewId != null ) {
@@ -218,7 +212,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
                 return; //already have this view installed
             }
             int prio = AbsoluteOrder.comp.compare(local,others[0]);
-            Member leader = ( prio < 0 )?local:others[0];//am I the leader in my view?
+            MemberImpl leader = ( prio < 0 )?local:others[0];//am I the leader in my view?
             if ( local.equals(leader) || force ) {
                 CoordinationMessage msg = createElectionMsg(local, others, leader);
                 suggestedviewId = msg.getId();
@@ -231,40 +225,37 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
                     coordMsgReceived.set(false);
                     fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_WAIT_FOR_MSG,this,"Election, waiting for request"));
                     electionMutex.wait(waitForCoordMsgTimeout);
-                } catch (InterruptedException x) {
-                    Thread.currentThread().interrupt();
+                }catch ( InterruptedException x ) {
+                    Thread.interrupted();
                 }
-                String msg;
-                if (suggestedviewId == null && !coordMsgReceived.get()) {
-                    if (Thread.interrupted()) {
-                        msg = "Election abandoned, waiting interrupted.";
-                    } else {
-                        msg = "Election abandoned, waiting timed out.";
-                    }
+                if ( suggestedviewId == null && (!coordMsgReceived.get())) {
+                    //no message arrived, send the coord msg
+//                    fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_WAIT_FOR_MSG,this,"Election, waiting timed out."));
+//                    startElection(true);
+                    fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_ELECT_ABANDONED,this,"Election abandoned, waiting timed out."));
                 } else {
-                    msg = "Election abandoned, received a message";
+                    fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_ELECT_ABANDONED,this,"Election abandoned, received a message"));
                 }
-                fireInterceptorEvent(new CoordinationEvent(
-                        CoordinationEvent.EVT_ELECT_ABANDONED, this, msg));
-            }
+            }//end if
+
         }
     }
 
-    private CoordinationMessage createElectionMsg(Member local, Member[] others, Member leader) {
+    private CoordinationMessage createElectionMsg(MemberImpl local, MemberImpl[] others, MemberImpl leader) {
         Membership m = new Membership(local,AbsoluteOrder.comp,true);
         Arrays.fill(m,others);
-        Member[] mbrs = m.getMembers();
+        MemberImpl[] mbrs = m.getMembers();
         m.reset();
         CoordinationMessage msg = new CoordinationMessage(leader, local, mbrs,new UniqueId(UUIDGenerator.randomUUID(true)), COORD_REQUEST);
         return msg;
     }
 
-    protected void sendElectionMsg(Member local, Member next, CoordinationMessage msg) throws ChannelException {
+    protected void sendElectionMsg(MemberImpl local, MemberImpl next, CoordinationMessage msg) throws ChannelException {
         fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_SEND_MSG,this,"Sending election message to("+next.getName()+")"));
         super.sendMessage(new Member[] {next}, createData(msg, local), null);
     }
 
-    protected void sendElectionMsgToNextInline(Member local, CoordinationMessage msg) throws ChannelException {
+    protected void sendElectionMsgToNextInline(MemberImpl local, CoordinationMessage msg) throws ChannelException {
         int next = Arrays.nextIndex(local,msg.getMembers());
         int current = next;
         msg.leader = msg.getMembers()[0];
@@ -274,14 +265,22 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
                 sendElectionMsg(local, msg.getMembers()[current], msg);
                 sent = true;
             }catch ( ChannelException x  ) {
-                log.warn(sm.getString("nonBlockingCoordinator.electionMessage.sendfailed", msg.getMembers()[current]));
+                log.warn("Unable to send election message to:"+msg.getMembers()[current]);
                 current = Arrays.nextIndex(msg.getMembers()[current],msg.getMembers());
                 if ( current == next ) throw x;
             }
         }
     }
 
-    public ChannelData createData(CoordinationMessage msg, Member local) {
+    public Member getNextInLine(MemberImpl local, MemberImpl[] others) {
+        MemberImpl result = null;
+        for ( int i=0; i<others.length; i++ ) {
+
+        }
+        return result;
+    }
+
+    public ChannelData createData(CoordinationMessage msg, MemberImpl local) {
         msg.write();
         ChannelData data = new ChannelData(true);
         data.setAddress(local);
@@ -291,71 +290,63 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
         return data;
     }
 
+    protected void viewChange(UniqueId viewId, Member[] view) {
+        //invoke any listeners
+    }
+
     protected boolean alive(Member mbr) {
-        return memberAlive(mbr, waitForCoordMsgTimeout);
+        return TcpFailureDetector.memberAlive(mbr,
+                                              COORD_ALIVE,
+                                              false,
+                                              false,
+                                              waitForCoordMsgTimeout,
+                                              waitForCoordMsgTimeout,
+                                              getOptionFlag());
     }
 
-    protected boolean memberAlive(Member mbr, long conTimeout) {
-        //could be a shutdown notification
-        if ( Arrays.equals(mbr.getCommand(),Member.SHUTDOWN_PAYLOAD) ) return false;
-
-        try (Socket socket = new Socket()) {
-            InetAddress ia = InetAddress.getByAddress(mbr.getHost());
-            InetSocketAddress addr = new InetSocketAddress(ia, mbr.getPort());
-            socket.connect(addr, (int) conTimeout);
-            return true;
-        } catch (SocketTimeoutException sx) {
-            //do nothing, we couldn't connect
-        } catch (ConnectException cx) {
-            //do nothing, we couldn't connect
-        } catch (Exception x) {
-            log.error(sm.getString("nonBlockingCoordinator.memberAlive.failed"),x);
-        }
-        return false;
-    }
-
-    protected Membership mergeOnArrive(CoordinationMessage msg) {
+    protected Membership mergeOnArrive(CoordinationMessage msg, Member sender) {
         fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_PRE_MERGE,this,"Pre merge"));
-        Member local = getLocalMember(false);
+        MemberImpl local = (MemberImpl)getLocalMember(false);
         Membership merged = new Membership(local,AbsoluteOrder.comp,true);
         Arrays.fill(merged,msg.getMembers());
         Arrays.fill(merged,getMembers());
         Member[] diff = Arrays.diff(merged,membership,local);
         for ( int i=0; i<diff.length; i++ ) {
-            if (!alive(diff[i])) merged.removeMember(diff[i]);
+            if (!alive(diff[i])) merged.removeMember((MemberImpl)diff[i]);
             else memberAdded(diff[i],false);
         }
         fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_POST_MERGE,this,"Post merge"));
         return merged;
     }
 
-    protected void processCoordMessage(CoordinationMessage msg) throws ChannelException {
+    protected void processCoordMessage(CoordinationMessage msg, Member sender) throws ChannelException {
         if ( !coordMsgReceived.get() ) {
             coordMsgReceived.set(true);
             synchronized (electionMutex) { electionMutex.notifyAll();}
         }
-        Membership merged = mergeOnArrive(msg);
-        if (isViewConf(msg)) handleViewConf(msg, merged);
-        else handleToken(msg, merged);
+        msg.timestamp = System.currentTimeMillis();
+        Membership merged = mergeOnArrive(msg, sender);
+        if (isViewConf(msg)) handleViewConf(msg, sender, merged);
+        else handleToken(msg, sender, merged);
     }
 
-    protected void handleToken(CoordinationMessage msg, Membership merged) throws ChannelException {
-        Member local = getLocalMember(false);
+    protected void handleToken(CoordinationMessage msg, Member sender,Membership merged) throws ChannelException {
+        MemberImpl local = (MemberImpl)getLocalMember(false);
         if ( local.equals(msg.getSource()) ) {
             //my message msg.src=local
-            handleMyToken(local, msg, merged);
+            handleMyToken(local, msg, sender,merged);
         } else {
-            handleOtherToken(local, msg, merged);
+            handleOtherToken(local, msg, sender,merged);
         }
     }
 
-    protected void handleMyToken(Member local, CoordinationMessage msg, Membership merged) throws ChannelException {
+    protected void handleMyToken(MemberImpl local, CoordinationMessage msg, Member sender,Membership merged) throws ChannelException {
         if ( local.equals(msg.getLeader()) ) {
             //no leadership change
             if ( Arrays.sameMembers(msg.getMembers(),merged.getMembers()) ) {
                 msg.type = COORD_CONF;
                 super.sendMessage(Arrays.remove(msg.getMembers(),local),createData(msg,local),null);
-                handleViewConf(msg, merged);
+                handleViewConf(msg,local,merged);
             } else {
                 //membership change
                 suggestedView = new Membership(local,AbsoluteOrder.comp,true);
@@ -373,7 +364,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
         }
     }
 
-    protected void handleOtherToken(Member local, CoordinationMessage msg, Membership merged) throws ChannelException {
+    protected void handleOtherToken(MemberImpl local, CoordinationMessage msg, Member sender,Membership merged) throws ChannelException {
         if ( local.equals(msg.getLeader()) ) {
             //I am the new leader
             //startElection(false);
@@ -383,9 +374,9 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
         }
     }
 
-    protected void handleViewConf(CoordinationMessage msg, Membership merged) throws ChannelException {
+    protected void handleViewConf(CoordinationMessage msg, Member sender,Membership merged) throws ChannelException {
         if ( viewId != null && msg.getId().equals(viewId) ) return;//we already have this view
-        view = new Membership(getLocalMember(false),AbsoluteOrder.comp,true);
+        view = new Membership((MemberImpl)getLocalMember(false),AbsoluteOrder.comp,true);
         Arrays.fill(view,msg.getMembers());
         viewId = msg.getId();
 
@@ -399,6 +390,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
             suggestedviewId = null;
         }
 
+        viewChange(viewId,view.getMembers());
         fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_CONF_RX,this,"Accepted View"));
 
         if ( suggestedviewId == null && hasHigherPriority(merged.getMembers(),membership.getMembers()) ) {
@@ -468,7 +460,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
             fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_START, this, "Before start"));
             super.start(startsvc);
             started = true;
-            if (view == null) view = new Membership(super.getLocalMember(true), AbsoluteOrder.comp, true);
+            if (view == null) view = new Membership( (MemberImpl)super.getLocalMember(true), AbsoluteOrder.comp, true);
             fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_START, this, "After start"));
             startElection(false);
     }
@@ -512,9 +504,9 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
                 CoordinationMessage cmsg = new CoordinationMessage(msg.getMessage());
                 Member[] cmbr = cmsg.getMembers();
                 fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_MSG_ARRIVE,this,"Coord Msg Arrived("+Arrays.toNameString(cmbr)+")"));
-                processCoordMessage(cmsg);
+                processCoordMessage(cmsg, msg.getAddress());
             }catch ( ChannelException x ) {
-                log.error(sm.getString("nonBlockingCoordinator.processCoordinationMessage.failed"),x);
+                log.error("Error processing coordination message. Could be fatal.",x);
             }
         } else {
             super.messageReceived(msg);
@@ -527,26 +519,34 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
     }
 
     public void memberAdded(Member member,boolean elect) {
-        if (membership == null) setupMembership();
-        if (membership.memberAlive(member)) super.memberAdded(member);
         try {
-            fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_MBR_ADD,this,"Member add("+member.getName()+")"));
-            if (started && elect) startElection(false);
-        } catch (ChannelException x) {
-            log.error(sm.getString("nonBlockingCoordinator.memberAdded.failed"),x);
+            if ( membership == null ) setupMembership();
+            if ( membership.memberAlive((MemberImpl)member) ) super.memberAdded(member);
+            try {
+                fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_MBR_ADD,this,"Member add("+member.getName()+")"));
+                if (started && elect) startElection(false);
+            }catch ( ChannelException x ) {
+                log.error("Unable to start election when member was added.",x);
+            }
+        }finally {
         }
+
     }
 
     @Override
     public void memberDisappeared(Member member) {
-        membership.removeMember(member);
-        super.memberDisappeared(member);
         try {
-            fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_MBR_DEL,this,"Member remove("+member.getName()+")"));
-            if (started && (isCoordinator() || isHighest()))
-                startElection(true); //to do, if a member disappears, only the coordinator can start
-        } catch (ChannelException x) {
-            log.error(sm.getString("nonBlockingCoordinator.memberDisappeared.failed"),x);
+
+            membership.removeMember((MemberImpl)member);
+            super.memberDisappeared(member);
+            try {
+                fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_MBR_DEL,this,"Member remove("+member.getName()+")"));
+                if ( started && (isCoordinator() || isHighest()) )
+                    startElection(true); //to do, if a member disappears, only the coordinator can start
+            }catch ( ChannelException x ) {
+                log.error("Unable to start election when member was removed.",x);
+            }
+        }finally {
         }
     }
 
@@ -564,16 +564,16 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
     @Override
     public void heartbeat() {
         try {
-            Member local = getLocalMember(false);
+            MemberImpl local = (MemberImpl)getLocalMember(false);
             if ( view != null && (Arrays.diff(view,membership,local).length != 0 ||  Arrays.diff(membership,view,local).length != 0) ) {
                 if ( isHighest() ) {
                     fireInterceptorEvent(new CoordinationEvent(CoordinationEvent.EVT_START_ELECT, this,
-                            sm.getString("nonBlockingCoordinator.heartbeat.inconsistency")));
+                                                               "Heartbeat found inconsistency, restart election"));
                     startElection(true);
                 }
             }
         } catch ( Exception x  ){
-            log.error(sm.getString("nonBlockingCoordinator.heartbeat.failed"),x);
+            log.error("Unable to perform heartbeat.",x);
         } finally {
             super.heartbeat();
         }
@@ -623,7 +623,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
 
     protected synchronized void setupMembership() {
         if ( membership == null ) {
-            membership  = new Membership(super.getLocalMember(true),AbsoluteOrder.comp,false);
+            membership  = new Membership((MemberImpl)super.getLocalMember(true),AbsoluteOrder.comp,false);
         }
     }
 
@@ -635,21 +635,26 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
 
     public static class CoordinationMessage {
         //X{A-ldr, A-src, mbrs-A,B,C,D}
-        protected final XByteBuffer buf;
-        protected Member leader;
-        protected Member source;
-        protected Member[] view;
+        protected XByteBuffer buf;
+        protected MemberImpl leader;
+        protected MemberImpl source;
+        protected MemberImpl[] view;
         protected UniqueId id;
         protected byte[] type;
+        /**
+         * @deprecated  Unused - will be removed in Tomcat 8.0.x
+         */
+        @Deprecated
+        protected long timestamp = System.currentTimeMillis();
 
         public CoordinationMessage(XByteBuffer buf) {
             this.buf = buf;
             parse();
         }
 
-        public CoordinationMessage(Member leader,
-                                   Member source,
-                                   Member[] view,
+        public CoordinationMessage(MemberImpl leader,
+                                   MemberImpl source,
+                                   MemberImpl[] view,
                                    UniqueId id,
                                    byte[] type) {
             this.buf = new XByteBuffer(4096,false);
@@ -666,12 +671,12 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
             return NonBlockingCoordinator.COORD_HEADER;
         }
 
-        public Member getLeader() {
+        public MemberImpl getLeader() {
             if ( leader == null ) parse();
             return leader;
         }
 
-        public Member getSource() {
+        public MemberImpl getSource() {
             if ( source == null ) parse();
             return source;
         }
@@ -681,7 +686,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
             return id;
         }
 
-        public Member[] getMembers() {
+        public MemberImpl[] getMembers() {
             if ( view == null ) parse();
             return view;
         }
@@ -715,7 +720,7 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
             //view
             int mbrCount = XByteBuffer.toInt(buf.getBytesDirect(),offset);
             offset += 4;
-            view = new Member[mbrCount];
+            view = new MemberImpl[mbrCount];
             for (int i=0; i<view.length; i++ ) {
                 int mbrLen = XByteBuffer.toInt(buf.getBytesDirect(),offset);
                 offset += 4;
@@ -782,13 +787,13 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
         public static final int EVT_CONF_RX = 12;
         public static final int EVT_ELECT_ABANDONED = 13;
 
-        final int type;
-        final ChannelInterceptor interceptor;
-        final Member coord;
-        final Member[] mbrs;
-        final String info;
-        final Membership view;
-        final Membership suggestedView;
+        int type;
+        ChannelInterceptor interceptor;
+        Member coord;
+        Member[] mbrs;
+        String info;
+        Membership view;
+        Membership suggestedView;
         public CoordinationEvent(int type,ChannelInterceptor interceptor, String info) {
             this.type = type;
             this.interceptor = interceptor;

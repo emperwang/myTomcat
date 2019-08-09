@@ -16,15 +16,16 @@
  */
 package org.apache.tomcat.websocket.server;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.servlet.ServletContextEvent;
 import javax.websocket.CloseReason;
 import javax.websocket.ContainerProvider;
+import javax.websocket.DeploymentException;
 import javax.websocket.EncodeException;
 import javax.websocket.Encoder;
 import javax.websocket.EndpointConfig;
@@ -34,6 +35,7 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig;
 
 import org.junit.Ignore;
@@ -73,7 +75,7 @@ public class TestWsRemoteEndpointImplServer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(Bug58624Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         WebSocketContainer wsContainer =
                 ContainerProvider.getWebSocketContainer();
@@ -88,17 +90,26 @@ public class TestWsRemoteEndpointImplServer extends WebSocketBaseTest {
         session.close();
     }
 
-    public static class Bug58624Config extends TesterEndpointConfig {
+    public static class Bug58624Config extends WsContextListener {
 
-        public static final String PATH = "/bug58624";
-
-
+        public static String PATH = "/bug58624";
         @Override
-        protected ServerEndpointConfig getServerEndpointConfig() {
-            List<Class<? extends Encoder>> encoders = new ArrayList<>();
+        public void contextInitialized(ServletContextEvent sce) {
+            super.contextInitialized(sce);
+
+            ServerContainer sc = (ServerContainer) sce.getServletContext().getAttribute(
+                    Constants.SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE);
+
+            List<Class<? extends Encoder>> encoders = new ArrayList<Class<? extends Encoder>>();
             encoders.add(Bug58624Encoder.class);
-            return ServerEndpointConfig.Builder.create(
+            ServerEndpointConfig sec = ServerEndpointConfig.Builder.create(
                     Bug58624Endpoint.class, PATH).encoders(encoders).build();
+
+            try {
+                sc.addEndpoint(sec);
+            } catch (DeploymentException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -108,10 +119,6 @@ public class TestWsRemoteEndpointImplServer extends WebSocketBaseTest {
 
         @OnOpen
         public void onOpen(Session session) {
-            // Disabling blocking timeouts for this test
-            session.getUserProperties().put(
-                    org.apache.tomcat.websocket.Constants.BLOCKING_SEND_TIMEOUT_PROPERTY,
-                    Long.valueOf(-1));
             ex.submit(new Bug58624SendMessage(session));
         }
 
@@ -144,7 +151,7 @@ public class TestWsRemoteEndpointImplServer extends WebSocketBaseTest {
             try {
                 // Breakpoint B required on following line
                 session.getBasicRemote().sendObject("test");
-            } catch (IOException | EncodeException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }

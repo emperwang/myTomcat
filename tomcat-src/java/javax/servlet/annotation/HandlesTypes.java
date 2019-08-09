@@ -29,11 +29,12 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@SuppressWarnings("rawtypes") // Spec API does not use generics
 public @interface HandlesTypes {
 
     /**
      * @return array of classes
      */
-    Class<?>[] value();
+    Class[] value();
 
 }

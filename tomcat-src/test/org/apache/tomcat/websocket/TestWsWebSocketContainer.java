@@ -17,13 +17,11 @@
 package org.apache.tomcat.websocket;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.net.URL;
 import java.nio.ByteBuffer;
-import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -33,8 +31,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
 import javax.servlet.ServletContextEvent;
 import javax.websocket.ClientEndpointConfig;
 import javax.websocket.ContainerProvider;
@@ -51,11 +47,13 @@ import javax.websocket.server.ServerEndpoint;
 import javax.websocket.server.ServerEndpointConfig;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.servlets.DefaultServlet;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.coyote.http11.Http11Protocol;
 import org.apache.tomcat.util.net.TesterSupport;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicBinary;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicHandler;
@@ -94,7 +92,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -216,7 +214,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         WebSocketContainer wsContainer =
                 ContainerProvider.getWebSocketContainer();
@@ -324,7 +322,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(BlockingConfig.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         WebSocketContainer wsContainer =
                 ContainerProvider.getWebSocketContainer();
@@ -400,6 +398,11 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
     private void doTestWriteTimeoutServer(boolean setTimeoutOnContainer)
             throws Exception {
 
+        // This will never work for BIO
+        Assume.assumeFalse(
+                "Skipping test. This feature will never work for BIO connector.",
+                getProtocol().equals(Http11Protocol.class.getName()));
+
         /*
          * Note: There are all sorts of horrible uses of statics in this test
          *       because the API uses classes and the tests really need access
@@ -413,7 +416,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(ConstantTxConfig.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         WebSocketContainer wsContainer =
                 ContainerProvider.getWebSocketContainer();
@@ -566,10 +569,15 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
                 session.getAsyncRemote().setSendTimeout(TIMEOUT_MS);
             }
 
-            long lastSend = 0;
+            // The close message is written with a blocking write. This is going
+            // to fail so reduce the timeout from the default so the test
+            // completes faster
+            session.getUserProperties().put(
+                    WsRemoteEndpointImplBase.BLOCKING_SEND_TIMEOUT_PROPERTY, Long.valueOf(5000));
 
             // Should send quickly until the network buffers fill up and then
             // block until the timeout kicks in
+            long lastSend = 0;
             try {
                 while (true) {
                     lastSend = System.currentTimeMillis();
@@ -577,7 +585,9 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
                             ByteBuffer.wrap(MESSAGE_BINARY_4K));
                     f.get();
                 }
-            } catch (ExecutionException | InterruptedException e) {
+            } catch (ExecutionException e) {
+                exception = e;
+            } catch (InterruptedException e) {
                 exception = e;
             }
             timeout = System.currentTimeMillis() - lastSend;
@@ -628,7 +638,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -685,7 +695,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -743,7 +753,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -829,7 +839,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         TesterSupport.initSsl(tomcat);
 
@@ -839,28 +849,12 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
                 ContainerProvider.getWebSocketContainer();
         ClientEndpointConfig clientEndpointConfig =
                 ClientEndpointConfig.Builder.create().build();
-
-        // Create the SSL Context
-        // Java 7 doesn't default to TLSv1.2 but the tests do
-        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-
-        // Trust store
-        File keyStoreFile = new File(TesterSupport.CA_JKS);
-        KeyStore ks = KeyStore.getInstance("JKS");
-        try (InputStream is = new FileInputStream(keyStoreFile)) {
-            ks.load(is, org.apache.tomcat.websocket.Constants.SSL_TRUSTSTORE_PWD_DEFAULT.toCharArray());
-        }
-
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                TrustManagerFactory.getDefaultAlgorithm());
-        tmf.init(ks);
-
-        sslContext.init(null, tmf.getTrustManagers(), null);
-
+        URL truststoreUrl = this.getClass().getClassLoader().getResource(
+                TesterSupport.CA_JKS);
+        File truststoreFile = new File(truststoreUrl.toURI());
         clientEndpointConfig.getUserProperties().put(
-                org.apache.tomcat.websocket.Constants.SSL_CONTEXT_PROPERTY,
-                sslContext);
-
+                WsWebSocketContainer.SSL_TRUSTSTORE_PROPERTY,
+                truststoreFile.getAbsolutePath());
         Session wsSession = wsContainer.connectToServer(
                 TesterProgrammaticEndpoint.class,
                 clientEndpointConfig,
@@ -931,7 +925,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -980,7 +974,7 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
             }
             Thread.sleep(100);
             count++;
-        }
+    }
         Assert.assertEquals(expected, BackgroundProcessManager.getInstance().getProcessCount());
 
     }
@@ -1011,16 +1005,17 @@ public class TestWsWebSocketContainer extends WebSocketBaseTest {
 
     private void doTestPerMessageDeflateClient(String msg, int count) throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
+        // Must have a real docBase - just use temp
+        Context ctx =
+            tomcat.addContext("", System.getProperty("java.io.tmpdir"));
         ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
         Extension perMessageDeflate = new WsExtension(PerMessageDeflate.NAME);
-        List<Extension> extensions = new ArrayList<>(1);
+        List<Extension> extensions = new ArrayList<Extension>(1);
         extensions.add(perMessageDeflate);
 
         ClientEndpointConfig clientConfig =

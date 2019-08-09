@@ -16,31 +16,25 @@
  */
 package org.apache.tomcat.util.net.jsse;
 
-import org.apache.tomcat.util.compat.JreCompat;
-import org.apache.tomcat.util.net.Constants;
-import org.apache.tomcat.util.net.SSLHostConfig;
-import org.apache.tomcat.util.net.SSLHostConfigCertificate;
-import org.apache.tomcat.util.net.SSLUtil;
+import org.apache.tomcat.util.net.AbstractEndpoint;
+import org.apache.tomcat.util.net.ServerSocketFactory;
 
 public class TesterBug50640SslImpl extends JSSEImplementation {
 
-    public static final String PROPERTY_NAME = "sslEnabledProtocols";
-    public static final String PROPERTY_VALUE = "magic";
-
+    public static final String PROPERTY_NAME = "bug50640";
+    public static final String PROPERTY_VALUE = "pass";
 
     @Override
-    public SSLUtil getSSLUtil(SSLHostConfigCertificate certificate) {
-        SSLHostConfig sslHostConfig = certificate.getSSLHostConfig();
-        if (sslHostConfig.getProtocols().size() == 1 &&
-                sslHostConfig.getProtocols().contains(PROPERTY_VALUE)) {
-            if (JreCompat.isJre8Available()) {
-                sslHostConfig.setProtocols(Constants.SSL_PROTO_TLSv1_2);
-            } else {
-                sslHostConfig.setProtocols(Constants.SSL_PROTO_TLSv1);
-            }
-            return super.getSSLUtil(certificate);
+    public ServerSocketFactory getServerSocketFactory(
+            AbstractEndpoint<?> endpoint)  {
+
+        // Check the custom attribute is visible & correcly set
+        String flag = endpoint.getProperty(PROPERTY_NAME);
+        if (PROPERTY_VALUE.equals(flag)) {
+            return super.getServerSocketFactory(endpoint);
         } else {
             return null;
         }
     }
+
 }

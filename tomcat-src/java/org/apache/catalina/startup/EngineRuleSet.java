@@ -31,7 +31,6 @@ import org.apache.tomcat.util.digester.RuleSetBase;
  *
  * @author Craig R. McClanahan
  */
-@SuppressWarnings("deprecation")
 public class EngineRuleSet extends RuleSetBase {
 
 
@@ -41,7 +40,7 @@ public class EngineRuleSet extends RuleSetBase {
     /**
      * The matching pattern prefix to use for recognizing our elements.
      */
-    protected final String prefix;
+    protected String prefix = null;
 
 
     // ------------------------------------------------------------ Constructor
@@ -52,7 +51,9 @@ public class EngineRuleSet extends RuleSetBase {
      * matching pattern prefix.
      */
     public EngineRuleSet() {
+
         this("");
+
     }
 
 
@@ -64,7 +65,11 @@ public class EngineRuleSet extends RuleSetBase {
      *  trailing slash character)
      */
     public EngineRuleSet(String prefix) {
+
+        super();
+        this.namespaceURI = null;
         this.prefix = prefix;
+
     }
 
 
@@ -93,7 +98,7 @@ public class EngineRuleSet extends RuleSetBase {
                           "engineConfigClass"));
         digester.addSetNext(prefix + "Engine",
                             "setContainer",
-                            "org.apache.catalina.Engine");
+                            "org.apache.catalina.Container");
 
         //Cluster configuration start
         digester.addObjectCreate(prefix + "Engine/Cluster",

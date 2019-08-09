@@ -16,23 +16,20 @@
  */
 package org.apache.coyote;
 
-/**
- * Used to mark threads that have been allocated by the container to process
- * data from an incoming connection. Application created threads are not
- * container threads and neither are threads taken from the container thread
- * pool to execute AsyncContext.start(Runnable).
- */
 public class ContainerThreadMarker {
 
+    private static final ThreadLocal<Boolean> marker = new ThreadLocal<Boolean>();
+
     public static boolean isContainerThread() {
-        return org.apache.tomcat.util.net.ContainerThreadMarker.isContainerThread();
+        Boolean flag = marker.get();
+        if (flag == null) {
+            return false;
+        } else {
+            return flag.booleanValue();
+        }
     }
 
-    public static void set() {
-        org.apache.tomcat.util.net.ContainerThreadMarker.set();
-    }
-
-    public static void clear() {
-        org.apache.tomcat.util.net.ContainerThreadMarker.clear();
+    public static void markAsContainerThread() {
+        marker.set(Boolean.TRUE);
     }
 }

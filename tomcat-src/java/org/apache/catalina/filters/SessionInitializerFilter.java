@@ -25,11 +25,11 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 
 /**
- * A {@link javax.servlet.Filter} that initializes the {@link HttpSession} for
- * the {@link HttpServletRequest} by calling its getSession() method.
+ * A {@link javax.servlet.Filter} that initializes the {@link
+ * javax.servlet.http.HttpSession} for the {@link HttpServletRequest} by calling
+ * its getSession() method.
  * <p>
  * This is required for some operations with WebSocket requests, where it is
  * too late to initialize the HttpSession object, and the current Java WebSocket

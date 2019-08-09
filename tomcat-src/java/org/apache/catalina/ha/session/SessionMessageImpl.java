@@ -22,21 +22,26 @@ import org.apache.catalina.ha.ClusterMessageBase;
 /**
  * Session cluster message
  *
+ * @author Filip Hanik
  * @author Peter Rossbach
  */
 public class SessionMessageImpl extends ClusterMessageBase implements SessionMessage {
 
-    private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 1L;
+
+
+    public SessionMessageImpl() {
+    }
 
 
     /*
      * Private serializable variables to keep the messages state
      */
-    private final int mEvtType;
-    private final byte[] mSession;
-    private final String mSessionID;
+    private int mEvtType = -1;
+    private byte[] mSession;
+    private String mSessionID;
 
-    private final String mContextName;
+    private String mContextName;
     private long serializationTimestamp;
     private boolean timestampSet = false ;
     private String uniqueId;
@@ -159,6 +164,10 @@ public class SessionMessageImpl extends ClusterMessageBase implements SessionMes
     @Override
     public String getUniqueId() {
         return uniqueId;
+    }
+    @Override
+    public void setUniqueId(String uniqueId) {
+        this.uniqueId = uniqueId;
     }
 
     @Override

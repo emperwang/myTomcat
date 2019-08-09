@@ -17,17 +17,40 @@
 package org.apache.tomcat.websocket;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.servlet.ServletContextEvent;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.ClientEndpointConfig.Configurator;
+import javax.websocket.ContainerProvider;
+import javax.websocket.DeploymentException;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.RemoteEndpoint.Basic;
 import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpoint;
 
-import org.apache.tomcat.websocket.server.TesterEndpointConfig;
+import org.junit.Assert;
+
+import org.apache.catalina.Context;
+import org.apache.catalina.servlets.DefaultServlet;
+import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.startup.TomcatBaseTest;
+import org.apache.tomcat.websocket.TesterMessageCountClient.BasicText;
+import org.apache.tomcat.websocket.TesterMessageCountClient.TesterProgrammaticEndpoint;
+import org.apache.tomcat.websocket.server.Constants;
+import org.apache.tomcat.websocket.server.WsContextListener;
 
 /**
  * Sends {@link #MESSAGE_COUNT} messages of size {@link #MESSAGE_SIZE} bytes as
@@ -38,7 +61,7 @@ public class TesterFirehoseServer {
     public static final int MESSAGE_COUNT = 100000;
     public static final String MESSAGE;
     public static final int MESSAGE_SIZE = 1024;
-    public static final int WAIT_TIME_MILLIS = 300000;
+    public static final int WAIT_TIME_MILLIS = 60000;
     public static final int SEND_TIME_OUT_MILLIS = 5000;
 
     static {
@@ -50,13 +73,21 @@ public class TesterFirehoseServer {
     }
 
 
-    public static class Config extends TesterEndpointConfig {
+    public static class Config extends WsContextListener {
 
         public static final String PATH = "/firehose";
 
         @Override
-        protected Class<?> getEndpointClass() {
-            return Endpoint.class;
+        public void contextInitialized(ServletContextEvent sce) {
+            super.contextInitialized(sce);
+            ServerContainer sc =
+                    (ServerContainer) sce.getServletContext().getAttribute(
+                            Constants.SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE);
+            try {
+                sc.addEndpoint(Endpoint.class);
+            } catch (DeploymentException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 
@@ -99,7 +130,7 @@ public class TesterFirehoseServer {
             System.out.println("Received " + msg + ", now sending data");
 
             session.getUserProperties().put(
-                    org.apache.tomcat.websocket.Constants.BLOCKING_SEND_TIMEOUT_PROPERTY,
+                    "org.apache.tomcat.websocket.BLOCKING_SEND_TIMEOUT",
                     Long.valueOf(SEND_TIME_OUT_MILLIS));
 
             Basic remote = session.getBasicRemote();
@@ -125,6 +156,86 @@ public class TesterFirehoseServer {
         @OnClose
         public void onClose() {
             openConnectionCount.decrementAndGet();
+        }
+    }
+
+
+    /*
+     * Run as a stand-alone server for testing over a real network
+     */
+    public static class Standalone extends TomcatBaseTest {
+
+        public static void main(String... args) throws Exception {
+            Standalone s = new Standalone();
+            s.start();
+        }
+
+        public void start() throws Exception {
+            setUpPerTestClass();
+            setUp();
+            Tomcat tomcat = getTomcatInstance();
+            // No file system docBase required
+            Context ctx = tomcat.addContext("", null);
+            ctx.addApplicationListener(TesterFirehoseServer.Config.class.getName());
+            Tomcat.addServlet(ctx, "default", new DefaultServlet());
+            ctx.addServletMapping("/", "default");
+
+            tomcat.start();
+
+            while (true) {
+                Thread.sleep(1000);
+            }
+        }
+    }
+
+
+    /*
+     * Run as a stand-alone client for testing over a real network.
+     *
+     * args[0] is host:port
+     */
+    public static class Client {
+
+        public static void main(String... args) throws Exception {
+
+            WebSocketContainer wsContainer = ContainerProvider.getWebSocketContainer();
+
+            // BZ 62596
+            final StringBuilder dummyValue = new StringBuilder(4000);
+            for (int i = 0; i < 4000; i++) {
+                dummyValue.append('A');
+            }
+            ClientEndpointConfig clientEndpointConfig =
+                    ClientEndpointConfig.Builder.create().configurator(new Configurator() {
+                        @Override
+                        public void beforeRequest(Map<String, List<String>> headers) {
+                            headers.put("Dummy", Collections.singletonList(dummyValue.toString()));
+                            super.beforeRequest(headers);
+                        }
+                    }).build();
+
+            Session wsSession = wsContainer.connectToServer(
+                    TesterProgrammaticEndpoint.class,
+                    clientEndpointConfig,
+                    new URI("ws://" + args[0] + TesterFirehoseServer.Config.PATH));
+            CountDownLatch latch = new CountDownLatch(TesterFirehoseServer.MESSAGE_COUNT);
+            BasicText handler = new BasicText(latch);
+            wsSession.addMessageHandler(handler);
+            wsSession.getBasicRemote().sendText("Hello");
+
+            System.out.println("Sent Hello message, waiting for data");
+
+            // Ignore the latch result as the message count test below will tell us
+            // if the right number of messages arrived
+            handler.getLatch().await(TesterFirehoseServer.WAIT_TIME_MILLIS,
+                    TimeUnit.MILLISECONDS);
+
+            Queue<String> messages = handler.getMessages();
+            Assert.assertEquals(
+                    TesterFirehoseServer.MESSAGE_COUNT, messages.size());
+            for (String message : messages) {
+                Assert.assertEquals(TesterFirehoseServer.MESSAGE, message);
+            }
         }
     }
 }

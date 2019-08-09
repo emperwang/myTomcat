@@ -21,21 +21,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
-
 /**
  * Reader for UCS-2 and UCS-4 encodings.
  * (i.e., encodings from ISO-10646-UCS-(2|4)).
  *
  * @author Neil Graham, IBM
- *
- * @deprecated Will be removed in Tomcat 9.0.x onwards
  */
-@Deprecated
 public class UCSReader extends Reader {
 
-    private final Log log = LogFactory.getLog(UCSReader.class); // must not be static
+    private final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog( UCSReader.class );
 
     //
     // Constants
@@ -45,7 +40,7 @@ public class UCSReader extends Reader {
      * since it's reasonable to surmise that the average UCS-4-encoded
      * file should be 4 times as large as the average ASCII-encoded file).
      */
-    private static final int DEFAULT_BUFFER_SIZE = 8192;
+    public static final int DEFAULT_BUFFER_SIZE = 8192;
 
     public static final short UCS2LE = 1;
     public static final short UCS2BE = 2;
@@ -57,13 +52,13 @@ public class UCSReader extends Reader {
     //
 
     /** Input stream. */
-    private final InputStream fInputStream;
+    protected InputStream fInputStream;
 
     /** Byte buffer. */
-    private final byte[] fBuffer;
+    protected byte[] fBuffer;
 
     // what kind of data we're dealing with
-    private final short fEncoding;
+    protected short fEncoding;
 
     //
     // Constructors

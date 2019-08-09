@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.catalina.tribes.ChannelMessage;
 import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.group.ChannelInterceptorBase;
+import org.apache.catalina.tribes.membership.MemberImpl;
 import org.apache.catalina.tribes.membership.Membership;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -33,14 +33,12 @@ import org.apache.juli.logging.LogFactory;
  * <p>Description: Filters membership based on domain.
  * </p>
  *
+ * @author Filip Hanik
  * @version 1.0
  */
-public class DomainFilterInterceptor extends ChannelInterceptorBase
-        implements DomainFilterInterceptorMBean {
-
+public class DomainFilterInterceptor extends ChannelInterceptorBase {
     private static final Log log = LogFactory.getLog(DomainFilterInterceptor.class);
-    protected static final StringManager sm = StringManager.getManager(DomainFilterInterceptor.class);
-    protected volatile Membership membership = null;
+    protected Membership membership = null;
 
     protected byte[] domain = new byte[0];
     protected int logInterval = 100;
@@ -54,7 +52,7 @@ public class DomainFilterInterceptor extends ChannelInterceptorBase
             if (logCounter.incrementAndGet() >= logInterval) {
                 logCounter.set(0);
                 if (log.isWarnEnabled())
-                    log.warn(sm.getString("domainFilterInterceptor.message.refused", msg.getAddress()));
+                    log.warn("Received message from cluster["+msg.getAddress()+"] was refused.");
             }
         }
     }//messageReceived
@@ -66,12 +64,12 @@ public class DomainFilterInterceptor extends ChannelInterceptorBase
         boolean notify = false;
         synchronized (membership) {
             notify = Arrays.equals(domain,member.getDomain());
-            if ( notify ) notify = membership.memberAlive(member);
+            if ( notify ) notify = membership.memberAlive((MemberImpl)member);
         }
         if ( notify ) {
             super.memberAdded(member);
         } else {
-            if(log.isInfoEnabled()) log.info(sm.getString("domainFilterInterceptor.member.refused", member));
+            if(log.isInfoEnabled()) log.info("Member was refused to join cluster["+member+"]");
         }
     }
 
@@ -81,7 +79,7 @@ public class DomainFilterInterceptor extends ChannelInterceptorBase
         boolean notify = false;
         synchronized (membership) {
             notify = Arrays.equals(domain,member.getDomain());
-            if ( notify ) membership.removeMember(member);
+            if ( notify ) membership.removeMember((MemberImpl)member);
         }
         if ( notify ) super.memberDisappeared(member);
     }
@@ -112,12 +110,11 @@ public class DomainFilterInterceptor extends ChannelInterceptorBase
 
     protected synchronized void setupMembership() {
         if ( membership == null ) {
-            membership = new Membership(super.getLocalMember(true));
+            membership = new Membership((MemberImpl)super.getLocalMember(true));
         }
 
     }
 
-    @Override
     public byte[] getDomain() {
         return domain;
     }
@@ -134,12 +131,10 @@ public class DomainFilterInterceptor extends ChannelInterceptorBase
             setDomain(org.apache.catalina.tribes.util.Arrays.convert(domain));
     }
 
-    @Override
     public int getLogInterval() {
         return logInterval;
     }
 
-    @Override
     public void setLogInterval(int logInterval) {
         this.logInterval = logInterval;
     }

@@ -29,7 +29,7 @@ public class MediaTypeCache {
     private final ConcurrentCache<String,String[]> cache;
 
     public MediaTypeCache(int size) {
-        cache = new ConcurrentCache<>(size);
+        cache = new ConcurrentCache<String,String[]>(size);
     }
 
     /**
@@ -51,7 +51,7 @@ public class MediaTypeCache {
 
         MediaType m = null;
         try {
-            m = MediaType.parseMediaType(new StringReader(input));
+            m = HttpParser.parseMediaType(new StringReader(input));
         } catch (IOException e) {
             // Ignore - return null
         }

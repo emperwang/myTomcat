@@ -25,20 +25,17 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.management.ObjectName;
-
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.jdbc.pool.ConnectionPool;
 import org.apache.tomcat.jdbc.pool.PoolProperties.InterceptorProperty;
 import org.apache.tomcat.jdbc.pool.PooledConnection;
-import org.apache.tomcat.jdbc.pool.jmx.JmxUtil;
 
 /**
  * Interceptor that caches {@code PreparedStatement} and/or
  * {@code CallableStatement} instances on a connection.
  */
-public class StatementCache extends StatementDecoratorInterceptor implements StatementCacheMBean {
+public class StatementCache extends StatementDecoratorInterceptor {
     private static final Log log = LogFactory.getLog(StatementCache.class);
     protected static final String[] ALL_TYPES = new String[] {PREPARE_STATEMENT,PREPARE_CALL};
     protected static final String[] CALLABLE_TYPE = new String[] {PREPARE_CALL};
@@ -54,19 +51,15 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
     private PooledConnection pcon;
     private String[] types;
 
-    private ObjectName oname = null;
 
-    @Override
     public boolean isCachePrepared() {
         return cachePrepared;
     }
 
-    @Override
     public boolean isCacheCallable() {
         return cacheCallable;
     }
 
-    @Override
     public int getMaxCacheSize() {
         return maxCacheSize;
     }
@@ -75,7 +68,6 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
         return types;
     }
 
-    @Override
     public AtomicInteger getCacheSize() {
         return cacheSize;
     }
@@ -104,7 +96,7 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
 
     /*begin the cache size*/
     private static ConcurrentHashMap<ConnectionPool,AtomicInteger> cacheSizeMap =
-        new ConcurrentHashMap<>();
+        new ConcurrentHashMap<ConnectionPool,AtomicInteger>();
 
     private AtomicInteger cacheSize;
 
@@ -128,21 +120,12 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
         if (parent==null) {
             cacheSize = null;
             this.pcon = null;
-            if (oname != null) {
-                JmxUtil.unregisterJmx(oname);
-                oname = null;
-            }
         } else {
             cacheSize = cacheSizeMap.get(parent);
             this.pcon = con;
             if (!pcon.getAttributes().containsKey(STATEMENT_CACHE_ATTR)) {
-                ConcurrentHashMap<CacheKey,CachedStatement> cache =
-                        new ConcurrentHashMap<>();
+                ConcurrentHashMap<CacheKey,CachedStatement> cache = new ConcurrentHashMap<CacheKey, CachedStatement>();
                 pcon.getAttributes().put(STATEMENT_CACHE_ATTR,cache);
-            }
-            if (oname == null) {
-                String keyprop = ",JdbcInterceptor=" + getClass().getSimpleName();
-                oname = JmxUtil.registerJmx(pcon.getObjectName(), keyprop, this);
             }
         }
     }
@@ -205,9 +188,9 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
     }
 
     /**
-     * @param sql The SQL to attempt to match to entries in the statement cache
+     * @param sql  Ignored
      *
-     * @return The CachedStatement for the given SQL
+     * @return {@code null}
      *
      * @deprecated Unused. Will be removed in Tomcat 9
      */
@@ -263,13 +246,6 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
         ConcurrentHashMap<CacheKey,CachedStatement> cache =
                 (ConcurrentHashMap<CacheKey,CachedStatement>)pCon.getAttributes().get(STATEMENT_CACHE_ATTR);
         return cache;
-    }
-
-    @Override
-    public int getCacheSizePerConnection() {
-        ConcurrentHashMap<CacheKey,CachedStatement> cache = getCache();
-        if (cache == null) return 0;
-        return cache.size();
     }
 
     protected class CachedStatement extends StatementDecoratorInterceptor.StatementProxy<PreparedStatement> {

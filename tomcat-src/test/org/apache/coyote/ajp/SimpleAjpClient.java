@@ -75,90 +75,62 @@ public class SimpleAjpClient {
 
     public void setMethod(String method) {
         method = method.toUpperCase(Locale.ENGLISH);
-        switch (method) {
-            case "OPTIONS":
-                this.method = 1;
-                break;
-            case "GET":
-                this.method = 2;
-                break;
-            case "HEAD":
-                this.method = 3;
-                break;
-            case "POST":
-                this.method = 4;
-                break;
-            case "PUT":
-                this.method = 5;
-                break;
-            case "DELETE":
-                this.method = 6;
-                break;
-            case "TRACE":
-                this.method = 7;
-                break;
-            case "PROPFIND":
-                this.method = 8;
-                break;
-            case "PROPPATCH":
-                this.method = 9;
-                break;
-            case "MKCOL":
-                this.method = 10;
-                break;
-            case "COPY":
-                this.method = 11;
-                break;
-            case "MOVE":
-                this.method = 12;
-                break;
-            case "LOCK":
-                this.method = 13;
-                break;
-            case "UNLOCK":
-                this.method = 14;
-                break;
-            case "ACL":
-                this.method = 15;
-                break;
-            case "REPORT":
-                this.method = 16;
-                break;
-            case "VERSION-CONTROL":
-                this.method = 17;
-                break;
-            case "CHECKIN":
-                this.method = 18;
-                break;
-            case "CHECKOUT":
-                this.method = 19;
-                break;
-            case "UNCHECKOUT":
-                this.method = 20;
-                break;
-            case "SEARCH":
-                this.method = 21;
-                break;
-            case "MKWORKSPACE":
-                this.method = 22;
-                break;
-            case "UPDATE":
-                this.method = 23;
-                break;
-            case "LABEL":
-                this.method = 24;
-                break;
-            case "MERGE":
-                this.method = 25;
-                break;
-            case "BASELINE-CONTROL":
-                this.method = 26;
-                break;
-            case "MKACTIVITY":
-                this.method = 27;
-                break;
-            default:
-                this.method = 99;
+        if (method.equals("OPTIONS")) {
+            this.method = 1;
+        } else if (method.equals("GET")) {
+            this.method = 2;
+        } else if (method.equals("HEAD")) {
+            this.method = 3;
+        } else if (method.equals("POST")) {
+            this.method = 4;
+        } else if (method.equals("PUT")) {
+            this.method = 5;
+        } else if (method.equals("DELETE")) {
+            this.method = 6;
+        } else if (method.equals("TRACE")) {
+            this.method = 7;
+        } else if (method.equals("PROPFIND")) {
+            this.method = 8;
+        } else if (method.equals("PROPPATCH")) {
+            this.method = 9;
+        } else if (method.equals("MKCOL")) {
+            this.method = 10;
+        } else if (method.equals("COPY")) {
+            this.method = 11;
+        } else if (method.equals("MOVE")) {
+            this.method = 12;
+        } else if (method.equals("LOCK")) {
+            this.method = 13;
+        } else if (method.equals("UNLOCK")) {
+            this.method = 14;
+        } else if (method.equals("ACL")) {
+            this.method = 15;
+        } else if (method.equals("REPORT")) {
+            this.method = 16;
+        } else if (method.equals("VERSION-CONTROL")) {
+            this.method = 17;
+        } else if (method.equals("CHECKIN")) {
+            this.method = 18;
+        } else if (method.equals("CHECKOUT")) {
+            this.method = 19;
+        } else if (method.equals("UNCHECKOUT")) {
+            this.method = 20;
+        } else if (method.equals("SEARCH")) {
+            this.method = 21;
+        } else if (method.equals("MKWORKSPACE")) {
+            this.method = 22;
+        } else if (method.equals("UPDATE")) {
+            this.method = 23;
+        } else if (method.equals("LABEL")) {
+            this.method = 24;
+        } else if (method.equals("MERGE")) {
+            this.method = 25;
+        } else if (method.equals("BASELINE-CONTROL")) {
+            this.method = 26;
+        } else if (method.equals("MKACTIVITY")) {
+            this.method = 27;
+        } else {
+            this.method = 99;
         }
     }
 
@@ -288,7 +260,7 @@ public class SimpleAjpClient {
         socket = null;
     }
 
-    /*
+    /**
      * Create a message to request the given URL.
      */
     public TesterAjpMessage createForwardMessage() {
@@ -346,7 +318,7 @@ public class SimpleAjpClient {
     }
 
 
-    /*
+    /**
      * Sends an TesterAjpMessage to the server and returns the response message.
      */
     public TesterAjpMessage sendMessage(TesterAjpMessage headers)
@@ -368,7 +340,7 @@ public class SimpleAjpClient {
         return readMessage();
     }
 
-    /*
+    /**
      * Tests the connection to the server and returns the CPONG response.
      */
     public TesterAjpMessage cping() throws IOException {
@@ -378,7 +350,7 @@ public class SimpleAjpClient {
         return readMessage();
     }
 
-    /*
+    /**
      * Reads a message from the server.
      */
     public TesterAjpMessage readMessage() throws IOException {
@@ -388,8 +360,9 @@ public class SimpleAjpClient {
         TesterAjpMessage message = new TesterAjpMessage(packetSize);
 
         byte[] buf = message.getBuffer();
+        int headerLength = message.getHeaderLength();
 
-        read(is, buf, 0, Constants.H_SIZE);
+        read(is, buf, 0, headerLength);
 
         int messageLength = message.processHeader(false);
         if (messageLength < 0) {
@@ -403,7 +376,7 @@ public class SimpleAjpClient {
                         "] for buffer length [" +
                         Integer.valueOf(buf.length) + "]");
             }
-            read(is, buf, Constants.H_SIZE, messageLength);
+            read(is, buf, headerLength, messageLength);
             return message;
         }
     }

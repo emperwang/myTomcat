@@ -21,17 +21,17 @@ package org.apache.el.parser;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 import javax.el.ELException;
 import javax.el.ELResolver;
-import javax.el.LambdaExpression;
 import javax.el.MethodInfo;
 import javax.el.PropertyNotFoundException;
 import javax.el.ValueReference;
 
 import org.apache.el.lang.ELSupport;
 import org.apache.el.lang.EvaluationContext;
-import org.apache.el.stream.Optional;
 import org.apache.el.util.MessageFactory;
 import org.apache.el.util.ReflectionUtil;
 
@@ -42,6 +42,30 @@ import org.apache.el.util.ReflectionUtil;
 public final class AstValue extends SimpleNode {
 
     private static final Object[] EMPTY_ARRAY = new Object[0];
+    private static final boolean IS_SECURITY_ENABLED = (System.getSecurityManager() != null);
+
+    protected static final boolean COERCE_TO_ZERO;
+
+    static {
+        String coerceToZeroStr;
+        if (IS_SECURITY_ENABLED) {
+            coerceToZeroStr = AccessController.doPrivileged(
+                    new PrivilegedAction<String>(){
+                        @Override
+                        public String run() {
+                            return System.getProperty(
+                                    "org.apache.el.parser.COERCE_TO_ZERO",
+                                    "true");
+                        }
+                    }
+            );
+        } else {
+            coerceToZeroStr = System.getProperty(
+                    "org.apache.el.parser.COERCE_TO_ZERO",
+                    "true");
+        }
+        COERCE_TO_ZERO = Boolean.parseBoolean(coerceToZeroStr);
+    }
 
     protected static class Target {
         protected Object base;
@@ -145,15 +169,6 @@ public final class AstValue extends SimpleNode {
                     (this.children[i+1] instanceof AstMethodParameters)) {
                 AstMethodParameters mps =
                     (AstMethodParameters) this.children[i+1];
-                if (base instanceof Optional && "orElseGet".equals(suffix) &&
-                        mps.jjtGetNumChildren() == 1) {
-                    Node paramFoOptional = mps.jjtGetChild(0);
-                    if (!(paramFoOptional instanceof AstLambdaExpression ||
-                            paramFoOptional instanceof LambdaExpression)) {
-                        throw new ELException(MessageFactory.get(
-                                "stream.optional.paramNotLambda", suffix));
-                    }
-                }
                 // This is a method
                 Object[] paramValues = mps.getParameters(ctx);
                 base = resolver.invoke(ctx, base, suffix,
@@ -199,13 +214,30 @@ public final class AstValue extends SimpleNode {
 
         // coerce to the expected type
         Class<?> targetClass = resolver.getType(ctx, t.base, t.property);
-        resolver.setValue(ctx, t.base, t.property,
-                ELSupport.coerceToType(ctx, value, targetClass));
+        if (COERCE_TO_ZERO == true
+                || !isAssignable(value, targetClass)) {
+            resolver.setValue(ctx, t.base, t.property,
+                    ELSupport.coerceToType(value, targetClass));
+        } else {
+            resolver.setValue(ctx, t.base, t.property, value);
+        }
         if (!ctx.isPropertyResolved()) {
             throw new PropertyNotFoundException(MessageFactory.get(
                     "error.resolver.unhandled", t.base, t.property));
         }
     }
+
+    private boolean isAssignable(Object value, Class<?> targetClass) {
+        if (targetClass == null) {
+            return false;
+        } else if (value != null && targetClass.isPrimitive()) {
+            return false;
+        } else if (value != null && !targetClass.isInstance(value)) {
+            return false;
+        }
+        return true;
+    }
+
 
     @Override
     // Interface el.parser.Node uses raw types (and is auto-generated)
@@ -214,7 +246,7 @@ public final class AstValue extends SimpleNode {
             throws ELException {
         Target t = getTarget(ctx);
         Method m = ReflectionUtil.getMethod(
-                ctx, t.base, t.property, paramTypes, null);
+                t.base, t.property, paramTypes, null);
         return new MethodInfo(m.getName(), m.getReturnType(), m
                 .getParameterTypes());
     }
@@ -237,10 +269,10 @@ public final class AstValue extends SimpleNode {
             values = paramValues;
             types = paramTypes;
         }
-        m = ReflectionUtil.getMethod(ctx, t.base, t.property, types, values);
+        m = ReflectionUtil.getMethod(t.base, t.property, types, values);
 
         // Handle varArgs and any coercion required
-        values = convertArgs(ctx, values, m);
+        values = convertArgs(values, m);
 
         Object result = null;
         try {
@@ -262,7 +294,7 @@ public final class AstValue extends SimpleNode {
         return result;
     }
 
-    private Object[] convertArgs(EvaluationContext ctx, Object[] src, Method m) {
+    private Object[] convertArgs(Object[] src, Method m) {
         Class<?>[] types = m.getParameterTypes();
         if (types.length == 0) {
             // Treated as if parameters have been provided so src is ignored
@@ -299,20 +331,21 @@ public final class AstValue extends SimpleNode {
         Object[] dest = new Object[paramCount];
 
         for (int i = 0; i < paramCount - 1; i++) {
-            dest[i] = ELSupport.coerceToType(ctx, src[i], types[i]);
+            dest[i] = ELSupport.coerceToType(src[i], types[i]);
         }
 
         if (m.isVarArgs()) {
-            Class<?> varArgType = m.getParameterTypes()[paramCount - 1].getComponentType();
-            Object[] varArgs =
-                    (Object[]) Array.newInstance(varArgType, src.length - (paramCount - 1));
+            Object[] varArgs = (Object[]) Array.newInstance(
+                    m.getParameterTypes()[paramCount - 1].getComponentType(),
+                    src.length - (paramCount - 1));
             for (int i = 0; i < src.length - (paramCount - 1); i ++) {
-                varArgs[i] = ELSupport.coerceToType(ctx, src[paramCount - 1 + i], varArgType);
+                varArgs[i] = ELSupport.coerceToType(src[paramCount - 1 + i],
+                        types[paramCount - 1].getComponentType());
             }
             dest[paramCount - 1] = varArgs;
         } else {
             dest[paramCount - 1] = ELSupport.coerceToType(
-                    ctx, src[paramCount - 1], types[paramCount - 1]);
+                    src[paramCount - 1], types[paramCount - 1]);
         }
 
         return dest;

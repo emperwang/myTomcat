@@ -31,6 +31,7 @@ import javax.el.ValueExpression;
 import javax.el.ValueReference;
 import javax.el.VariableMapper;
 
+import org.apache.el.lang.ELSupport;
 import org.apache.el.lang.EvaluationContext;
 import org.apache.el.lang.ExpressionBuilder;
 import org.apache.el.parser.AstLiteralExpression;
@@ -54,7 +55,7 @@ import org.apache.el.util.ReflectionUtil;
  * </p>
  *
  * <p>
- * The {@link javax.el.ExpressionFactory#createValueExpression} method
+ * <code>The {@link javax.el.ExpressionFactory#createValueExpression} method
  * can be used to parse an expression string and return a concrete instance
  * of <code>ValueExpression</code> that encapsulates the parsed expression.
  * The {@link FunctionMapper} is used at parse time, not evaluation time,
@@ -102,6 +103,9 @@ public final class ValueExpressionImpl extends ValueExpression implements
         super();
     }
 
+    /**
+     *
+     */
     public ValueExpressionImpl(String expr, Node node, FunctionMapper fnMapper,
             VariableMapper varMapper, Class<?> expectedType) {
         this.expr = expr;
@@ -170,10 +174,7 @@ public final class ValueExpressionImpl extends ValueExpression implements
             ELException {
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        context.notifyBeforeEvaluation(getExpressionString());
-        Class<?> result = this.getNode().getType(ctx);
-        context.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return this.getNode().getType(ctx);
     }
 
     /*
@@ -186,12 +187,10 @@ public final class ValueExpressionImpl extends ValueExpression implements
             ELException {
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        context.notifyBeforeEvaluation(getExpressionString());
         Object value = this.getNode().getValue(ctx);
         if (this.expectedType != null) {
-            value = context.convertToType(value, this.expectedType);
+            return ELSupport.coerceToType(value, this.expectedType);
         }
-        context.notifyAfterEvaluation(getExpressionString());
         return value;
     }
 
@@ -229,10 +228,7 @@ public final class ValueExpressionImpl extends ValueExpression implements
             throws PropertyNotFoundException, ELException {
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        context.notifyBeforeEvaluation(getExpressionString());
-        boolean result = this.getNode().isReadOnly(ctx);
-        context.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return this.getNode().isReadOnly(ctx);
     }
 
     @Override
@@ -259,9 +255,7 @@ public final class ValueExpressionImpl extends ValueExpression implements
             ELException {
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        context.notifyBeforeEvaluation(getExpressionString());
         this.getNode().setValue(ctx, value);
-        context.notifyAfterEvaluation(getExpressionString());
     }
 
     @Override
@@ -285,9 +279,7 @@ public final class ValueExpressionImpl extends ValueExpression implements
     public ValueReference getValueReference(ELContext context) {
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        context.notifyBeforeEvaluation(getExpressionString());
-        ValueReference result = this.getNode().getValueReference(ctx);
-        context.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return this.getNode().getValueReference(ctx);
     }
+
 }

@@ -33,7 +33,7 @@ import org.apache.catalina.util.IOTools;
  * @author David Becker
  */
 public class SSIExec implements SSICommand {
-    protected final SSIInclude ssiInclude = new SSIInclude();
+    protected SSIInclude ssiInclude = new SSIInclude();
     protected static final int BUFFER_SIZE = 1024;
 
 

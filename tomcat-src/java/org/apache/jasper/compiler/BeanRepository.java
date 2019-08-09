@@ -29,19 +29,17 @@ import org.apache.jasper.JasperException;
  */
 public class BeanRepository {
 
-    private final HashMap<String, String> beanTypes;
-    private final ClassLoader loader;
-    private final ErrorDispatcher errDispatcher;
+    protected HashMap<String, String> beanTypes;
+    protected ClassLoader loader;
+    protected ErrorDispatcher errDispatcher;
 
     /**
      * Constructor.
-     * @param loader The class loader
-     * @param err The error dispatcher that will be used to report errors
      */
     public BeanRepository(ClassLoader loader, ErrorDispatcher err) {
         this.loader = loader;
         this.errDispatcher = err;
-        beanTypes = new HashMap<>();
+        beanTypes = new HashMap<String, String>();
     }
 
     public void addBean(Node.UseBean n, String s, String type, String scope)

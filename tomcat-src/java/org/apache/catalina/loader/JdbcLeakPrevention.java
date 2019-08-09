@@ -34,14 +34,14 @@ import java.util.List;
  * version is do not just create a new instance of this class with the new
  * keyword.
  *
- * Since this class is loaded by {@link WebappClassLoaderBase}, it cannot refer
+ * Since this class is loaded by {@link WebappClassLoaderBase}, it can not refer
  * to any internal Tomcat classes as that will cause the security manager to
  * complain.
  */
 public class JdbcLeakPrevention {
 
     public List<String> clearJdbcDriverRegistrations() throws SQLException {
-        List<String> driverNames = new ArrayList<>();
+        List<String> driverNames = new ArrayList<String>();
 
         /*
          * DriverManager.getDrivers() has a nasty side-effect of registering
@@ -52,7 +52,7 @@ public class JdbcLeakPrevention {
          * ensuring that both original drivers and any loaded as a result of the
          * side-effects are all de-registered.
          */
-        HashSet<Driver> originalDrivers = new HashSet<>();
+        HashSet<Driver> originalDrivers = new HashSet<Driver>();
         Enumeration<Driver> drivers = DriverManager.getDrivers();
         while (drivers.hasMoreElements()) {
             originalDrivers.add(drivers.nextElement());

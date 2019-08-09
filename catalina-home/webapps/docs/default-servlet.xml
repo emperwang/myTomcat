@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -94,26 +94,6 @@ directory listings are disabled and debugging is turned off.
         expensive. Multiple requests for large directory listings can consume
         significant proportions of server resources.
   </property>
-  <property name="precompressed">
-        If a precompressed version of a file exists (a file with <code>.br</code>
-        or <code>.gz</code> appended to the file name located alongside the
-        original file), Tomcat will serve the precompressed file if the user
-        agent supports the matching content encoding (br or gzip) and this
-        option is enabled. [false]
-        <br />
-        The precompressed file with the with <code>.br</code> or <code>.gz</code>
-        extension will be accessible if requested directly so if the original
-        resource is protected with a security constraint, the precompressed
-        versions must be similarly protected.
-        <br />
-        It is also possible to configure the list of precompressed formats.
-        The syntax is comma separated list of
-        <code>[content-encoding]=[file-extension]</code> pairs. For example:
-        <code>br=.br,gzip=.gz,bzip2=.bz2</code>. If multiple formats are
-        specified, the client supports more than one and the client does not
-        express a preference, the order of the list of formats will be treated
-        as the server preference order and used to select the format returned.
-  </property>
   <property name="readmeFile">
         If a directory listing is presented, a readme file may also
         be presented with the listing. This file is inserted as is
@@ -179,12 +159,6 @@ directory listings are disabled and debugging is turned off.
   <property name="showServerInfo">
         Should server information be presented in the response sent to clients
         when directory listing is enabled. [true]
-  </property>
-  <property name="sortListings">
-        Should the server sort the listings in a directory. [false]
-  </property>
-  <property name="sortDirectoriesFirst">
-        Should the server list all directories before all files. [false]
   </property>
 </properties>
 </section>
@@ -270,7 +244,7 @@ Format:
         </table>
       <xsl:apply-templates select="readme"/>
       <hr style="height: 1px;" />
-      <h3>Apache Tomcat/<version-major-minor/></h3>
+      <h3>Apache Tomcat/8.0</h3>
     </body>
    </html>
   </xsl:template>

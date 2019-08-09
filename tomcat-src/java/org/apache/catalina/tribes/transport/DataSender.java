@@ -18,6 +18,16 @@ package org.apache.catalina.tribes.transport;
 
 import java.io.IOException;
 
+/**
+ * <p>Title: </p>
+ *
+ * <p>Description: </p>
+ *
+ * <p>Company: </p>
+ *
+ * @author not attributable
+ * @version 1.0
+ */
 public interface DataSender {
     public void connect() throws IOException;
     public void disconnect();
@@ -30,4 +40,6 @@ public interface DataSender {
     public void setKeepAliveTime(long keepAliveTimeInMs);
     public int getRequestCount();
     public long getConnectTime();
+
+
 }

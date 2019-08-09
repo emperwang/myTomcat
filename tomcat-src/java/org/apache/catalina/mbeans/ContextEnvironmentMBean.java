@@ -14,23 +14,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.mbeans;
+
 
 import javax.management.Attribute;
 import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
 import javax.management.ReflectionException;
+import javax.management.RuntimeOperationsException;
+import javax.management.modelmbean.InvalidTargetObjectTypeException;
 
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
-import org.apache.tomcat.util.descriptor.web.NamingResources;
+import org.apache.catalina.deploy.ContextEnvironment;
+import org.apache.catalina.deploy.NamingResources;
+import org.apache.tomcat.util.modeler.BaseModelMBean;
+
 
 /**
  * <p>A <strong>ModelMBean</strong> implementation for the
- * <code>org.apache.tomcat.util.descriptor.web.ContextEnvironment</code> component.</p>
+ * <code>org.apache.catalina.deploy.ContextEnvironment</code> component.</p>
  *
  * @author Amy Roh
  */
-public class ContextEnvironmentMBean extends BaseCatalinaMBean<ContextEnvironment> {
+public class ContextEnvironmentMBean extends BaseModelMBean {
+
+
+    // ----------------------------------------------------------- Constructors
+
+
+    /**
+     * Construct a <code>ModelMBean</code> with default
+     * <code>ModelMBeanInfo</code> information.
+     *
+     * @exception MBeanException if the initializer of an object
+     *  throws an exception
+     * @exception RuntimeOperationsException if an IllegalArgumentException
+     *  occurs
+     */
+    public ContextEnvironmentMBean()
+        throws MBeanException, RuntimeOperationsException {
+
+        super();
+
+    }
+
+
+    // ----------------------------------------------------- Instance Variables
+
+
+    // ------------------------------------------------------------- Attributes
 
 
     /**
@@ -47,12 +80,20 @@ public class ContextEnvironmentMBean extends BaseCatalinaMBean<ContextEnvironmen
      *  occurs when invoking the getter
      */
      @Override
-    public void setAttribute(Attribute attribute) throws AttributeNotFoundException, MBeanException,
-            ReflectionException {
+    public void setAttribute(Attribute attribute)
+        throws AttributeNotFoundException, MBeanException,
+        ReflectionException {
 
         super.setAttribute(attribute);
 
-        ContextEnvironment ce = doGetManagedResource();
+        ContextEnvironment ce = null;
+        try {
+            ce = (ContextEnvironment) getManagedResource();
+        } catch (InstanceNotFoundException e) {
+            throw new MBeanException(e);
+        } catch (InvalidTargetObjectTypeException e) {
+             throw new MBeanException(e);
+        }
 
         // cannot use side-effects.  It's removed and added back each time
         // there is a modification in a resource.
@@ -60,4 +101,5 @@ public class ContextEnvironmentMBean extends BaseCatalinaMBean<ContextEnvironmen
         nr.removeEnvironment(ce.getName());
         nr.addEnvironment(ce);
     }
+
 }

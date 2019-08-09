@@ -17,6 +17,7 @@
 package org.apache.catalina.util;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
@@ -39,8 +40,8 @@ public class ManifestResource {
     private ArrayList<Extension> availableExtensions = null;
     private ArrayList<Extension> requiredExtensions = null;
 
-    private final String resourceName;
-    private final int resourceType;
+    private String resourceName = null;
+    private int resourceType = -1;
 
     public ManifestResource(String resourceName, Manifest manifest,
                             int resourceType) {
@@ -97,6 +98,16 @@ public class ManifestResource {
     }
 
     /**
+     * Convenience method to check if this <code>ManifestResource</code>
+     * has an requires extensions.
+     *
+     * @return true if required extensions are present
+     */
+    public boolean requiresExtensions() {
+        return (requiredExtensions != null) ? true : false;
+    }
+
+    /**
      * Returns <code>true</code> if all required extension dependencies
      * have been meet for this <code>ManifestResource</code> object.
      *
@@ -106,7 +117,9 @@ public class ManifestResource {
         if (requiredExtensions == null) {
             return true;
         }
-        for (Extension ext : requiredExtensions) {
+        Iterator<Extension> it = requiredExtensions.iterator();
+        while (it.hasNext()) {
+            Extension ext = it.next();
             if (!ext.isFulfilled()) return false;
         }
         return true;
@@ -114,6 +127,7 @@ public class ManifestResource {
 
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("ManifestResource[");
         sb.append(resourceName);
 
@@ -129,7 +143,7 @@ public class ManifestResource {
             case APPLICATION : sb.append(", resourceType=APPLICATION"); break;
         }
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
     }
 
 
@@ -157,7 +171,7 @@ public class ManifestResource {
         if (names == null)
             return null;
 
-        ArrayList<Extension> extensionList = new ArrayList<>();
+        ArrayList<Extension> extensionList = new ArrayList<Extension>();
         names += " ";
 
         while (true) {
@@ -204,7 +218,7 @@ public class ManifestResource {
         if (name == null)
             return null;
 
-        ArrayList<Extension> extensionList = new ArrayList<>();
+        ArrayList<Extension> extensionList = new ArrayList<Extension>();
 
         Extension extension = new Extension();
         extension.setExtensionName(name);

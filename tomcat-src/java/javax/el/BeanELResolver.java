@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -60,7 +59,7 @@ public class BeanELResolver extends ELResolver {
     private final boolean readOnly;
 
     private final ConcurrentCache<String, BeanProperties> cache =
-        new ConcurrentCache<>(CACHE_SIZE);
+        new ConcurrentCache<String, BeanProperties>(CACHE_SIZE);
 
     public BeanELResolver() {
         this.readOnly = false;
@@ -72,23 +71,27 @@ public class BeanELResolver extends ELResolver {
 
     @Override
     public Class<?> getType(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
         if (base == null || property == null) {
             return null;
         }
 
-        context.setPropertyResolved(base, property);
+        context.setPropertyResolved(true);
         return this.property(context, base, property).getPropertyType();
     }
 
     @Override
     public Object getValue(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
         if (base == null || property == null) {
             return null;
         }
 
-        context.setPropertyResolved(base, property);
+        context.setPropertyResolved(true);
         Method m = this.property(context, base, property).read(context);
         try {
             return m.invoke(base, (Object[]) null);
@@ -105,12 +108,14 @@ public class BeanELResolver extends ELResolver {
     @Override
     public void setValue(ELContext context, Object base, Object property,
             Object value) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
         if (base == null || property == null) {
             return;
         }
 
-        context.setPropertyResolved(base, property);
+        context.setPropertyResolved(true);
 
         if (this.readOnly) {
             throw new PropertyNotWritableException(Util.message(context,
@@ -136,12 +141,14 @@ public class BeanELResolver extends ELResolver {
     @Override
     public Object invoke(ELContext context, Object base, Object method,
             Class<?>[] paramTypes, Object[] params) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
         if (base == null || method == null) {
             return null;
         }
 
-        ExpressionFactory factory = ELManager.getExpressionFactory();
+        ExpressionFactory factory = Util.getExpressionFactory();
 
         String methodName = (String) factory.coerceToType(method, String.class);
 
@@ -156,7 +163,9 @@ public class BeanELResolver extends ELResolver {
         Object result = null;
         try {
             result = matchingMethod.invoke(base, parameters);
-        } catch (IllegalArgumentException | IllegalAccessException e) {
+        } catch (IllegalArgumentException e) {
+            throw new ELException(e);
+        } catch (IllegalAccessException e) {
             throw new ELException(e);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
@@ -164,18 +173,20 @@ public class BeanELResolver extends ELResolver {
             throw new ELException(cause);
         }
 
-        context.setPropertyResolved(base, method);
+        context.setPropertyResolved(true);
         return result;
     }
 
     @Override
     public boolean isReadOnly(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
         if (base == null || property == null) {
             return false;
         }
 
-        context.setPropertyResolved(base, property);
+        context.setPropertyResolved(true);
         return this.readOnly || this.property(context, base, property).isReadOnly();
     }
 
@@ -216,7 +227,7 @@ public class BeanELResolver extends ELResolver {
 
         public BeanProperties(Class<?> type) throws ELException {
             this.type = type;
-            this.properties = new HashMap<>();
+            this.properties = new HashMap<String, BeanProperty>();
             try {
                 BeanInfo info = Introspector.getBeanInfo(this.type);
                 PropertyDescriptor[] pds = info.getPropertyDescriptors();
@@ -355,8 +366,8 @@ public class BeanELResolver extends ELResolver {
 
         public ConcurrentCache(int size) {
             this.size = size;
-            this.eden = new ConcurrentHashMap<>(size);
-            this.longterm = new WeakHashMap<>(size);
+            this.eden = new ConcurrentHashMap<K,V>(size);
+            this.longterm = new WeakHashMap<K,V>(size);
         }
 
         public V get(K key) {

@@ -17,7 +17,6 @@
 
 package org.apache.catalina.core;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,7 +31,6 @@ import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.util.ParameterMap;
-import org.apache.tomcat.util.buf.UDecoder;
 import org.apache.tomcat.util.res.StringManager;
 
 public class ApplicationServletRegistration
@@ -58,7 +56,7 @@ public class ApplicationServletRegistration
     @Override
     public String getClassName() {
         return wrapper.getServletClass();
-    }
+   }
 
     @Override
     public String getInitParameter(String name) {
@@ -67,7 +65,7 @@ public class ApplicationServletRegistration
 
     @Override
     public Map<String, String> getInitParameters() {
-        ParameterMap<String,String> result = new ParameterMap<>();
+        ParameterMap<String,String> result = new ParameterMap<String,String>();
 
         String[] parameterNames = wrapper.findInitParameters();
 
@@ -103,7 +101,7 @@ public class ApplicationServletRegistration
     @Override
     public Set<String> setInitParameters(Map<String, String> initParameters) {
 
-        Set<String> conflicts = new HashSet<>();
+        Set<String> conflicts = new HashSet<String>();
 
         for (Map.Entry<String, String> entry : initParameters.entrySet()) {
             if (entry.getKey() == null || entry.getValue() == null) {
@@ -172,7 +170,7 @@ public class ApplicationServletRegistration
             return Collections.emptySet();
         }
 
-        Set<String> conflicts = new HashSet<>();
+        Set<String> conflicts = new HashSet<String>();
 
         for (String urlPattern : urlPatterns) {
             String wrapperName = context.findServletMapping(urlPattern);
@@ -193,8 +191,7 @@ public class ApplicationServletRegistration
         }
 
         for (String urlPattern : urlPatterns) {
-            context.addServletMappingDecoded(
-                    UDecoder.URLDecode(urlPattern, StandardCharsets.UTF_8), wrapper.getName());
+            context.addServletMapping(urlPattern, wrapper.getName());
         }
 
         if (constraint != null) {
@@ -207,7 +204,7 @@ public class ApplicationServletRegistration
     @Override
     public Collection<String> getMappings() {
 
-        Set<String> result = new HashSet<>();
+        Set<String> result = new HashSet<String>();
         String servletName = wrapper.getName();
 
         String[] urlPatterns = context.findServletMappings();

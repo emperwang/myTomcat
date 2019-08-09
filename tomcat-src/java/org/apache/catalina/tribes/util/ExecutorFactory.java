@@ -17,6 +17,7 @@
 
 package org.apache.catalina.tribes.util;
 
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -27,7 +28,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class ExecutorFactory {
-    protected static final StringManager sm = StringManager.getManager(ExecutorFactory.class);
 
     public static ExecutorService newThreadPool(int minThreads, int maxThreads, long maxIdleTime, TimeUnit unit) {
         TaskQueue taskqueue = new TaskQueue();
@@ -70,7 +70,7 @@ public class ExecutorFactory {
                 if (super.getQueue() instanceof TaskQueue) {
                     TaskQueue queue = (TaskQueue)super.getQueue();
                     if (!queue.force(command)) {
-                        throw new RejectedExecutionException(sm.getString("executorFactory.queue.full"));
+                        throw new RejectedExecutionException("Queue capacity is full.");
                     }
                 }
             }
@@ -87,12 +87,20 @@ public class ExecutorFactory {
             super();
         }
 
+        public TaskQueue(int initialCapacity) {
+            super(initialCapacity);
+        }
+
+        public TaskQueue(Collection<? extends Runnable> c) {
+            super(c);
+        }
+
         public void setParent(ThreadPoolExecutor tp) {
             parent = tp;
         }
 
         public boolean force(Runnable o) {
-            if ( parent.isShutdown() ) throw new RejectedExecutionException(sm.getString("executorFactory.not.running"));
+            if ( parent.isShutdown() ) throw new RejectedExecutionException("Executor not running, can't force a command into the queue");
             return super.offer(o); //forces the item onto the queue, to be used if the task is rejected
         }
 

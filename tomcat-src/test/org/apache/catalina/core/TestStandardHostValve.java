@@ -16,6 +16,7 @@
  */
 package org.apache.catalina.core;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,10 +33,10 @@ import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Response;
+import org.apache.catalina.deploy.ErrorPage;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
 
 public class TestStandardHostValve extends TomcatBaseTest {
 
@@ -49,11 +50,11 @@ public class TestStandardHostValve extends TomcatBaseTest {
 
         // Add the error page
         Tomcat.addServlet(ctx, "error", new ErrorServlet());
-        ctx.addServletMappingDecoded("/error", "error");
+        ctx.addServletMapping("/error", "error");
 
         // Add the error handling page
         Tomcat.addServlet(ctx, "report", new ReportServlet());
-        ctx.addServletMappingDecoded("/report/*", "report");
+        ctx.addServletMapping("/report/*", "report");
 
         // And the handling for 500 responses
         ErrorPage errorPage500 = new ErrorPage();
@@ -95,13 +96,14 @@ public class TestStandardHostValve extends TomcatBaseTest {
         Tomcat tomcat = getTomcatInstance();
 
         // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
+        File docBase = new File(System.getProperty("java.io.tmpdir"));
+        Context ctx = tomcat.addContext("", docBase.getAbsolutePath());
 
         // Add the error page
         Tomcat.addServlet(ctx, "error", new ErrorServlet());
-        ctx.addServletMappingDecoded("/error", "error");
+        ctx.addServletMapping("/error", "error");
 
-        final List<String> result = new ArrayList<>();
+        final List<String> result = new ArrayList<String>();
 
         // Add the request listener
         ServletRequestListener servletRequestListener = new ServletRequestListener() {
@@ -129,6 +131,7 @@ public class TestStandardHostValve extends TomcatBaseTest {
         Assert.assertTrue(result.contains("Visit requestInitialized"));
         Assert.assertTrue(result.contains("Visit requestDestroyed"));
     }
+
 
     private void doTestErrorPageHandling(int error, String report)
             throws Exception {

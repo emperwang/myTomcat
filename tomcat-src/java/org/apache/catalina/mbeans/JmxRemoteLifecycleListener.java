@@ -211,7 +211,7 @@ public class JmxRemoteLifecycleListener implements LifecycleListener {
             System.setProperty("java.rmi.server.randomIDs", "true");
 
             // Create the environment
-            HashMap<String,Object> env = new HashMap<>();
+            HashMap<String,Object> env = new HashMap<String,Object>();
 
             RMIClientSocketFactory registryCsf = null;
             RMIServerSocketFactory registrySsf = null;
@@ -336,7 +336,11 @@ public class JmxRemoteLifecycleListener implements LifecycleListener {
             log.info(sm.getString("jmxRemoteLifecycleListener.start",
                     Integer.toString(theRmiRegistryPort),
                     Integer.toString(theRmiServerPort), serverName));
-        } catch (IOException | AlreadyBoundException e) {
+        } catch (IOException e) {
+            log.error(sm.getString(
+                    "jmxRemoteLifecycleListener.createServerFailed",
+                    serverName), e);
+        } catch (AlreadyBoundException e) {
             log.error(sm.getString(
                     "jmxRemoteLifecycleListener.createServerFailed",
                     serverName), e);
@@ -422,7 +426,7 @@ public class JmxRemoteLifecycleListener implements LifecycleListener {
             }
             sslServerSocketFactory = sslContext.getServerSocketFactory();
             String[] protocols = sslContext.getDefaultSSLParameters().getProtocols();
-            List<String> filteredProtocols = new ArrayList<>(protocols.length);
+            List<String> filteredProtocols = new ArrayList<String>(protocols.length);
             for (String protocol : protocols) {
                 if (protocol.toUpperCase(Locale.ENGLISH).contains("SSL")) {
                     continue;

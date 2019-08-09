@@ -20,8 +20,12 @@ package org.apache.tomcat.jdbc.pool.interceptor;
 import java.lang.reflect.Method;
 import java.security.SecureRandom;
 
+/**
+ * @author fhanik
+ *
+ */
 public class InduceSlowQuery extends AbstractQueryReport {
-    public static final SecureRandom random = new SecureRandom();
+    public static SecureRandom random = new SecureRandom();
 
     public InduceSlowQuery() {
         // TODO Auto-generated constructor stub

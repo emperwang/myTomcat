@@ -25,15 +25,15 @@ import org.apache.catalina.tribes.util.Arrays;
  *
  * <p>Company: </p>
  *
+ * @author Filip Hanik
  * @version 1.0
  */
 public final class UniqueId implements Serializable{
     private static final long serialVersionUID = 1L;
 
-    final byte[] id;
+    byte[] id;
 
     public UniqueId() {
-        this(null);
     }
 
     public UniqueId(byte[] id) {

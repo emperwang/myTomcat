@@ -20,19 +20,18 @@ package org.apache.catalina.core;
 
 
 import java.util.ArrayList;
-import java.util.Set;
 
 import javax.management.ObjectName;
 
 import org.apache.catalina.Contained;
 import org.apache.catalina.Container;
-import org.apache.catalina.JmxEnabled;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Pipeline;
 import org.apache.catalina.Valve;
 import org.apache.catalina.util.LifecycleBase;
+import org.apache.catalina.valves.ValveBase;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -99,12 +98,27 @@ public class StandardPipeline extends LifecycleBase
 
 
     /**
+     * Descriptive information about this implementation.
+     */
+    protected static final String info = "org.apache.catalina.core.StandardPipeline/1.0";
+
+
+    /**
      * The first valve associated with this Pipeline.
      */
     protected Valve first = null;
 
-
     // --------------------------------------------------------- Public Methods
+
+
+    /**
+     * Return descriptive information about this implementation class.
+     */
+    public String getInfo() {
+
+        return info;
+
+    }
 
     @Override
     public boolean isAsyncSupported() {
@@ -118,26 +132,17 @@ public class StandardPipeline extends LifecycleBase
     }
 
 
-    @Override
-    public void findNonAsyncValves(Set<String> result) {
-        Valve valve = (first!=null) ? first : basic;
-        while (valve != null) {
-            if (!valve.isAsyncSupported()) {
-                result.add(valve.getClass().getName());
-            }
-            valve = valve.getNext();
-        }
-    }
-
-
     // ------------------------------------------------------ Contained Methods
+
 
     /**
      * Return the Container with which this Pipeline is associated.
      */
     @Override
     public Container getContainer() {
-        return this.container;
+
+        return (this.container);
+
     }
 
 
@@ -148,7 +153,9 @@ public class StandardPipeline extends LifecycleBase
      */
     @Override
     public void setContainer(Container container) {
+
         this.container = container;
+
     }
 
 
@@ -238,7 +245,9 @@ public class StandardPipeline extends LifecycleBase
      */
     @Override
     public Valve getBasic() {
-        return this.basic;
+
+        return (this.basic);
+
     }
 
 
@@ -375,7 +384,7 @@ public class StandardPipeline extends LifecycleBase
     @Override
     public Valve[] getValves() {
 
-        ArrayList<Valve> valveList = new ArrayList<>();
+        ArrayList<Valve> valveList = new ArrayList<Valve>();
         Valve current = first;
         if (current == null) {
             current = basic;
@@ -391,14 +400,14 @@ public class StandardPipeline extends LifecycleBase
 
     public ObjectName[] getValveObjectNames() {
 
-        ArrayList<ObjectName> valveList = new ArrayList<>();
+        ArrayList<ObjectName> valveList = new ArrayList<ObjectName>();
         Valve current = first;
         if (current == null) {
             current = basic;
         }
         while (current != null) {
-            if (current instanceof JmxEnabled) {
-                valveList.add(((JmxEnabled) current).getObjectName());
+            if (current instanceof ValveBase) {
+                valveList.add(((ValveBase) current).getObjectName());
             }
             current = current.getNext();
         }

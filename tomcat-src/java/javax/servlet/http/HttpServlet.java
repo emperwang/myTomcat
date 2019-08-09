@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.MessageFormat;
 import java.util.Enumeration;
@@ -490,18 +489,6 @@ public abstract class HttpServlet extends GenericServlet {
         boolean ALLOW_TRACE = true;
         boolean ALLOW_OPTIONS = true;
 
-        // Tomcat specific hack to see if TRACE is allowed
-        Class<?> clazz = null;
-        try {
-            clazz = Class.forName("org.apache.catalina.connector.RequestFacade");
-            Method getAllowTrace = clazz.getMethod("getAllowTrace", (Class<?>[]) null);
-            ALLOW_TRACE = ((Boolean) getAllowTrace.invoke(req, (Object[]) null)).booleanValue();
-        } catch (ClassNotFoundException | NoSuchMethodException | SecurityException |
-                IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            // Ignore. Not running on Tomcat. TRACE is always allowed.
-        }
-        // End of Tomcat specific hack
-
         for (int i=0; i<methods.length; i++) {
             Method m = methods[i];
 
@@ -736,7 +723,7 @@ public abstract class HttpServlet extends GenericServlet {
             request = (HttpServletRequest) req;
             response = (HttpServletResponse) res;
         } catch (ClassCastException e) {
-            throw new ServletException(lStrings.getString("http.non_http"));
+            throw new ServletException("non-HTTP request or response");
         }
         service(request, response);
     }
@@ -758,7 +745,7 @@ class NoBodyResponse extends HttpServletResponseWrapper {
     // file private
     NoBodyResponse(HttpServletResponse r) {
         super(r);
-        noBody = new NoBodyOutputStream(this);
+        noBody = new NoBodyOutputStream();
     }
 
     // file private
@@ -777,12 +764,6 @@ class NoBodyResponse extends HttpServletResponseWrapper {
     @Override
     public void setContentLength(int len) {
         super.setContentLength(len);
-        didSetContentLength = true;
-    }
-
-    @Override
-    public void setContentLengthLong(long len) {
-        super.setContentLengthLong(len);
         didSetContentLength = true;
     }
 
@@ -847,13 +828,11 @@ class NoBodyOutputStream extends ServletOutputStream {
     private static final ResourceBundle lStrings =
         ResourceBundle.getBundle(LSTRING_FILE);
 
-    private final HttpServletResponse response;
-    private boolean flushed = false;
     private int contentLength = 0;
 
     // file private
-    NoBodyOutputStream(HttpServletResponse response) {
-        this.response = response;
+    NoBodyOutputStream() {
+        // NOOP
     }
 
     // file private
@@ -862,9 +841,8 @@ class NoBodyOutputStream extends ServletOutputStream {
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public void write(int b) {
         contentLength++;
-        checkCommit();
     }
 
     @Override
@@ -885,24 +863,5 @@ class NoBodyOutputStream extends ServletOutputStream {
         }
 
         contentLength += len;
-        checkCommit();
-    }
-
-    @Override
-    public boolean isReady() {
-        // TODO SERVLET 3.1
-        return false;
-    }
-
-    @Override
-    public void setWriteListener(javax.servlet.WriteListener listener) {
-        // TODO SERVLET 3.1
-    }
-
-    private void checkCommit() throws IOException {
-        if (!flushed && contentLength > response.getBufferSize()) {
-            response.flushBuffer();
-            flushed = true;
-        }
     }
 }

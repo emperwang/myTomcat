@@ -24,17 +24,21 @@ import org.apache.catalina.ha.ClusterManager;
 import org.apache.catalina.ha.ClusterMessage;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * Receive replicated SessionMessage form other cluster node.
+ * @author Filip Hanik
  * @author Peter Rossbach
  */
 public class ClusterSessionListener extends ClusterListener {
 
     private static final Log log =
         LogFactory.getLog(ClusterSessionListener.class);
-    private static final StringManager sm = StringManager.getManager(ClusterSessionListener.class);
+
+    /**
+     * The descriptive information about this implementation.
+     */
+    protected static final String info = "org.apache.catalina.ha.session.ClusterSessionListener/1.1";
 
     //--Constructor---------------------------------------------
 
@@ -43,6 +47,15 @@ public class ClusterSessionListener extends ClusterListener {
     }
 
     //--Logic---------------------------------------------------
+
+    /**
+     * Return descriptive information about this implementation.
+     */
+    public String getInfo() {
+
+        return (info);
+
+    }
 
     /**
      * Callback from the cluster, when a message is received, The cluster will
@@ -68,7 +81,8 @@ public class ClusterSessionListener extends ClusterListener {
                         //this happens a lot before the system has started
                         // up
                         if (log.isDebugEnabled())
-                            log.debug(sm.getString("clusterSessionListener.noManager", entry.getKey()));
+                            log.debug("Context manager doesn't exist:"
+                                    + entry.getKey());
                     }
                 }
             } else {
@@ -77,7 +91,7 @@ public class ClusterSessionListener extends ClusterListener {
                     mgr.messageDataReceived(msg);
                 } else {
                     if (log.isWarnEnabled())
-                        log.warn(sm.getString("clusterSessionListener.noManager", ctxname));
+                        log.warn("Context manager doesn't exist:" + ctxname);
 
                     // A no context manager message is replied in order to avoid
                     // timeout of GET_ALL_SESSIONS sync phase.

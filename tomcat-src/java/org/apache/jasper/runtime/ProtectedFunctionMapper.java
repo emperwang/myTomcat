@@ -57,7 +57,7 @@ public final class ProtectedFunctionMapper extends javax.el.FunctionMapper
      */
     public static ProtectedFunctionMapper getInstance() {
         ProtectedFunctionMapper funcMapper = new ProtectedFunctionMapper();
-        funcMapper.fnmap = new HashMap<>();
+        funcMapper.fnmap = new HashMap<String,Method>();
         return funcMapper;
     }
 
@@ -78,12 +78,6 @@ public final class ProtectedFunctionMapper extends javax.el.FunctionMapper
      */
     public void mapFunction(String fnQName, final Class<?> c,
             final String methodName, final Class<?>[] args) {
-        // Skip if null values were passed in. They indicate a function
-        // added via a lambda or ImportHandler; nether of which need to be
-        // placed in the Map.
-        if (fnQName == null) {
-            return;
-        }
         java.lang.reflect.Method method;
         try {
             method = c.getMethod(methodName, args);
@@ -111,23 +105,17 @@ public final class ProtectedFunctionMapper extends javax.el.FunctionMapper
      *            The arguments of the Java method
      * @throws RuntimeException
      *             if no method with the given signature could be found.
-     * @return the mapped function
      */
     public static ProtectedFunctionMapper getMapForFunction(String fnQName,
             final Class<?> c, final String methodName, final Class<?>[] args) {
-        java.lang.reflect.Method method = null;
+        java.lang.reflect.Method method;
         ProtectedFunctionMapper funcMapper = new ProtectedFunctionMapper();
-        // Skip if null values were passed in. They indicate a function
-        // added via a lambda or ImportHandler; nether of which need to be
-        // placed in the Map.
-        if (fnQName != null) {
-            try {
-                method = c.getMethod(methodName, args);
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException(
-                        "Invalid function mapping - no such method: "
-                                + e.getMessage());
-            }
+        try {
+            method = c.getMethod(methodName, args);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(
+                    "Invalid function mapping - no such method: "
+                            + e.getMessage());
         }
         funcMapper.theMethod = method;
         return funcMapper;

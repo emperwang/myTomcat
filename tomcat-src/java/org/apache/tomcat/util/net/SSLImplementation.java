@@ -17,56 +17,75 @@
 
 package org.apache.tomcat.util.net;
 
+import java.net.Socket;
+
 import javax.net.ssl.SSLSession;
 
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.net.jsse.JSSEImplementation;
-import org.apache.tomcat.util.res.StringManager;
+/* SSLImplementation:
 
-/**
- * Provides a factory and base implementation for the Tomcat specific mechanism
- * that allows alternative SSL/TLS implementations to be used without requiring
- * the implementation of a full JSSE provider.
+ Abstract factory and base class for all SSL implementations.
+
+ @author EKR
  */
 public abstract class SSLImplementation {
+    private static final org.apache.juli.logging.Log logger = org.apache.juli.logging.LogFactory
+            .getLog(SSLImplementation.class);
 
-    private static final Log logger = LogFactory.getLog(SSLImplementation.class);
-    private static final StringManager sm = StringManager.getManager(SSLImplementation.class);
+    // The default implementations in our search path
+    private static final String JSSEImplementationClass =
+        "org.apache.tomcat.util.net.jsse.JSSEImplementation";
 
-    /**
-     * Obtain an instance (not a singleton) of the implementation with the given
-     * class name.
-     *
-     * @param className The class name of the required implementation or null to
-     *                  use the default (currently {@link JSSEImplementation}.
-     *
-     * @return An instance of the required implementation
-     *
-     * @throws ClassNotFoundException If an instance of the requested class
-     *         cannot be created
-     */
+    private static final String[] implementations = { JSSEImplementationClass };
+
+    public static SSLImplementation getInstance() throws ClassNotFoundException {
+        for (int i = 0; i < implementations.length; i++) {
+            try {
+                SSLImplementation impl = getInstance(implementations[i]);
+                return impl;
+            } catch (Exception e) {
+                if (logger.isTraceEnabled())
+                    logger.trace("Error creating " + implementations[i], e);
+            }
+        }
+
+        // If we can't instantiate any of these
+        throw new ClassNotFoundException("Can't find any SSL implementation");
+    }
+
     public static SSLImplementation getInstance(String className)
             throws ClassNotFoundException {
         if (className == null)
-            return new JSSEImplementation();
+            return getInstance();
 
         try {
-            Class<?> clazz = Class.forName(className);
-            return (SSLImplementation) clazz.getConstructor().newInstance();
-        } catch (Exception e) {
-            String msg = sm.getString("sslImplementation.cnfe", className);
-            if (logger.isDebugEnabled()) {
-                logger.debug(msg, e);
+            // Workaround for the J2SE 1.4.x classloading problem (under
+            // Solaris).
+            // Class.forName(..) fails without creating class using new.
+            // This is an ugly workaround.
+            if (JSSEImplementationClass.equals(className)) {
+                return new org.apache.tomcat.util.net.jsse.JSSEImplementation();
             }
-            throw new ClassNotFoundException(msg, e);
+            Class<?> clazz = Class.forName(className);
+            return (SSLImplementation) clazz.newInstance();
+        } catch (Exception e) {
+            if (logger.isDebugEnabled())
+                logger
+                        .debug("Error loading SSL Implementation " + className,
+                                e);
+            throw new ClassNotFoundException(
+                    "Error loading SSL Implementation " + className + " :"
+                            + e.toString());
         }
     }
 
+    public abstract String getImplementationName();
+
+    public abstract ServerSocketFactory getServerSocketFactory(
+            AbstractEndpoint<?> endpoint);
+
+    public abstract SSLSupport getSSLSupport(Socket sock);
 
     public abstract SSLSupport getSSLSupport(SSLSession session);
 
-    public abstract SSLUtil getSSLUtil(SSLHostConfigCertificate certificate);
-
-    public abstract boolean isAlpnSupported();
+    public abstract SSLUtil getSSLUtil(AbstractEndpoint<?> ep);
 }

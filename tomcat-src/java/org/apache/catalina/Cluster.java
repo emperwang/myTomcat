@@ -28,10 +28,18 @@ package org.apache.catalina;
  *
  * @author Bip Thelin
  * @author Remy Maucherat
+ * @author Filip Hanik
  */
 public interface Cluster {
 
     // ------------------------------------------------------------- Properties
+
+    /**
+     * Return descriptive information about this Cluster implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    public String getInfo();
 
     /**
      * Return the name of the cluster that this Server is currently
@@ -63,6 +71,23 @@ public interface Cluster {
      */
     public Container getContainer();
 
+    /**
+     * Set the protocol parameters.
+     *
+     * @param protocol The protocol used by the cluster
+     * @deprecated
+     */
+    @Deprecated
+    public void setProtocol(String protocol);
+
+    /**
+     * Get the protocol used by the cluster.
+     *
+     * @return The protocol
+     * @deprecated
+     */
+    @Deprecated
+    public String getProtocol();
 
     // --------------------------------------------------------- Public Methods
 
@@ -72,8 +97,6 @@ public interface Cluster {
      *
      * @param name Name (key) of the application with which the manager is
      * associated
-     *
-     * @return The newly created Manager instance
      */
     public Manager createManager(String name);
 

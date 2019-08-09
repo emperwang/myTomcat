@@ -29,5 +29,4 @@ public @interface PersistenceContext {
    String unitName() default "";
    PersistenceContextType type() default PersistenceContextType.TRANSACTION;
    PersistenceProperty[] properties() default {};
-   SynchronizationType synchronization() default SynchronizationType.SYNCHRONIZED;
 }

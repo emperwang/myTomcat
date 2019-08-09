@@ -76,6 +76,11 @@ public class Socket {
     public static final int APR_IPV4_ADDR_OK = 0x01;
     public static final int APR_IPV6_ADDR_OK = 0x02;
 
+    /* TODO: Missing:
+     * APR_INET
+     * APR_UNSPEC
+     * APR_INET6
+     */
     public static final int APR_UNSPEC = 0;
     public static final int APR_INET   = 1;
     public static final int APR_INET6  = 2;
@@ -401,13 +406,9 @@ public class Socket {
      */
     public static native int recvb(long sock, ByteBuffer buf,
                                    int offset, int nbytes);
-
     /**
      * Read data from a network using internally set ByteBuffer.
      *
-     * @param sock The socket to read the data from.
-     * @param offset Offset in the byte buffer.
-     * @param nbytes The number of bytes to read (-1) for full array.
      * @return If &gt; 0, the return value is the number of bytes read. If == 0,
      *         the return value indicates EOF and if &lt; 0 the return value is the
      *         error code. Note a non-blocking read with no data current
@@ -440,11 +441,6 @@ public class Socket {
                                     int offset, int nbytes, long timeout);
     /**
      * Read data from a network with timeout using internally set ByteBuffer
-     * @param sock The socket to read the data from.
-     * @param offset Offset in the byte buffer.
-     * @param nbytes The number of bytes to read (-1) for full array.
-     * @param timeout The socket timeout in microseconds.
-     * @return the number of bytes received.
      */
     public static native int recvbbt(long sock,
                                      int offset, int nbytes, long timeout);

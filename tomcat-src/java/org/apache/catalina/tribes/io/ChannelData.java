@@ -31,6 +31,7 @@ import org.apache.catalina.tribes.util.UUIDGenerator;
  * to another node. While the message is being processed by the different
  * interceptors, the message data can be manipulated as each interceptor seems appropriate.
  * @author Peter Rossbach
+ * @author Filip Hanik
  */
 public class ChannelData implements ChannelMessage {
     private static final long serialVersionUID = 1L;
@@ -183,7 +184,7 @@ public class ChannelData implements ChannelMessage {
             4 + //unique id length off=12
             uniqueId.length+ //id data off=12+uniqueId.length
             4 + //addr length off=12+uniqueId.length+4
-            address.getDataLength()+ //member data off=12+uniqueId.length+4+add.length
+            ((MemberImpl)address).getDataLength()+ //member data off=12+uniqueId.length+4+add.length
             4 + //message length off=12+uniqueId.length+4+add.length+4
             message.getLength();
         return length;
@@ -202,7 +203,7 @@ public class ChannelData implements ChannelMessage {
     }
 
     public byte[] getDataPackage(byte[] data, int offset)  {
-        byte[] addr = address.getData(false);
+        byte[] addr = ((MemberImpl)address).getData(false);
         XByteBuffer.toBytes(options,data,offset);
         offset += 4; //options
         XByteBuffer.toBytes(timestamp,data,offset);

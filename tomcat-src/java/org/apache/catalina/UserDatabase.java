@@ -38,25 +38,25 @@ public interface UserDatabase {
 
 
     /**
-     * @return the set of {@link Group}s defined in this user database.
+     * Return the set of {@link Group}s defined in this user database.
      */
     public Iterator<Group> getGroups();
 
 
     /**
-     * @return the unique global identifier of this user database.
+     * Return the unique global identifier of this user database.
      */
     public String getId();
 
 
     /**
-     * @return the set of {@link Role}s defined in this user database.
+     * Return the set of {@link Role}s defined in this user database.
      */
     public Iterator<Role> getRoles();
 
 
     /**
-     * @return the set of {@link User}s defined in this user database.
+     * Return the set of {@link User}s defined in this user database.
      */
     public Iterator<User> getUsers();
 
@@ -77,7 +77,6 @@ public interface UserDatabase {
      *
      * @param groupname The group name of the new group (must be unique)
      * @param description The description of this group
-     * @return The new group
      */
     public Group createGroup(String groupname, String description);
 
@@ -87,7 +86,6 @@ public interface UserDatabase {
      *
      * @param rolename The role name of the new role (must be unique)
      * @param description The description of this role
-     * @return The new role
      */
     public Role createRole(String rolename, String description);
 
@@ -98,14 +96,13 @@ public interface UserDatabase {
      * @param username The logon username of the new user (must be unique)
      * @param password The logon password of the new user
      * @param fullName The full name of the new user
-     * @return The new user
      */
     public User createUser(String username, String password,
                            String fullName);
 
 
     /**
-     * @return the {@link Group} with the specified group name, if any;
+     * Return the {@link Group} with the specified group name, if any;
      * otherwise return <code>null</code>.
      *
      * @param groupname Name of the group to return
@@ -114,7 +111,7 @@ public interface UserDatabase {
 
 
     /**
-     * @return the {@link Role} with the specified role name, if any;
+     * Return the {@link Role} with the specified role name, if any;
      * otherwise return <code>null</code>.
      *
      * @param rolename Name of the role to return
@@ -123,7 +120,7 @@ public interface UserDatabase {
 
 
     /**
-     * @return the {@link User} with the specified user name, if any;
+     * Return the {@link User} with the specified user name, if any;
      * otherwise return <code>null</code>.
      *
      * @param username Name of the user to return

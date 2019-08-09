@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -23,6 +23,7 @@
   &project;
 
   <properties>
+    <author email="remm@apache.org">Remy Maucherat</author>
     <author email="yoavs@apache.org">Yoav Shapira</author>
     <author email="arjaquith@mindspring.com">Andrew R. Jaquith</author>
     <title>The AJP Connector</title>
@@ -93,8 +94,7 @@
 
     <attribute name="asyncTimeout" required="false">
       <p>The default timeout for asynchronous requests in milliseconds. If not
-      specified, this attribute is set to the Servlet specification default of
-      30000 (30 seconds).</p>
+      specified, this attribute is set to 10000 (10 seconds).</p>
     </attribute>
 
     <attribute name="enableLookups" required="false">
@@ -175,18 +175,18 @@
         an <a href="http.html">HTTP connector</a> rather than an AJP connector
         will be configured.<br/>
         The standard protocol value for an AJP connector is <code>AJP/1.3</code>
-        which uses an auto-switching mechanism to select either a Java NIO based
+        which uses an auto-switching mechanism to select either a Java based
         connector or an APR/native based connector. If the
         <code>PATH</code> (Windows) or <code>LD_LIBRARY_PATH</code> (on most unix
         systems) environment variables contain the Tomcat native library, the
         native/APR connector will be used. If the native library cannot be
-        found, the Java NIO based connector will be used.<br/>
+        found, the Java BIO based connector will be used.<br/>
         To use an explicit protocol rather than rely on the auto-switching
         mechanism described above, the following values may be used:<br/>
+        <code>org.apache.coyote.ajp.AjpProtocol</code>
+        - blocking Java connector<br/>
         <code>org.apache.coyote.ajp.AjpNioProtocol</code>
-        - non blocking Java NIO connector.<br/>
-        <code>org.apache.coyote.ajp.AjpNio2Protocol</code>
-        - non blocking Java NIO2 connector.<br/>
+        - non blocking Java connector.<br/>
         <code>org.apache.coyote.ajp.AjpAprProtocol</code>
         - the APR/native connector.<br/>
         Custom implementations may also be used.<br/>
@@ -236,20 +236,10 @@
       The default value is <code>false</code>.</p>
     </attribute>
 
-    <attribute name="sendReasonPhrase" required="false">
-      <p>Set this attribute to <code>true</code> if you wish to have
-      a reason phrase in the response.
-      The default value is <code>false</code>.</p>
-      <p><strong>Note:</strong> This option is deprecated and will be removed
-      in Tomcat 9. The reason phrase will not be sent.</p>
-    </attribute>
-
     <attribute name="URIEncoding" required="false">
       <p>This specifies the character encoding used to decode the URI bytes,
-      after %xx decoding the URL. If not specified, UTF-8 will be used unless
-      the <code>org.apache.catalina.STRICT_SERVLET_COMPLIANCE</code>
-      <a href="systemprops.html">system property</a> is set to <code>true</code>
-      in which case ISO-8859-1 will be used.</p>
+      after %xx decoding the URL. If not specified, ISO-8859-1 will be used.
+      </p>
     </attribute>
 
     <attribute name="useBodyEncodingForURI" required="false">
@@ -284,7 +274,7 @@
 
   <p>To use AJP, you must specify the protocol attribute (see above).</p>
 
-  <p>The standard AJP connectors (NIO, NIO2 and APR/native) all support the
+  <p>The standard AJP connectors (BIO, NIO and APR/native) all support the
   following attributes in addition to the common Connector attributes listed
   above.</p>
 
@@ -365,8 +355,9 @@
     <attribute name="executorTerminationTimeoutMillis" required="false">
       <p>The time that the private internal executor will wait for request
       processing threads to terminate before continuing with the process of
-      stopping the connector. If not set, the default is <code>5000</code> (5
-      seconds).</p>
+      stopping the connector. If not set, the default is <code>0</code> (zero)
+      for the BIO connector and <code>5000</code> (5 seconds) for the NIO and
+      APR/native connectors.</p>
     </attribute>
 
     <attribute name="keepAliveTimeout" required="false">
@@ -385,7 +376,10 @@
       start accepting and processing new connections again. Note that once the
       limit has been reached, the operating system may still accept connections
       based on the <code>acceptCount</code> setting. The default value varies by
-      connector type. For NIO and NIO2 the default is <code>10000</code>.
+      connector type. For BIO the default is the value of
+      <strong>maxThreads</strong> unless an <a href="executor.html">Executor</a>
+      is used in which case the default will be the value of maxThreads from the
+      executor. For NIO the default is <code>10000</code>.
       For APR/native, the default is <code>8192</code>.</p>
       <p>Note that for APR/native on Windows, the configured value will be
       reduced to the highest multiple of 1024 that is less than or equal to
@@ -494,7 +488,7 @@
 
   <subsection name="Java TCP socket attributes">
 
-    <p>The NIO and NIO2 implementation support the following Java TCP socket
+    <p>The BIO and NIO implementation support the following Java TCP socket
     attributes in addition to the common Connector and HTTP attributes listed
     above.</p>
 
@@ -673,66 +667,6 @@
     </attributes>
   </subsection>
 
-  <subsection name="NIO2 specific configuration">
-
-    <p>The following attributes are specific to the NIO2 connector.</p>
-
-    <attributes>
-
-      <attribute name="useCaches" required="false">
-        <p>(bool)Use this attribute to enable or disable object caching to
-        reduce the amount of GC objects produced.
-        The default value is <code>false</code>.</p>
-      </attribute>
-
-      <attribute name="socket.directBuffer" required="false">
-        <p>(bool)Boolean value, whether to use direct ByteBuffers or java mapped
-        ByteBuffers. Default is <code>false</code>.<br/>
-        When you are using direct buffers, make sure you allocate the
-        appropriate amount of memory for the direct memory space. On Sun's JDK
-        that would be something like <code>-XX:MaxDirectMemorySize=256m</code>.
-        </p>
-      </attribute>
-
-      <attribute name="socket.appReadBufSize" required="false">
-        <p>(int)Each connection that is opened up in Tomcat get associated with
-        a read ByteBuffer. This attribute controls the size of this buffer. By
-        default this read buffer is sized at <code>8192</code> bytes. For lower
-        concurrency, you can increase this to buffer more data. For an extreme
-        amount of keep alive connections, decrease this number or increase your
-        heap size.</p>
-      </attribute>
-
-      <attribute name="socket.appWriteBufSize" required="false">
-        <p>(int)Each connection that is opened up in Tomcat get associated with
-        a write ByteBuffer. This attribute controls the size of this buffer. By
-        default this write buffer is sized at <code>8192</code> bytes. For low
-        concurrency you can increase this to buffer more response data. For an
-        extreme amount of keep alive connections, decrease this number or
-        increase your heap size.<br/>
-        The default value here is pretty low, you should up it if you are not
-        dealing with tens of thousands concurrent connections.</p>
-      </attribute>
-
-      <attribute name="socket.bufferPoolSize" required="false">
-        <p>(int)The NIO2 connector uses a class called Nio2Channel that holds
-        elements linked to a socket. To reduce garbage collection, the NIO
-        connector caches these channel objects. This value specifies the size of
-        this cache. The default value is <code>500</code>, and represents that
-        the cache will hold 500 Nio2Channel objects. Other values are
-        <code>-1</code> for unlimited cache and <code>0</code> for no cache.</p>
-      </attribute>
-
-      <attribute name="socket.processorCache" required="false">
-        <p>(int)Tomcat will cache SocketProcessor objects to reduce garbage
-        collection. The integer value specifies how many objects to keep in the
-        cache at most. The default is <code>500</code>. Other values are
-        <code>-1</code> for unlimited cache and <code>0</code> for no cache.</p>
-      </attribute>
-
-    </attributes>
-  </subsection>
-
   <subsection name="APR/native specific configuration">
 
     <p>The APR/native implementation supports the following attributes in
@@ -745,6 +679,13 @@
         , but will use more CPU as more poll calls are being made. The default
         value is 2000 (2ms).
         </p>
+    </attribute>
+
+    <attribute name="pollerSize" required="false">
+      <p>Amount of sockets that the poller responsible for polling kept alive
+      connections can hold at a given time. Extra connections will be closed
+      right away. The default value is 8192, corresponding to 8192 keep-alive
+      connections.</p>
     </attribute>
 
     </attributes>
@@ -775,76 +716,27 @@
   directed the original request.</p>
 
   <p>For more information, see the
-  <a href="../proxy-howto.html">Proxy Support How-To</a>.</p>
+  <a href="../proxy-howto.html">Proxy Support HOW-TO</a>.</p>
 
   </subsection>
 
   <subsection name="Connector Comparison">
 
     <p>Below is a small chart that shows how the connectors differ.</p>
+    <source>
+                       Java Blocking Connector   Java Nio Blocking Connector   APR/native Connector
+                                 BIO                         NIO                       APR
+    Classname                AjpProtocol               AjpNioProtocol           AjpAprProtocol
+    Tomcat Version           3.x onwards                 7.x onwards              5.5.x onwards
+    Support Polling              NO                          YES                       YES
+    Polling Size                 N/A                   maxConnections             maxConnections
+    Read Request Headers      Blocking                    Blocking                   Blocking
+    Read Request Body         Blocking                    Blocking                   Blocking
+    Write Response            Blocking                    Blocking                   Blocking
+    Wait for next Request     Blocking                  Non Blocking               Non Blocking
+    Max Connections        maxConnections              maxConnections             maxConnections
 
-    <table class="defaultTable" style="text-align: center;">
-      <tr>
-        <th />
-        <th style="text-align: center;">Java Nio Connector<br />NIO</th>
-        <th style="text-align: center;">Java Nio2 Connector<br />NIO2</th>
-        <th style="text-align: center;">APR/native Connector<br />APR</th>
-      </tr>
-      <tr>
-        <th>Classname</th>
-        <td><code class="noHighlight">AjpNioProtocol</code></td>
-        <td><code class="noHighlight">AjpNio2Protocol</code></td>
-        <td><code class="noHighlight">AjpAprProtocol</code></td>
-      </tr>
-      <tr>
-        <th>Tomcat Version</th>
-        <td>7.x onwards</td>
-        <td>8.x onwards</td>
-        <td>5.5.x onwards</td>
-      </tr>
-      <tr>
-        <th>Support Polling</th>
-        <td>YES</td>
-        <td>YES</td>
-        <td>YES</td>
-      </tr>
-      <tr>
-        <th>Polling Size</th>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-      </tr>
-      <tr>
-        <th>Read Request Headers</th>
-        <td>Blocking</td>
-        <td>Blocking</td>
-        <td>Blocking</td>
-      </tr>
-      <tr>
-        <th>Read Request Body</th>
-        <td>Blocking</td>
-        <td>Blocking</td>
-        <td>Blocking</td>
-      </tr>
-      <tr>
-        <th>Write Response Headers and Body</th>
-        <td>Blocking</td>
-        <td>Blocking</td>
-        <td>Blocking</td>
-      </tr>
-      <tr>
-        <th>Wait for next Request</th>
-        <td>Non Blocking</td>
-        <td>Non Blocking</td>
-        <td>Non Blocking</td>
-      </tr>
-      <tr>
-        <th>Max Connections</th>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-      </tr>
-    </table>
+    </source>
 
   </subsection>
 

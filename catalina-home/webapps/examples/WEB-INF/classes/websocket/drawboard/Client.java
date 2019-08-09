@@ -44,7 +44,7 @@ public class Client {
      * send operation has finished.
      */
     private final LinkedList<AbstractWebsocketMessage> messagesToSend =
-            new LinkedList<>();
+            new LinkedList<AbstractWebsocketMessage>();
     /**
      * If this client is currently sending a messages asynchronously.
      */
@@ -80,8 +80,7 @@ public class Client {
      * will be buffered and sent when possible.<br><br>
      *
      * This method can be called from multiple threads.
-     *
-     * @param msg The message to send
+     * @param msg
      */
     public void sendMessage(AbstractWebsocketMessage msg) {
         synchronized (messagesToSend) {
@@ -181,7 +180,11 @@ public class Client {
                 // Close the session.
                 session.close();
             }
-        } catch (IllegalStateException|IOException ex) {
+        } catch (IllegalStateException ex) {
+            // Trying to write to the client when the session has
+            // already been closed.
+            // Ignore
+        } catch (IOException ex) {
             // Trying to write to the client when the session has
             // already been closed.
             // Ignore

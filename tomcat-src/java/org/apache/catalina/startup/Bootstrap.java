@@ -17,15 +17,13 @@
 package org.apache.catalina.startup;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.StringTokenizer;
 
 import org.apache.catalina.Globals;
 import org.apache.catalina.security.SecurityClassLoad;
@@ -33,7 +31,6 @@ import org.apache.catalina.startup.ClassLoaderFactory.Repository;
 import org.apache.catalina.startup.ClassLoaderFactory.RepositoryType;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-
 
 /**
  * Bootstrap loader for Catalina.  This application constructs a class loader
@@ -51,78 +48,15 @@ public final class Bootstrap {
 
     private static final Log log = LogFactory.getLog(Bootstrap.class);
 
+
+    // ------------------------------------------------------- Static Variables
+
+
     /**
      * Daemon object used by main.
      */
     private static Bootstrap daemon = null;
 
-    private static final File catalinaBaseFile;
-    private static final File catalinaHomeFile;
-
-    private static final Pattern PATH_PATTERN = Pattern.compile("(\".*?\")|(([^,])*)");
-
-    static {
-        // Will always be non-null
-        String userDir = System.getProperty("user.dir");
-
-        // Home first
-        String home = System.getProperty(Globals.CATALINA_HOME_PROP);
-        File homeFile = null;
-
-        if (home != null) {
-            File f = new File(home);
-            try {
-                homeFile = f.getCanonicalFile();
-            } catch (IOException ioe) {
-                homeFile = f.getAbsoluteFile();
-            }
-        }
-
-        if (homeFile == null) {
-            // First fall-back. See if current directory is a bin directory
-            // in a normal Tomcat install
-            File bootstrapJar = new File(userDir, "bootstrap.jar");
-
-            if (bootstrapJar.exists()) {
-                File f = new File(userDir, "..");
-                try {
-                    homeFile = f.getCanonicalFile();
-                } catch (IOException ioe) {
-                    homeFile = f.getAbsoluteFile();
-                }
-            }
-        }
-
-        if (homeFile == null) {
-            // Second fall-back. Use current directory
-            File f = new File(userDir);
-            try {
-                homeFile = f.getCanonicalFile();
-            } catch (IOException ioe) {
-                homeFile = f.getAbsoluteFile();
-            }
-        }
-
-        catalinaHomeFile = homeFile;
-        System.setProperty(
-                Globals.CATALINA_HOME_PROP, catalinaHomeFile.getPath());
-
-        // Then base
-        String base = System.getProperty(Globals.CATALINA_BASE_PROP);
-        if (base == null) {
-            catalinaBaseFile = catalinaHomeFile;
-        } else {
-            File baseFile = new File(base);
-            try {
-                baseFile = baseFile.getCanonicalFile();
-            } catch (IOException ioe) {
-                baseFile = baseFile.getAbsoluteFile();
-            }
-            catalinaBaseFile = baseFile;
-        }
-        System.setProperty(
-                Globals.CATALINA_BASE_PROP, catalinaBaseFile.getPath());
-    }
 
     // -------------------------------------------------------------- Variables
 
@@ -167,11 +101,15 @@ public final class Bootstrap {
 
         value = replace(value);
 
-        List<Repository> repositories = new ArrayList<>();
+        List<Repository> repositories = new ArrayList<Repository>();
 
-        String[] repositoryPaths = getPaths(value);
+        StringTokenizer tokenizer = new StringTokenizer(value, ",");
+        while (tokenizer.hasMoreElements()) {
+            String repository = tokenizer.nextToken().trim();
+            if (repository.length() == 0) {
+                continue;
+            }
 
-        for (String repository : repositoryPaths) {
             // Check for a JAR URL repository
             try {
                 @SuppressWarnings("unused")
@@ -200,7 +138,6 @@ public final class Bootstrap {
 
         return ClassLoaderFactory.createClassLoader(repositories, parent);
     }
-
 
     /**
      * System property replacement in the given string.
@@ -250,9 +187,14 @@ public final class Bootstrap {
 
     /**
      * Initialize daemon.
-     * @throws Exception Fatal initialization error
      */
-    public void init() throws Exception {
+    public void init()
+        throws Exception
+    {
+
+        // Set Catalina path
+        setCatalinaHome();
+        setCatalinaBase();
 
         initClassLoaders();
 
@@ -263,8 +205,10 @@ public final class Bootstrap {
         // Load our startup class and call its process() method
         if (log.isDebugEnabled())
             log.debug("Loading startup class");
-        Class<?> startupClass = catalinaLoader.loadClass("org.apache.catalina.startup.Catalina");
-        Object startupInstance = startupClass.getConstructor().newInstance();
+        Class<?> startupClass =
+            catalinaLoader.loadClass
+            ("org.apache.catalina.startup.Catalina");
+        Object startupInstance = startupClass.newInstance();
 
         // Set the shared extensions class loader
         if (log.isDebugEnabled())
@@ -329,8 +273,6 @@ public final class Bootstrap {
 
     /**
      * Load the Catalina daemon.
-     * @param arguments Initialization arguments
-     * @throws Exception Fatal initialization error
      */
     public void init(String[] arguments)
         throws Exception {
@@ -343,7 +285,6 @@ public final class Bootstrap {
 
     /**
      * Start the Catalina daemon.
-     * @throws Exception Fatal start error
      */
     public void start()
         throws Exception {
@@ -357,7 +298,6 @@ public final class Bootstrap {
 
     /**
      * Stop the Catalina Daemon.
-     * @throws Exception Fatal stop error
      */
     public void stop()
         throws Exception {
@@ -370,7 +310,6 @@ public final class Bootstrap {
 
     /**
      * Stop the standalone server.
-     * @throws Exception Fatal stop error
      */
     public void stopServer()
         throws Exception {
@@ -384,8 +323,6 @@ public final class Bootstrap {
 
    /**
      * Stop the standalone server.
-     * @param arguments Command line arguments
-     * @throws Exception Fatal stop error
      */
     public void stopServer(String[] arguments)
         throws Exception {
@@ -410,8 +347,6 @@ public final class Bootstrap {
 
     /**
      * Set flag.
-     * @param await <code>true</code> if the daemon should block
-     * @throws Exception Reflection error
      */
     public void setAwait(boolean await)
         throws Exception {
@@ -518,46 +453,76 @@ public final class Bootstrap {
 
     }
 
+    public void setCatalinaHome(String s) {
+        System.setProperty(Globals.CATALINA_HOME_PROP, s);
+    }
+
+    public void setCatalinaBase(String s) {
+        System.setProperty(Globals.CATALINA_BASE_PROP, s);
+    }
+
 
     /**
-     * Obtain the name of configured home (binary) directory. Note that home and
-     * base may be the same (and are by default).
-     * @return the catalina home
+     * Set the <code>catalina.base</code> System property to the current
+     * working directory if it has not been set.
+     */
+    private void setCatalinaBase() {
+
+        if (System.getProperty(Globals.CATALINA_BASE_PROP) != null)
+            return;
+        if (System.getProperty(Globals.CATALINA_HOME_PROP) != null)
+            System.setProperty(Globals.CATALINA_BASE_PROP,
+                               System.getProperty(Globals.CATALINA_HOME_PROP));
+        else
+            System.setProperty(Globals.CATALINA_BASE_PROP,
+                               System.getProperty("user.dir"));
+
+    }
+
+
+    /**
+     * Set the <code>catalina.home</code> System property to the current
+     * working directory if it has not been set.
+     */
+    private void setCatalinaHome() {
+
+        if (System.getProperty(Globals.CATALINA_HOME_PROP) != null)
+            return;
+        File bootstrapJar =
+            new File(System.getProperty("user.dir"), "bootstrap.jar");
+        if (bootstrapJar.exists()) {
+            try {
+                System.setProperty
+                    (Globals.CATALINA_HOME_PROP,
+                     (new File(System.getProperty("user.dir"), ".."))
+                     .getCanonicalPath());
+            } catch (Exception e) {
+                // Ignore
+                System.setProperty(Globals.CATALINA_HOME_PROP,
+                                   System.getProperty("user.dir"));
+            }
+        } else {
+            System.setProperty(Globals.CATALINA_HOME_PROP,
+                               System.getProperty("user.dir"));
+        }
+
+    }
+
+
+    /**
+     * Get the value of the catalina.home environment variable.
      */
     public static String getCatalinaHome() {
-        return catalinaHomeFile.getPath();
+        return System.getProperty(Globals.CATALINA_HOME_PROP,
+                                  System.getProperty("user.dir"));
     }
 
 
     /**
-     * Obtain the name of the configured base (instance) directory. Note that
-     * home and base may be the same (and are by default). If this is not set
-     * the value returned by {@link #getCatalinaHome()} will be used.
-     * @return the catalina base
+     * Get the value of the catalina.base environment variable.
      */
     public static String getCatalinaBase() {
-        return catalinaBaseFile.getPath();
-    }
-
-
-    /**
-     * Obtain the configured home (binary) directory. Note that home and
-     * base may be the same (and are by default).
-     * @return the catalina home as a file
-     */
-    public static File getCatalinaHomeFile() {
-        return catalinaHomeFile;
-    }
-
-
-    /**
-     * Obtain the configured base (instance) directory. Note that
-     * home and base may be the same (and are by default). If this is not set
-     * the value returned by {@link #getCatalinaHomeFile()} will be used.
-     * @return the catalina base as a file
-     */
-    public static File getCatalinaBaseFile() {
-        return catalinaBaseFile;
+        return System.getProperty(Globals.CATALINA_BASE_PROP, getCatalinaHome());
     }
 
 
@@ -570,45 +535,5 @@ public final class Bootstrap {
             throw (VirtualMachineError) t;
         }
         // All other instances of Throwable will be silently swallowed
-    }
-
-
-    // Protected for unit testing
-    protected static String[] getPaths(String value) {
-
-        List<String> result = new ArrayList<>();
-        Matcher matcher = PATH_PATTERN.matcher(value);
-
-        while (matcher.find()) {
-            String path = value.substring(matcher.start(), matcher.end());
-
-            path = path.trim();
-            if (path.length() == 0) {
-                continue;
-            }
-
-            char first = path.charAt(0);
-            char last = path.charAt(path.length() - 1);
-
-            if (first == '"' && last == '"' && path.length() > 1) {
-                path = path.substring(1, path.length() - 1);
-                path = path.trim();
-                if (path.length() == 0) {
-                    continue;
-                }
-            } else if (path.contains("\"")) {
-                // Unbalanced quotes
-                // Too early to use standard i18n support. The class path hasn't
-                // been configured.
-                throw new IllegalArgumentException(
-                        "The double quote [\"] character only be used to quote paths. It must " +
-                        "not appear in a path. This loader path is not valid: [" + value + "]");
-            } else {
-                // Not quoted - NO-OP
-            }
-
-            result.add(path);
-        }
-        return result.toArray(new String[result.size()]);
     }
 }

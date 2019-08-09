@@ -28,7 +28,6 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.IntrospectionUtils;
 import org.apache.tomcat.util.digester.Rule;
-import org.apache.tomcat.util.res.StringManager;
 import org.xml.sax.Attributes;
 
 
@@ -39,7 +38,6 @@ import org.xml.sax.Attributes;
 public class ConnectorCreateRule extends Rule {
 
     private static final Log log = LogFactory.getLog(ConnectorCreateRule.class);
-    protected static final StringManager sm = StringManager.getManager(ConnectorCreateRule.class);
     // --------------------------------------------------------- Public Methods
 
 
@@ -62,33 +60,20 @@ public class ConnectorCreateRule extends Rule {
             ex = svc.getExecutor(attributes.getValue("executor"));
         }
         Connector con = new Connector(attributes.getValue("protocol"));
-        if (ex != null) {
-            setExecutor(con, ex);
-        }
-        String sslImplementationName = attributes.getValue("sslImplementationName");
-        if (sslImplementationName != null) {
-            setSSLImplementationName(con, sslImplementationName);
-        }
+        if ( ex != null )  _setExecutor(con,ex);
+
         digester.push(con);
     }
 
-    private static void setExecutor(Connector con, Executor ex) throws Exception {
+    public void _setExecutor(Connector con, Executor ex) throws Exception {
         Method m = IntrospectionUtils.findMethod(con.getProtocolHandler().getClass(),"setExecutor",new Class[] {java.util.concurrent.Executor.class});
         if (m!=null) {
             m.invoke(con.getProtocolHandler(), new Object[] {ex});
         }else {
-            log.warn(sm.getString("connector.noSetExecutor", con));
+            log.warn("Connector ["+con+"] does not support external executors. Method setExecutor(java.util.concurrent.Executor) not found.");
         }
     }
 
-    private static void setSSLImplementationName(Connector con, String sslImplementationName) throws Exception {
-        Method m = IntrospectionUtils.findMethod(con.getProtocolHandler().getClass(),"setSslImplementationName",new Class[] {String.class});
-        if (m != null) {
-            m.invoke(con.getProtocolHandler(), new Object[] {sslImplementationName});
-        } else {
-            log.warn(sm.getString("connector.noSetSSLImplementationName", con));
-        }
-    }
 
     /**
      * Process the end of this element.

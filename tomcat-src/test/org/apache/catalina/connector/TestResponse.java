@@ -14,6 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.catalina.connector;
 
 import java.io.IOException;
@@ -52,11 +53,11 @@ public class TestResponse extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new Bug49598Servlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
-        Map<String,List<String>> headers = new HashMap<>();
+        Map<String,List<String>> headers = new HashMap<String,List<String>>();
         getUrl("http://localhost:" + getPort() + "/", new ByteChunk(), headers);
 
         // Check for headers without a name
@@ -96,7 +97,7 @@ public class TestResponse extends TomcatBaseTest {
     }
 
 
-    /*
+    /**
      * Tests an issue noticed during the investigation of BZ 52811.
      */
     @Test
@@ -108,7 +109,7 @@ public class TestResponse extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new CharsetServlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -147,7 +148,7 @@ public class TestResponse extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new Bug52811Servlet());
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -570,10 +571,7 @@ public class TestResponse extends TomcatBaseTest {
     @Test
     public void testEncodeRedirectURL16() throws Exception {
         doTestEncodeURL("./..#/../..", "./..;jsessionid=1234#/../..");
-    }
-
-
-    @Test
+    }    @Test
     public void testSendRedirect01() throws Exception {
         doTestSendRedirect("../foo", "../foo");
     }
@@ -603,7 +601,7 @@ public class TestResponse extends TomcatBaseTest {
         org.apache.coyote.Request cRequest = new org.apache.coyote.Request();
         request.setCoyoteRequest(cRequest);
         Context context = new TesterContext();
-        request.getMappingData().context = context;
+        request.setContext(context);
         response.setRequest(request);
         // Do test
         response.sendRedirect(input);

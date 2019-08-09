@@ -16,17 +16,15 @@
  */
 package org.apache.catalina.tribes.group;
 
-import javax.management.ObjectName;
-
 import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.ChannelException;
 import org.apache.catalina.tribes.ChannelInterceptor;
 import org.apache.catalina.tribes.ChannelMessage;
 import org.apache.catalina.tribes.Member;
-import org.apache.catalina.tribes.jmx.JmxRegistry;
 
 /**
  * Abstract class for the interceptor base class.
+ * @author Filip Hanik
  */
 public abstract class ChannelInterceptorBase implements ChannelInterceptor {
 
@@ -35,11 +33,6 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
     private Channel channel;
     //default value, always process
     protected int optionFlag = 0;
-
-    /**
-     * the ObjectName of this ChannelInterceptor.
-     */
-    private ObjectName oname = null;
 
     public ChannelInterceptorBase() {
 
@@ -89,6 +82,10 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
     @Override
     public void messageReceived(ChannelMessage msg) {
         if (getPrevious() != null) getPrevious().messageReceived(msg);
+    }
+
+    public boolean accept(ChannelMessage msg) {
+        return true;
     }
 
     @Override
@@ -163,10 +160,6 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
     @Override
     public void start(int svc) throws ChannelException {
         if ( getNext()!=null ) getNext().start(svc);
-        // register jmx
-        JmxRegistry jmxRegistry = JmxRegistry.getRegistry(channel);
-        if (jmxRegistry != null) this.oname = jmxRegistry.registerJmx(
-                ",component=Interceptor,interceptorName=" + getClass().getSimpleName(), this);
     }
 
     /**
@@ -183,10 +176,6 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
     @Override
     public void stop(int svc) throws ChannelException {
         if (getNext() != null) getNext().stop(svc);
-        if (oname != null) {
-            JmxRegistry.getRegistry(channel).unregisterJmx(oname);
-            oname = null;
-        }
         channel = null;
     }
 
@@ -199,16 +188,14 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
      * Return the channel that is related to this interceptor
      * @return Channel
      */
-    @Override
     public Channel getChannel() {
         return channel;
     }
 
     /**
      * Set the channel that is related to this interceptor
-     * @param channel The channel
+     * @param channel
      */
-    @Override
     public void setChannel(Channel channel) {
         this.channel = channel;
     }

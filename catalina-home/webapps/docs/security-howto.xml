@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -55,34 +55,29 @@
     the Tomcat process and provide that user with the minimum necessary
     permissions for the operating system. For example, it should not be possible
     to log on remotely using the Tomcat user.</p>
-    <p>File permissions should also be suitably restricted. In the
-    <code>.tar.gz</code> distribution, files and directories are not world
-    readable and the group does not have write access. On Unix like operating
-    systems, Tomcat runs with a default umask of <code>0027</code> to maintain
-    these permissions for files created while Tomcat is running (e.g. log files,
-    expanded WARs, etc.).</p>
-    <p>Taking the Tomcat instances at the ASF as an example (where
-    auto-deployment is disabled and web applications are deployed as exploded
-    directories), the standard configuration is to have all Tomcat files owned
-    by root with group Tomcat and whilst owner has read/write privileges, group
-    only has read and world has no permissions. The exceptions are the logs,
-    temp and work directory that are owned by the Tomcat user rather than root.
-    This means that even if an attacker compromises the Tomcat process, they
-    can&apos;t change the Tomcat configuration, deploy new web applications or
-    modify existing web applications. The Tomcat process runs with a umask of
-    007 to maintain these permissions.</p>
+    <p>File permissions should also be suitably restricted. Taking the Tomcat
+    instances at the ASF as an example (where auto-deployment is disabled and
+    web applications are deployed as exploded directories), the standard
+    configuration is to have all Tomcat files owned by root with group Tomcat
+    and whilst owner has read/write privileges, group only has read and world
+    has no permissions. The exceptions are the logs, temp and work directory
+    that are owned by the Tomcat user rather than root. This means that even if
+    an attacker compromises the Tomcat process, they can&apos;t change the
+    Tomcat configuration, deploy new web applications or modify existing web
+    applications. The Tomcat process runs with a umask of 007 to maintain these
+    permissions.</p>
     <p>At the network level, consider using a firewall to limit both incoming
     and outgoing connections to only those connections you  expect to be
     present.</p>
 
     <subsection name="JMX">
       <p>The security of the JMX connection is dependent on the implementation
-      provided by the JRE and therefore falls outside the control of Tomcat.</p>
+      provided by the JRE and therefore falls outside the control of Tomact.</p>
 
       <p>Typically, access control is very limited (either read-only to
       everything or read-write to everything). Tomcat exposes a large amount
       of internal information and control via JMX to aid debugging, monitoring
-      and management. Given the limited access control available, JMX access
+      and management. Give the limited access control available, JMX access
       should be treated as equivalent to local root/admin access and restricted
       accordingly.</p>
 
@@ -169,11 +164,10 @@
        <li>Do not remove the use of the <a
            href="config/realm.html#LockOut_Realm_-_org.apache.catalina.realm.LockOutRealm">LockOutRealm</a>
            which prevents brute force attacks against user passwords.</li>
-       <li>Configure the <a href="config/valve.html#Remote_Address_Valve">RemoteAddrValve</a>
-           in the <a href="config/context.html">context.xml</a> file for the
-           management application which limits access to localhost by default.
-           If remote access is required, limit it to specific IP addresses using
-           this valve.</li>
+       <li>Uncomment the <a href="config/valve.html#Remote_Address_Filter">RemoteAddrValve</a>
+           in <code>/META-INF/context.xml</code> which limits access to
+           localhost. If remote access is required, limit it to specific IP
+           addresses using this valve.</li>
      </ul>
    </subsection>
   </section>
@@ -278,15 +272,14 @@
       <p>The <strong>xpoweredBy</strong> attribute controls whether or not the
       X-Powered-By HTTP header is sent with each request. If sent, the value of
       the header contains the Servlet and JSP specification versions, the full
-      Tomcat version (e.g. Apache Tomcat/<version-major-minor/>), the name of
-      the JVM vendor and
+      Tomcat version (e.g. Apache Tomcat/7.0.0), the name of the JVM vendor and
       the version of the JVM. This header is disabled by default. This header
       can provide useful information to both legitimate clients and attackers.
       </p>
 
       <p>The <strong>server</strong> attribute controls the value of the Server
-      HTTP header. The default value of this header for Tomcat 4.1.x to
-      <version-major-minor/>.x is Apache-Coyote/1.1. This header can provide
+      HTTP header. The default value of this header for Tomcat 4.1.x, 5.0.x,
+      5.5.x, 6.0.x and 7.0.x is Apache-Coyote/1.1. This header can provide
       limited information to both legitimate clients and attackers.</p>
 
       <p>The <strong>SSLEnabled</strong>, <strong>scheme</strong> and
@@ -308,6 +301,16 @@
       authorisation or if authentication should be delegated to the reverse
       proxy (the authenticated user name is passed to Tomcat as part of the AJP
       protocol) with the option for Tomcat to still perform authorization.</p>
+
+      <p>The <strong>allowUnsafeLegacyRenegotiation</strong> attribute provides
+      a workaround for
+      <a href="http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2009-3555">
+      CVE-2009-3555</a>, a TLS man in the middle attack. This workaround applies
+      to the BIO connector. It is only necessary if the underlying SSL
+      implementation is vulnerable to CVE-2009-3555. For more information on the
+      current state of this vulnerability and the work-arounds available see the
+      <a href="http://tomcat.apache.org/security-7.html">Tomcat 7 security
+      page</a>.</p>
 
       <p>The <strong>requiredSecret</strong> attribute in AJP connectors
       configures shared secret between Tomcat and reverse proxy in front of
@@ -350,11 +353,11 @@
       <code>false</code> by default and should only be changed for trusted web
       applications.</p>
 
-      <p>The <strong>allowLinking</strong> attribute of a nested
-      <a href="config/resources.html">Resources</a> element controls if a context
-      is allowed to use linked files. If enabled and the context is undeployed,
-      the links will be followed when deleting the context resources. Changing
-      this setting from the default of <code>false</code> on case insensitive
+      <p>The <strong>allowLinking</strong> attribute controls if a context is
+      allowed to use linked files. If enabled and the context is undeployed, the
+      links will be followed when deleting the context resources. To avoid this
+      behaviour, use the <strong>aliases</strong> attribute. Changing this
+      setting from the default of <code>false</code> on case insensitive
       operating systems (this includes Windows) will disable a number of
       security measures and allow, among other things, direct access to the
       WEB-INF directory.</p>
@@ -376,7 +379,7 @@
       context as required.</p>
 
       <p>Any administrative application should be protected by a
-      RemoteAddrValve (this Valve is also available as a Filter).
+      RemoteAddrValve. (Note that this Valve is also available as a Filter.)
       The <strong>allow</strong> attribute should be used to limit access to a
       set of known trusted hosts.</p>
 
@@ -388,21 +391,19 @@
       Alternatively, the version number can be changed by creating the file
       CATALINA_BASE/lib/org/apache/catalina/util/ServerInfo.properties with
       content as follows:</p>
-      <source>server.info=Apache Tomcat/<version-major-minor/>.x</source>
+      <source>
+server.info=Apache Tomcat/7.0.x
+      </source>
       <p>Modify the values as required. Note that this will also change the version
       number reported in some of the management tools and may make it harder to
       determine the real version installed. The CATALINA_HOME/bin/version.bat|sh
-      script will still report the correct version number.</p>
+      script will still report the version number.</p>
 
       <p>The default ErrorReportValve can display stack traces and/or JSP
       source code to clients when an error occurs. To avoid this, custom error
       handling can be configured within each web application. Alternatively, you
       can explicitly configure an <a href="config/valve.html">ErrorReportValve</a>
       and set its <strong>showReport</strong> attribute to <code>false</code>.</p>
-
-      <p>The RewriteValve uses regular expressions and poorly formed regex
-      patterns may be vulnerable to "catastrophic backtracking" or "ReDoS". See
-      <a href="rewrite.html">Rewrite docs</a> for more details.</p>
     </subsection>
 
     <subsection name="Realms">
@@ -439,11 +440,6 @@
       <p>The cluster implementation is written on the basis that a secure,
       trusted network is used for all of the cluster related network traffic. It
       is not safe to run a cluster on a insecure, untrusted network.</p>
-
-      <p>If you are operating on an untrusted network or would prefer to
-      exercise an over-abundance of caution, you can use the
-      <a href="config/cluster-interceptor.html#org.apache.catalina.tribes.group.interceptors.EncryptInterceptor_Attributes">EncryptInterceptor</a>
-      to encrypt traffic between nodes.</p>
     </subsection>
   </section>
 
@@ -500,7 +496,7 @@
     <p>Modify the values as required. Note that this will also change the version
     number reported in some of the management tools and may make it harder to
     determine the real version installed. The CATALINA_HOME/bin/version.bat|sh
-    script will still report the correct version number.
+    script will still report the version number.
     </p>
 
     <p>The CGI Servlet is disabled by default. If enabled, the debug

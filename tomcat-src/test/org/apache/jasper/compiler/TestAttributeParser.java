@@ -162,9 +162,9 @@ public class TestAttributeParser {
 
     private String evalAttr(String expression, char quote) {
 
-        ExpressionFactoryImpl exprFactory = new ExpressionFactoryImpl();
-        ELContextImpl ctx = new ELContextImpl(exprFactory);
+        ELContextImpl ctx = new ELContextImpl();
         ctx.setFunctionMapper(new TesterFunctions.FMapper());
+        ExpressionFactoryImpl exprFactory = new ExpressionFactoryImpl();
         ValueExpression ve = exprFactory.createValueExpression(ctx,
                 AttributeParser.getUnquoted(expression, quote, false, false,
                         false, false),

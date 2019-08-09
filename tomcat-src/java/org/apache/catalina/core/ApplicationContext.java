@@ -16,11 +16,12 @@
  */
 package org.apache.catalina.core;
 
+import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -34,7 +35,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import javax.naming.Binding;
 import javax.naming.NamingException;
+import javax.naming.directory.DirContext;
 import javax.servlet.Filter;
 import javax.servlet.FilterRegistration;
 import javax.servlet.RequestDispatcher;
@@ -45,7 +48,6 @@ import javax.servlet.ServletContextAttributeListener;
 import javax.servlet.ServletContextListener;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
-import javax.servlet.ServletRegistration.Dynamic;
 import javax.servlet.ServletRequestAttributeListener;
 import javax.servlet.ServletRequestListener;
 import javax.servlet.ServletSecurityElement;
@@ -54,7 +56,6 @@ import javax.servlet.SessionTrackingMode;
 import javax.servlet.annotation.ServletSecurity;
 import javax.servlet.descriptor.JspConfigDescriptor;
 import javax.servlet.http.HttpSessionAttributeListener;
-import javax.servlet.http.HttpSessionIdListener;
 import javax.servlet.http.HttpSessionListener;
 
 import org.apache.catalina.Container;
@@ -63,20 +64,21 @@ import org.apache.catalina.Engine;
 import org.apache.catalina.Globals;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Service;
-import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Connector;
-import org.apache.catalina.mapper.MappingData;
-import org.apache.catalina.servlet4preview.http.ServletMapping;
+import org.apache.catalina.deploy.FilterDef;
 import org.apache.catalina.util.Introspection;
+import org.apache.catalina.util.ResourceSet;
 import org.apache.catalina.util.ServerInfo;
 import org.apache.catalina.util.URLEncoder;
+import org.apache.naming.resources.DirContextURLStreamHandler;
+import org.apache.naming.resources.Resource;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.CharChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.buf.UDecoder;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
 import org.apache.tomcat.util.http.RequestUtil;
+import org.apache.tomcat.util.http.mapper.MappingData;
 import org.apache.tomcat.util.res.StringManager;
 
 
@@ -88,8 +90,7 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  */
-@SuppressWarnings("deprecation")
-public class ApplicationContext implements org.apache.catalina.servlet4preview.ServletContext {
+public class ApplicationContext implements ServletContext {
 
     protected static final boolean STRICT_SERVLET_COMPLIANCE;
 
@@ -134,13 +135,13 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     /**
      * The context attributes for this context.
      */
-    protected Map<String,Object> attributes = new ConcurrentHashMap<>();
+    protected Map<String,Object> attributes = new ConcurrentHashMap<String,Object>();
 
 
     /**
      * List of read only attributes for this context.
      */
-    private final Map<String,String> readOnlyAttributes = new ConcurrentHashMap<>();
+    private final Map<String,String> readOnlyAttributes = new ConcurrentHashMap<String,String>();
 
 
     /**
@@ -176,7 +177,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     /**
      * The merged context initialization parameters for this Context.
      */
-    private final ConcurrentMap<String,String> parameters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String,String> parameters = new ConcurrentHashMap<String,String>();
 
 
     /**
@@ -188,7 +189,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     /**
      * Thread local data used during request dispatch.
      */
-    private final ThreadLocal<DispatchData> dispatchData = new ThreadLocal<>();
+    private final ThreadLocal<DispatchData> dispatchData = new ThreadLocal<DispatchData>();
 
 
     /**
@@ -211,6 +212,14 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     private boolean newServletContextListenerAllowed = true;
 
 
+    // --------------------------------------------------------- Public Methods
+
+    @Deprecated
+    public DirContext getResources() {
+        return context.getResources();
+    }
+
+
     // ------------------------------------------------- ServletContext Methods
 
     @Override
@@ -221,7 +230,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        Set<String> names = new HashSet<>();
+        Set<String> names = new HashSet<String>();
         names.addAll(attributes.keySet());
         return Collections.enumeration(names);
     }
@@ -263,8 +272,9 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
                 pathMB.setString(uri);
 
                 MappingData mappingData = new MappingData();
-                service.getMapper().map(hostMB, pathMB, null, mappingData);
-                child = mappingData.context;
+                service.findConnectors()[0].getMapper().map(
+                        hostMB, pathMB, null, mappingData);
+                child = (Context) mappingData.context;
             }
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);
@@ -302,6 +312,10 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
                 context.getTldValidation()) {
             return "true";
         }
+        if (Globals.JASPER_XML_VALIDATION_INIT_PARAM.equals(name) &&
+                context.getXmlValidation()) {
+            return "true";
+        }
         if (Globals.JASPER_XML_BLOCK_EXTERNAL_INIT_PARAM.equals(name)) {
             if (!context.getXmlBlockExternal()) {
                 // System admin has explicitly changed the default
@@ -314,12 +328,15 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
     @Override
     public Enumeration<String> getInitParameterNames() {
-        Set<String> names = new HashSet<>();
+        Set<String> names = new HashSet<String>();
         names.addAll(parameters.keySet());
         // Special handling for XML settings as these attributes will always be
         // available if they have been set on the context
         if (context.getTldValidation()) {
             names.add(Globals.JASPER_XML_VALIDATION_TLD_INIT_PARAM);
+        }
+        if (context.getXmlValidation()) {
+            names.add(Globals.JASPER_XML_VALIDATION_INIT_PARAM);
         }
         if (!context.getXmlBlockExternal()) {
             names.add(Globals.JASPER_XML_BLOCK_EXTERNAL_INIT_PARAM);
@@ -380,15 +397,14 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         if (wrapper == null)
             return null;
 
-        return new ApplicationDispatcher(wrapper, null, null, null, null, null, name);
+        return new ApplicationDispatcher(wrapper, null, null, null, null, name);
 
     }
 
 
     @Override
     public String getRealPath(String path) {
-        String validatedPath = validateResourcePath(path, true);
-        return context.getRealPath(validatedPath);
+        return context.getRealPath(path);
     }
 
 
@@ -442,13 +458,13 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
             }
 
             // URI needs to include the context path
-            uri = URLEncoder.DEFAULT.encode(getContextPath(), StandardCharsets.UTF_8) + uri;
+            uri = URLEncoder.DEFAULT.encode(getContextPath(), "UTF-8") + uri;
         } else {
             // uri is passed to the constructor for ApplicationDispatcher and is
             // ultimately used as the value for getRequestURI() which returns
             // encoded values. Therefore, since the value passed in for path
             // was decoded, encode uri here.
-            uri = URLEncoder.DEFAULT.encode(getContextPath() + uri, StandardCharsets.UTF_8);
+            uri = URLEncoder.DEFAULT.encode(getContextPath() + uri, "UTF-8");
         }
 
         // Use the thread local URI and mapping data
@@ -470,7 +486,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
             try {
                 uriCC.append(context.getPath());
                 uriCC.append(normalizedUri);
-                service.getMapper().map(context, uriMB, mappingData);
+                context.getMapper().map(uriMB, mappingData);
                 if (mappingData.wrapper == null) {
                     return null;
                 }
@@ -480,14 +496,13 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
                 return null;
             }
 
-            Wrapper wrapper = mappingData.wrapper;
+            Wrapper wrapper = (Wrapper) mappingData.wrapper;
             String wrapperPath = mappingData.wrapperPath.toString();
             String pathInfo = mappingData.pathInfo.toString();
-            ServletMapping mapping = new ApplicationMapping(mappingData).getServletMapping();
 
             // Construct a RequestDispatcher to process this request
             return new ApplicationDispatcher(wrapper, uri, wrapperPath, pathInfo,
-                    queryString, mapping, null);
+                    queryString, null);
         } finally {
             // Recycle thread local data at the end of the request so references
             // are not held to a completed request as there is potential for
@@ -528,16 +543,32 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     @Override
     public URL getResource(String path) throws MalformedURLException {
 
-        String validatedPath = validateResourcePath(path, false);
+        if (path == null ||
+                !path.startsWith("/") && GET_RESOURCE_REQUIRE_SLASH)
+            throw new MalformedURLException(sm.getString(
+                    "applicationContext.requestDispatcher.iae", path));
 
-        if (validatedPath == null) {
-            throw new MalformedURLException(
-                    sm.getString("applicationContext.requestDispatcher.iae", path));
-        }
+        String normPath = RequestUtil.normalize(path);
+        if (normPath == null)
+            return (null);
 
-        WebResourceRoot resources = context.getResources();
+        DirContext resources = context.getResources();
         if (resources != null) {
-            return resources.getResource(validatedPath).getURL();
+            String fullPath = context.getPath() + normPath;
+            String hostName = context.getParent().getName();
+            try {
+                resources.lookup(normPath);
+                URI uri = new URI("jndi", null, "", -1,
+                        getJNDIUri(hostName, fullPath), null, null);
+                return new URL(null, uri.toString(),
+                        new DirContextURLStreamHandler(resources));
+            } catch (NamingException e) {
+                // Ignore
+            } catch (Exception e) {
+                // Unexpected
+                log(sm.getString("applicationContext.lookup.error", path,
+                        getContextPath()), e);
+            }
         }
 
         return null;
@@ -547,43 +578,32 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     @Override
     public InputStream getResourceAsStream(String path) {
 
-        String validatedPath = validateResourcePath(path, false);
+        if (path == null)
+            return (null);
 
-        if (validatedPath == null) {
+        if (!path.startsWith("/") && GET_RESOURCE_REQUIRE_SLASH)
             return null;
-        }
 
-        WebResourceRoot resources = context.getResources();
+        String normalizedPath = RequestUtil.normalize(path);
+        if (normalizedPath == null)
+            return (null);
+
+        DirContext resources = context.getResources();
         if (resources != null) {
-            return resources.getResource(validatedPath).getInputStream();
-        }
-
-        return null;
-    }
-
-
-    /*
-     * Returns null if the input path is not valid or a path that will be
-     * acceptable to resources.getResource().
-     */
-    private String validateResourcePath(String path, boolean allowEmptyPath) {
-        if (path == null) {
-            return null;
-        }
-
-        if (path.length() == 0 && allowEmptyPath) {
-            return path;
-        }
-
-        if (!path.startsWith("/")) {
-            if (GET_RESOURCE_REQUIRE_SLASH) {
-                return null;
-            } else {
-                return "/" + path;
+            try {
+                Object resource = resources.lookup(normalizedPath);
+                if (resource instanceof Resource)
+                    return (((Resource) resource).streamContent());
+            } catch (NamingException e) {
+                // Ignore
+            } catch (Exception e) {
+                // Unexpected
+                log(sm.getString("applicationContext.lookup.error", path,
+                        getContextPath()), e);
             }
         }
 
-        return path;
+        return null;
     }
 
 
@@ -598,12 +618,46 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
             throw new IllegalArgumentException (sm.getString("applicationContext.resourcePaths.iae", path));
         }
 
-        WebResourceRoot resources = context.getResources();
+        String normalizedPath;
+        if (File.separatorChar == '\\') {
+            // On Windows '\\' is a separator so in case a Windows style
+            // separator has managed to make it into the path, replace it.
+            normalizedPath = RequestUtil.normalize(path, true);
+        } else {
+            // On UNIX and similar systems, '\\' is a valid file name so do not
+            // convert it to '/'
+            normalizedPath = RequestUtil.normalize(path, false);
+        }
+        if (normalizedPath == null)
+            return (null);
+
+        DirContext resources = context.getResources();
         if (resources != null) {
-            return resources.listWebAppPaths(path);
+            return (getResourcePathsInternal(resources, normalizedPath));
         }
 
         return null;
+    }
+
+
+    /**
+     * Internal implementation of getResourcesPath() logic.
+     *
+     * @param resources Directory context to search
+     * @param path Collection path
+     */
+    private Set<String> getResourcePathsInternal(DirContext resources,
+            String path) {
+
+        ResourceSet<String> set = new ResourceSet<String>();
+        try {
+            listCollectionPaths(set, resources, path);
+        } catch (NamingException e) {
+            return (null);
+        }
+        set.setLocked(true);
+        return (set);
+
     }
 
 
@@ -832,7 +886,15 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new ServletException(e);
-        } catch (ReflectiveOperationException | NamingException e) {
+        } catch (IllegalAccessException e) {
+            throw new ServletException(e);
+        } catch (NamingException e) {
+            throw new ServletException(e);
+        } catch (InstantiationException e) {
+            throw new ServletException(e);
+        } catch (ClassNotFoundException e) {
+            throw new ServletException(e);
+        } catch (NoSuchMethodException e) {
             throw new ServletException(e);
         }
     }
@@ -850,61 +912,24 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
     @Override
     public ServletRegistration.Dynamic addServlet(String servletName, String className) {
-        return addServlet(servletName, className, null, null);
+        return addServlet(servletName, className, null);
     }
 
 
     @Override
     public ServletRegistration.Dynamic addServlet(String servletName, Servlet servlet) {
-        return addServlet(servletName, null, servlet, null);
+        return addServlet(servletName, null, servlet);
     }
 
 
     @Override
     public ServletRegistration.Dynamic addServlet(String servletName,
             Class<? extends Servlet> servletClass) {
-        return addServlet(servletName, servletClass.getName(), null, null);
+        return addServlet(servletName, servletClass.getName(), null);
     }
-
-
-    @Override
-    public Dynamic addJspFile(String jspName, String jspFile) {
-
-        // jspName is validated in addServlet()
-        if (jspFile == null || !jspFile.startsWith("/")) {
-            throw new IllegalArgumentException(
-                    sm.getString("applicationContext.addJspFile.iae", jspFile));
-        }
-
-        String jspServletClassName = null;
-        Map<String,String> jspFileInitParams = new HashMap<>();
-
-        Wrapper jspServlet = (Wrapper) context.findChild("jsp");
-
-        if (jspServlet == null) {
-            // No JSP servlet currently defined.
-            // Use default JSP Servlet class name
-            jspServletClassName = Constants.JSP_SERVLET_CLASS;
-        } else {
-            // JSP Servlet defined.
-            // Use same JSP Servlet class name
-            jspServletClassName = jspServlet.getServletClass();
-            // Use same init parameters
-            String[] params = jspServlet.findInitParameters();
-            for (String param : params) {
-                jspFileInitParams.put(param, jspServlet.findInitParameter(param));
-            }
-        }
-
-        // Add init parameter to specify JSP file
-        jspFileInitParams.put("jspFile", jspFile);
-
-        return addServlet(jspName, jspServletClassName, null, jspFileInitParams);
-    }
-
 
     private ServletRegistration.Dynamic addServlet(String servletName, String servletClass,
-            Servlet servlet, Map<String,String> initParams) throws IllegalStateException {
+            Servlet servlet) throws IllegalStateException {
 
         if (servletName == null || servletName.equals("")) {
             throw new IllegalArgumentException(sm.getString(
@@ -952,12 +977,6 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
             }
         }
 
-        if (initParams != null) {
-            for (Map.Entry<String, String> initParam: initParams.entrySet()) {
-                wrapper.addInitParameter(initParam.getKey(), initParam.getValue());
-            }
-        }
-
         ServletRegistration.Dynamic registration =
                 new ApplicationServletRegistration(wrapper, context);
         if (annotation != null) {
@@ -977,7 +996,15 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new ServletException(e);
-        } catch (ReflectiveOperationException | NamingException e) {
+        } catch (IllegalAccessException e) {
+            throw new ServletException(e);
+        } catch (NamingException e) {
+            throw new ServletException(e);
+        } catch (InstantiationException e) {
+            throw new ServletException(e);
+        } catch (ClassNotFoundException e) {
+            throw new ServletException(e);
+        } catch (NoSuchMethodException e) {
             throw new ServletException(e);
         }
     }
@@ -1120,7 +1147,23 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
             throw new IllegalArgumentException(sm.getString(
                     "applicationContext.addListener.iae.cnfe", className),
                     e);
-        } catch (ReflectiveOperationException| NamingException e) {
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException(sm.getString(
+                    "applicationContext.addListener.iae.cnfe", className),
+                    e);
+        } catch (NamingException e) {
+            throw new IllegalArgumentException(sm.getString(
+                    "applicationContext.addListener.iae.cnfe", className),
+                    e);
+        } catch (InstantiationException e) {
+            throw new IllegalArgumentException(sm.getString(
+                    "applicationContext.addListener.iae.cnfe", className),
+                    e);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(sm.getString(
+                    "applicationContext.addListener.iae.cnfe", className),
+                    e);
+        } catch (NoSuchMethodException e) {
             throw new IllegalArgumentException(sm.getString(
                     "applicationContext.addListener.iae.cnfe", className),
                     e);
@@ -1141,7 +1184,6 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         if (t instanceof ServletContextAttributeListener ||
                 t instanceof ServletRequestListener ||
                 t instanceof ServletRequestAttributeListener ||
-                t instanceof HttpSessionIdListener ||
                 t instanceof HttpSessionAttributeListener) {
             context.addApplicationEventListener(t);
             match = true;
@@ -1180,7 +1222,6 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
                     listener instanceof ServletRequestListener ||
                     listener instanceof ServletRequestAttributeListener ||
                     listener instanceof HttpSessionListener ||
-                    listener instanceof HttpSessionIdListener ||
                     listener instanceof HttpSessionAttributeListener) {
                 return listener;
             }
@@ -1190,7 +1231,13 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new ServletException(e);
-        } catch (ReflectiveOperationException | NamingException e) {
+        } catch (IllegalAccessException e) {
+            throw new ServletException(e);
+        } catch (NamingException e) {
+            throw new ServletException(e);
+        } catch (InstantiationException e) {
+            throw new ServletException(e);
+        } catch (NoSuchMethodException e) {
             throw new ServletException(e);
         }
     }
@@ -1259,7 +1306,8 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
     @Override
     public Map<String, ? extends FilterRegistration> getFilterRegistrations() {
-        Map<String, ApplicationFilterRegistration> result = new HashMap<>();
+        Map<String, ApplicationFilterRegistration> result =
+                new HashMap<String, ApplicationFilterRegistration>();
 
         FilterDef[] filterDefs = context.findFilterDefs();
         for (FilterDef filterDef : filterDefs) {
@@ -1273,13 +1321,21 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
     @Override
     public JspConfigDescriptor getJspConfigDescriptor() {
-        return context.getJspConfigDescriptor();
+        JspConfigDescriptor jspConfigDescriptor = context
+                .getJspConfigDescriptor();
+        if (jspConfigDescriptor.getJspPropertyGroups().isEmpty()
+                && jspConfigDescriptor.getTaglibs().isEmpty()) {
+            return null;
+        } else {
+            return jspConfigDescriptor;
+        }
     }
 
 
     @Override
     public Map<String, ? extends ServletRegistration> getServletRegistrations() {
-        Map<String, ApplicationServletRegistration> result = new HashMap<>();
+        Map<String, ApplicationServletRegistration> result =
+                new HashMap<String, ApplicationServletRegistration>();
 
         Container[] wrappers = context.findChildren();
         for (Container wrapper : wrappers) {
@@ -1292,81 +1348,22 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     }
 
 
-    @Override
-    public String getVirtualServerName() {
-        // Constructor will fail if context or its parent is null
-        Container host = context.getParent();
-        Container engine = host.getParent();
-        return engine.getName() + "/" + host.getName();
-    }
-
-
-    @Override
-    public int getSessionTimeout() {
-        return context.getSessionTimeout();
-    }
-
-
-    @Override
-    public void setSessionTimeout(int sessionTimeout) {
-        if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
-            throw new IllegalStateException(
-                    sm.getString("applicationContext.setSessionTimeout.ise",
-                            getContextPath()));
-        }
-
-        context.setSessionTimeout(sessionTimeout);
-    }
-
-
-    @Override
-    public String getRequestCharacterEncoding() {
-        return context.getRequestCharacterEncoding();
-    }
-
-
-    @Override
-    public void setRequestCharacterEncoding(String encoding) {
-        if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
-            throw new IllegalStateException(
-                    sm.getString("applicationContext.setRequestEncoding.ise",
-                            getContextPath()));
-        }
-
-        context.setRequestCharacterEncoding(encoding);
-    }
-
-
-    @Override
-    public String getResponseCharacterEncoding() {
-        return context.getResponseCharacterEncoding();
-    }
-
-
-    @Override
-    public void setResponseCharacterEncoding(String encoding) {
-        if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
-            throw new IllegalStateException(
-                    sm.getString("applicationContext.setResponseEncoding.ise",
-                            getContextPath()));
-        }
-
-        context.setResponseCharacterEncoding(encoding);
-    }
-
-
     // -------------------------------------------------------- Package Methods
     protected StandardContext getContext() {
         return this.context;
     }
 
+    @Deprecated
+    protected Map<String,String> getReadonlyAttributes() {
+        return this.readOnlyAttributes;
+    }
     /**
      * Clear all application-created attributes.
      */
     protected void clearAttributes() {
 
         // Create list of attributes to be removed
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         for (String s : attributes.keySet()) {
             list.add(s);
         }
@@ -1402,6 +1399,47 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     protected void setNewServletContextListenerAllowed(boolean allowed) {
         this.newServletContextListenerAllowed = allowed;
     }
+
+    /**
+     * List resource paths (recursively), and store all of them in the given
+     * Set.
+     */
+    private static void listCollectionPaths(Set<String> set,
+            DirContext resources, String path) throws NamingException {
+
+        Enumeration<Binding> childPaths = resources.listBindings(path);
+        while (childPaths.hasMoreElements()) {
+            Binding binding = childPaths.nextElement();
+            String name = binding.getName();
+            StringBuilder childPath = new StringBuilder(path);
+            if (!"/".equals(path) && !path.endsWith("/"))
+                childPath.append("/");
+            childPath.append(name);
+            Object object = binding.getObject();
+            if (object instanceof DirContext) {
+                childPath.append("/");
+            }
+            set.add(childPath.toString());
+        }
+
+    }
+
+
+    /**
+     * Get full path, based on the host name and the context path.
+     */
+    private static String getJNDIUri(String hostName, String path) {
+        String result;
+
+        if (path.startsWith("/")) {
+            result = "/" + hostName + path;
+        } else {
+            result = "/" + hostName + "/" + path;
+        }
+
+        return result;
+    }
+
 
     /**
      * Internal class used as thread-local storage when doing path

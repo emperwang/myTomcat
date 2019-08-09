@@ -16,6 +16,7 @@
  */
 package org.apache.catalina.core;
 
+import java.beans.Introspector;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
@@ -59,13 +60,13 @@ public class DefaultInstanceManager implements InstanceManager {
 
     // Used when there are no annotations in a class
     private static final AnnotationCacheEntry[] ANNOTATIONS_EMPTY
-        = new AnnotationCacheEntry[0];
+    = new AnnotationCacheEntry[0];
 
     /**
      * The string manager for this package.
      */
     protected static final StringManager sm =
-        StringManager.getManager(Constants.Package);
+            StringManager.getManager(Constants.Package);
 
     private static final boolean EJB_PRESENT;
     private static final boolean JPA_PRESENT;
@@ -102,24 +103,21 @@ public class DefaultInstanceManager implements InstanceManager {
     private final Map<String, Map<String, String>> injectionMap;
     protected final ClassLoader classLoader;
     protected final ClassLoader containerClassLoader;
-    protected final boolean privileged;
-    protected final boolean ignoreAnnotations;
+    protected boolean privileged;
+    protected boolean ignoreAnnotations;
     private final Set<String> restrictedClasses;
     private final ManagedConcurrentWeakHashMap<Class<?>, AnnotationCacheEntry[]> annotationCache =
-            new ManagedConcurrentWeakHashMap<>();
+            new ManagedConcurrentWeakHashMap<Class<?>, AnnotationCacheEntry[]>();
     private final Map<String, String> postConstructMethods;
     private final Map<String, String> preDestroyMethods;
 
-    public DefaultInstanceManager(Context context,
-            Map<String, Map<String, String>> injectionMap,
-            org.apache.catalina.Context catalinaContext,
-            ClassLoader containerClassLoader) {
+    public DefaultInstanceManager(Context context, Map<String, Map<String, String>> injectionMap, org.apache.catalina.Context catalinaContext, ClassLoader containerClassLoader) {
         classLoader = catalinaContext.getLoader().getClassLoader();
         privileged = catalinaContext.getPrivileged();
         this.containerClassLoader = containerClassLoader;
         ignoreAnnotations = catalinaContext.getIgnoreAnnotations();
         Log log = catalinaContext.getLogger();
-        Set<String> classNames = new HashSet<>();
+        Set<String> classNames = new HashSet<String>();
         loadProperties(classNames,
                 "org/apache/catalina/core/RestrictedServlets.properties",
                 "defaultInstanceManager.restrictedServletsResource", log);
@@ -138,17 +136,17 @@ public class DefaultInstanceManager implements InstanceManager {
 
     @Override
     public Object newInstance(Class<?> clazz) throws IllegalAccessException,
-            InvocationTargetException, NamingException, InstantiationException,
-            IllegalArgumentException, NoSuchMethodException, SecurityException {
-        return newInstance(clazz.getConstructor().newInstance(), clazz);
+    InvocationTargetException, NamingException, InstantiationException,
+    IllegalArgumentException, NoSuchMethodException, SecurityException {
+        return newInstance(clazz.getDeclaredConstructor().newInstance(), clazz);
     }
 
     @Override
     public Object newInstance(String className) throws IllegalAccessException,
-            InvocationTargetException, NamingException, InstantiationException,
-            ClassNotFoundException, IllegalArgumentException, NoSuchMethodException, SecurityException {
+    InvocationTargetException, NamingException, InstantiationException,
+    ClassNotFoundException, IllegalArgumentException, NoSuchMethodException, SecurityException {
         Class<?> clazz = loadClassMaybePrivileged(className, classLoader);
-        return newInstance(clazz.getConstructor().newInstance(), clazz);
+        return newInstance(clazz.getDeclaredConstructor().newInstance(), clazz);
     }
 
     @Override
@@ -157,7 +155,7 @@ public class DefaultInstanceManager implements InstanceManager {
             InstantiationException, ClassNotFoundException, IllegalArgumentException,
             NoSuchMethodException, SecurityException {
         Class<?> clazz = classLoader.loadClass(className);
-        return newInstance(clazz.getConstructor().newInstance(), clazz);
+        return newInstance(clazz.getDeclaredConstructor().newInstance(), clazz);
     }
 
     @Override
@@ -166,8 +164,7 @@ public class DefaultInstanceManager implements InstanceManager {
         newInstance(o, o.getClass());
     }
 
-    private Object newInstance(Object instance, Class<?> clazz)
-            throws IllegalAccessException, InvocationTargetException, NamingException {
+    private Object newInstance(Object instance, Class<?> clazz) throws IllegalAccessException, InvocationTargetException, NamingException {
         if (!ignoreAnnotations) {
             Map<String, String> injections = assembleInjectionsFromClassHierarchy(clazz);
             populateAnnotationsCache(clazz, injections);
@@ -178,7 +175,7 @@ public class DefaultInstanceManager implements InstanceManager {
     }
 
     private Map<String, String> assembleInjectionsFromClassHierarchy(Class<?> clazz) {
-        Map<String, String> injections = new HashMap<>();
+        Map<String, String> injections = new HashMap<String, String>();
         Map<String, String> currentInjections = null;
         while (clazz != null) {
             currentInjections = this.injectionMap.get(clazz.getName());
@@ -191,16 +188,14 @@ public class DefaultInstanceManager implements InstanceManager {
     }
 
     @Override
-    public void destroyInstance(Object instance) throws IllegalAccessException,
-            InvocationTargetException {
+    public void destroyInstance(Object instance) throws IllegalAccessException, InvocationTargetException {
         if (!ignoreAnnotations) {
             preDestroy(instance, instance.getClass());
         }
     }
 
     /**
-     * Call postConstruct method on the specified instance recursively from
-     * deepest superclass to actual class.
+     * Call postConstruct method on the specified instance recursively from deepest superclass to actual class.
      *
      * @param instance object to call postconstruct methods on
      * @param clazz    (super) class to examine for postConstruct annotation.
@@ -238,8 +233,7 @@ public class DefaultInstanceManager implements InstanceManager {
 
 
     /**
-     * Call preDestroy method on the specified instance recursively from deepest
-     * superclass to actual class.
+     * Call preDestroy method on the specified instance recursively from deepest superclass to actual class.
      *
      * @param instance object to call preDestroy methods on
      * @param clazz    (super) class to examine for preDestroy annotation.
@@ -294,16 +288,16 @@ public class DefaultInstanceManager implements InstanceManager {
      */
     protected void populateAnnotationsCache(Class<?> clazz,
             Map<String, String> injections) throws IllegalAccessException,
-            InvocationTargetException, NamingException {
+    InvocationTargetException, NamingException {
 
         List<AnnotationCacheEntry> annotations = null;
-        Set<String> injectionsMatchedToSetter = new HashSet<>();
+        Set<String> injectionsMatchedToSetter = new HashSet<String>();
 
         while (clazz != null) {
             AnnotationCacheEntry[] annotationsArray = annotationCache.get(clazz);
             if (annotationsArray == null) {
                 if (annotations == null) {
-                    annotations = new ArrayList<>();
+                    annotations = new ArrayList<AnnotationCacheEntry>();
                 } else {
                     annotations.clear();
                 }
@@ -383,8 +377,8 @@ public class DefaultInstanceManager implements InstanceManager {
                             AnnotationCacheEntryType.POST_CONSTRUCT));
                 } else if (postConstructFromXml != null) {
                     throw new IllegalArgumentException("Post construct method "
-                        + postConstructFromXml + " for class " + clazz.getName()
-                        + " is declared in deployment descriptor but cannot be found.");
+                            + postConstructFromXml + " for class " + clazz.getName()
+                            + " is declared in deployment descriptor but cannot be found.");
                 }
                 if (preDestroy != null) {
                     annotations.add(new AnnotationCacheEntry(
@@ -393,8 +387,8 @@ public class DefaultInstanceManager implements InstanceManager {
                             AnnotationCacheEntryType.PRE_DESTROY));
                 } else if (preDestroyFromXml != null) {
                     throw new IllegalArgumentException("Pre destroy method "
-                        + preDestroyFromXml + " for class " + clazz.getName()
-                        + " is declared in deployment descriptor but cannot be found.");
+                            + preDestroyFromXml + " for class " + clazz.getName()
+                            + " is declared in deployment descriptor but cannot be found.");
                 }
 
                 if (context != null) {
@@ -496,16 +490,13 @@ public class DefaultInstanceManager implements InstanceManager {
 
     /**
      * Makes cache size available to unit tests.
-     *
-     * @return the cache size
      */
     protected int getAnnotationCacheSize() {
         return annotationCache.size();
     }
 
 
-    protected Class<?> loadClassMaybePrivileged(final String className,
-            final ClassLoader classLoader) throws ClassNotFoundException {
+    protected Class<?> loadClassMaybePrivileged(final String className, final ClassLoader classLoader) throws ClassNotFoundException {
         Class<?> clazz;
         if (SecurityUtil.isPackageProtectionEnabled()) {
             try {
@@ -530,8 +521,7 @@ public class DefaultInstanceManager implements InstanceManager {
         return clazz;
     }
 
-    protected Class<?> loadClass(String className, ClassLoader classLoader)
-            throws ClassNotFoundException {
+    protected Class<?> loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
         if (className.startsWith("org.apache.catalina")) {
             return containerClassLoader.loadClass(className);
         }
@@ -576,7 +566,7 @@ public class DefaultInstanceManager implements InstanceManager {
      */
     protected static void lookupFieldResource(Context context,
             Object instance, Field field, String name, Class<?> clazz)
-            throws NamingException, IllegalAccessException {
+                    throws NamingException, IllegalAccessException {
 
         Object lookedupResource;
         boolean accessibility;
@@ -587,7 +577,7 @@ public class DefaultInstanceManager implements InstanceManager {
             lookedupResource = context.lookup(normalizedName);
         } else {
             lookedupResource =
-                context.lookup(clazz.getName() + "/" + field.getName());
+                    context.lookup(clazz.getName() + "/" + field.getName());
         }
 
         synchronized (field) {
@@ -613,7 +603,7 @@ public class DefaultInstanceManager implements InstanceManager {
      */
     protected static void lookupMethodResource(Context context,
             Object instance, Method method, String name, Class<?> clazz)
-            throws NamingException, IllegalAccessException, InvocationTargetException {
+                    throws NamingException, IllegalAccessException, InvocationTargetException {
 
         if (!Introspection.isValidSetter(method)) {
             throw new IllegalArgumentException(
@@ -640,11 +630,20 @@ public class DefaultInstanceManager implements InstanceManager {
         }
     }
 
+    @Deprecated
+    public static String getName(Method setter) {
+        // Note: method signature has already been checked for correctness.
+        // The method name always starts with "set".
+        return Introspector.decapitalize(setter.getName().substring(3));
+    }
+
     private static void loadProperties(Set<String> classNames, String resourceName,
             String messageKey, Log log) {
         Properties properties = new Properties();
         ClassLoader cl = DefaultInstanceManager.class.getClassLoader();
-        try (InputStream is = cl.getResourceAsStream(resourceName)) {
+        InputStream is = null;
+        try {
+            is = cl.getResourceAsStream(resourceName);
             if (is == null) {
                 log.error(sm.getString(messageKey, resourceName));
             } else {
@@ -652,6 +651,13 @@ public class DefaultInstanceManager implements InstanceManager {
             }
         } catch (IOException ioe) {
             log.error(sm.getString(messageKey, resourceName), ioe);
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                }
+            }
         }
         if (properties.isEmpty()) {
             return;
@@ -693,7 +699,7 @@ public class DefaultInstanceManager implements InstanceManager {
                             }
                             return result;
                         }
-            });
+                    });
         } else {
             try {
                 result = clazz.getDeclaredMethod(
@@ -723,7 +729,7 @@ public class DefaultInstanceManager implements InstanceManager {
                             }
                             return result;
                         }
-            });
+                    });
         } else {
             try {
                 result = clazz.getDeclaredField(
@@ -739,13 +745,13 @@ public class DefaultInstanceManager implements InstanceManager {
     private static Method findPostConstruct(Method currentPostConstruct,
             String postConstructFromXml, Method method) {
         return findLifecycleCallback(currentPostConstruct,
-            postConstructFromXml, method, PostConstruct.class);
+                postConstructFromXml, method, PostConstruct.class);
     }
 
     private static Method findPreDestroy(Method currentPreDestroy,
-        String preDestroyFromXml, Method method) {
+            String preDestroyFromXml, Method method) {
         return findLifecycleCallback(currentPreDestroy,
-            preDestroyFromXml, method, PreDestroy.class);
+                preDestroyFromXml, method, PreDestroy.class);
     }
 
     private static Method findLifecycleCallback(Method currentMethod,
@@ -762,7 +768,8 @@ public class DefaultInstanceManager implements InstanceManager {
             }
         } else {
             if (method.isAnnotationPresent(annotation)) {
-                if (currentMethod != null || !Introspection.isValidLifecycleCallback(method)) {
+                if (currentMethod != null ||
+                        !Introspection.isValidLifecycleCallback(method)) {
                     throw new IllegalArgumentException(
                             "Invalid " + annotation.getName() + " annotation");
                 }

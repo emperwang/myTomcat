@@ -158,7 +158,6 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
      * @param sessionId   The ID of the session for which the cookie will be
      *                    created
      * @param secure      Should session cookie be configured as secure
-     * @return the cookie for the session
      */
     public static Cookie createSessionCookie(Context context,
             String sessionId, boolean secure) {
@@ -197,8 +196,59 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
             cookie.setHttpOnly(true);
         }
 
-        cookie.setPath(SessionConfig.getSessionCookiePath(context));
+        String contextPath = context.getSessionCookiePath();
+        if (contextPath == null || contextPath.length() == 0) {
+            contextPath = scc.getPath();
+        }
+        if (contextPath == null || contextPath.length() == 0) {
+            contextPath = context.getEncodedPath();
+        }
+        if (context.getSessionCookiePathUsesTrailingSlash()) {
+            // Handle special case of ROOT context where cookies require a path of
+            // '/' but the servlet spec uses an empty string
+            // Also ensure the cookies for a context with a path of /foo don't get
+            // sent for requests with a path of /foobar
+            if (!contextPath.endsWith("/")) {
+                contextPath = contextPath + "/";
+            }
+        } else {
+            // Only handle special case of ROOT context where cookies require a
+            // path of '/' but the servlet spec uses an empty string
+            if (contextPath.length() == 0) {
+                contextPath = "/";
+            }
+        }
+        cookie.setPath(contextPath);
 
         return cookie;
+    }
+
+
+    /**
+     * Determine the name to use for the session cookie for the provided
+     * context.
+     * @param context
+     *
+     * @deprecated  Replaced by
+     *              {@link SessionConfig#getSessionCookieName(Context)}. This
+     *              will be removed in Tomcat 8.0.x.
+     */
+    @Deprecated
+    public static String getSessionCookieName(Context context) {
+        return SessionConfig.getSessionCookieName(context);
+    }
+
+    /**
+     * Determine the name to use for the session cookie for the provided
+     * context.
+     * @param context
+     *
+     * @deprecated  Replaced by
+     *              {@link SessionConfig#getSessionUriParamName(Context)}. This
+     *              will be removed in Tomcat 8.0.x.
+     */
+    @Deprecated
+    public static String getSessionUriParamName(Context context) {
+        return SessionConfig.getSessionUriParamName(context);
     }
 }

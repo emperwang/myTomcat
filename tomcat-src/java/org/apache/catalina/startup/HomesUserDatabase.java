@@ -25,7 +25,7 @@ import java.util.Hashtable;
 
 
 /**
- * Concrete implementation of the <code>UserDatabase</code> interface
+ * Concrete implementation of the <strong>UserDatabase</code> interface
  * considers all directories in a directory whose pathname is specified
  * to our constructor to be "home" directories for those users.
  *
@@ -54,7 +54,7 @@ public final class HomesUserDatabase
     /**
      * The set of home directories for all defined users, keyed by username.
      */
-    private final Hashtable<String,String> homes = new Hashtable<>();
+    private Hashtable<String,String> homes = new Hashtable<String,String>();
 
 
     /**
@@ -71,7 +71,9 @@ public final class HomesUserDatabase
      */
     @Override
     public UserConfig getUserConfig() {
-        return this.userConfig;
+
+        return (this.userConfig);
+
     }
 
 
@@ -82,8 +84,10 @@ public final class HomesUserDatabase
      */
     @Override
     public void setUserConfig(UserConfig userConfig) {
+
         this.userConfig = userConfig;
         init();
+
     }
 
 
@@ -97,7 +101,9 @@ public final class HomesUserDatabase
      */
     @Override
     public String getHome(String user) {
+
         return homes.get(user);
+
     }
 
 
@@ -106,7 +112,9 @@ public final class HomesUserDatabase
      */
     @Override
     public Enumeration<String> getUsers() {
-        return homes.keys();
+
+        return (homes.keys());
+
     }
 
 

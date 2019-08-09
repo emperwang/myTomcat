@@ -25,11 +25,10 @@ import javax.servlet.ServletContextListener;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleState;
+import org.apache.catalina.deploy.ContextEnvironment;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
 
 public class TestNamingContextListener extends TomcatBaseTest {
 
@@ -41,7 +40,7 @@ public class TestNamingContextListener extends TomcatBaseTest {
     private static final String BUG54096_NameB = "envB";
     private static final String BUG54096_ValueB = "B";
 
-    /*
+    /**
      * Test JNDI is available to ServletContextListeners.
      */
     @Test
@@ -49,7 +48,7 @@ public class TestNamingContextListener extends TomcatBaseTest {
         Tomcat tomcat = getTomcatInstance();
 
         // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
+        org.apache.catalina.Context ctx = tomcat.addContext("", null);
 
         // Enable JNDI - it is disabled by default
         tomcat.enableNaming();
@@ -96,7 +95,7 @@ public class TestNamingContextListener extends TomcatBaseTest {
         Tomcat tomcat = getTomcatInstance();
 
         // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
+        org.apache.catalina.Context ctx = tomcat.addContext("", null);
 
         // Enable JNDI - it is disabled by default
         tomcat.enableNaming();

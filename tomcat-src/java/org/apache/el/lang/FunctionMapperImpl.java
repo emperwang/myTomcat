@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.el.lang;
 
 import java.io.Externalizable;
@@ -21,8 +22,8 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Method;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.el.FunctionMapper;
 
@@ -37,7 +38,7 @@ public class FunctionMapperImpl extends FunctionMapper implements
 
     private static final long serialVersionUID = 1L;
 
-    protected ConcurrentMap<String, Function> functions = new ConcurrentHashMap<>();
+    protected Map<String, Function> functions = null;
 
     /*
      * (non-Javadoc)
@@ -47,21 +48,20 @@ public class FunctionMapperImpl extends FunctionMapper implements
      */
     @Override
     public Method resolveFunction(String prefix, String localName) {
-        Function f = this.functions.get(prefix + ":" + localName);
-        if (f == null) {
-            return null;
+        if (this.functions != null) {
+            Function f = this.functions.get(prefix + ":" + localName);
+            return f.getMethod();
         }
-        return f.getMethod();
+        return null;
     }
 
-    @Override
-    public void mapFunction(String prefix, String localName, Method m) {
-        String key = prefix + ":" + localName;
-        if (m == null) {
-            functions.remove(key);
-        } else {
-            Function f = new Function(prefix, localName, m);
-            functions.put(key, f);
+    public void addFunction(String prefix, String localName, Method m) {
+        if (this.functions == null) {
+            this.functions = new HashMap<String, Function>();
+        }
+        Function f = new Function(prefix, localName, m);
+        synchronized (this) {
+            this.functions.put(prefix+":"+localName, f);
         }
     }
 
@@ -84,7 +84,7 @@ public class FunctionMapperImpl extends FunctionMapper implements
     @Override
     public void readExternal(ObjectInput in) throws IOException,
             ClassNotFoundException {
-        this.functions = (ConcurrentMap<String, Function>) in.readObject();
+        this.functions = (Map<String, Function>) in.readObject();
     }
 
     public static class Function implements Externalizable {
@@ -96,6 +96,9 @@ public class FunctionMapperImpl extends FunctionMapper implements
         protected String prefix;
         protected String localName;
 
+        /**
+         *
+         */
         public Function(String prefix, String localName, Method m) {
             if (localName == null) {
                 throw new NullPointerException("LocalName cannot be null");

@@ -32,14 +32,13 @@ import org.apache.catalina.Manager;
 import org.apache.catalina.Realm;
 import org.apache.catalina.Session;
 import org.apache.catalina.connector.Request;
-import org.apache.catalina.connector.Response;
+import org.apache.catalina.deploy.LoginConfig;
 import org.apache.coyote.ActionCode;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
 import org.apache.tomcat.util.http.MimeHeaders;
 
 /**
@@ -57,6 +56,13 @@ public class FormAuthenticator
 
     // ----------------------------------------------------- Instance Variables
 
+
+    /**
+     * Descriptive information about this implementation.
+     */
+    protected static final String info =
+        "org.apache.catalina.authenticator.FormAuthenticator/1.0";
+
     /**
      * Character encoding to use to read the username and password parameters
      * from the request. If not set, the encoding of the request body will be
@@ -73,6 +79,17 @@ public class FormAuthenticator
 
 
     // ------------------------------------------------------------- Properties
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
+
 
     /**
      * Return the character encoding to use to read the user name and password.
@@ -115,7 +132,7 @@ public class FormAuthenticator
     }
 
 
-    // ------------------------------------------------------ Protected Methods
+    // --------------------------------------------------------- Public Methods
 
 
     /**
@@ -126,12 +143,16 @@ public class FormAuthenticator
      *
      * @param request Request we are processing
      * @param response Response we are creating
+     * @param config    Login configuration describing how authentication
+     *              should be performed
      *
      * @exception IOException if an input/output error occurs
      */
     @Override
-    protected boolean doAuthenticate(Request request, HttpServletResponse response)
-            throws IOException {
+    public boolean authenticate(Request request,
+                                HttpServletResponse response,
+                                LoginConfig config)
+        throws IOException {
 
         if (checkForCachedAuthentication(request, response, true)) {
             return true;
@@ -214,8 +235,6 @@ public class FormAuthenticator
         boolean loginAction =
             requestURI.startsWith(contextPath) &&
             requestURI.endsWith(Constants.FORM_ACTION);
-
-        LoginConfig config = context.getLoginConfig();
 
         // No -- Save this request and redirect to the form login page
         if (!loginAction) {
@@ -326,22 +345,14 @@ public class FormAuthenticator
                 response.sendRedirect(response.encodeRedirectURL(uri));
             }
         } else {
-            // Until the Servlet API allows specifying the type of redirect to
-            // use.
-            Response internalResponse = request.getResponse();
-            String location = response.encodeRedirectURL(requestURI);
-            if ("HTTP/1.1".equals(request.getProtocol())) {
-                internalResponse.sendRedirect(location,
-                        HttpServletResponse.SC_SEE_OTHER);
-            } else {
-                internalResponse.sendRedirect(location,
-                        HttpServletResponse.SC_FOUND);
-            }
+            response.sendRedirect(response.encodeRedirectURL(requestURI));
         }
         return false;
 
     }
 
+
+    // ------------------------------------------------------ Protected Methods
 
     @Override
     protected boolean isContinuationRequired(Request request) {

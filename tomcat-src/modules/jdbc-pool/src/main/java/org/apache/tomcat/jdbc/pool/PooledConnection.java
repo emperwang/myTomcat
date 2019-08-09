@@ -17,28 +17,24 @@
 package org.apache.tomcat.jdbc.pool;
 
 
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import javax.management.ObjectName;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.jdbc.pool.interceptor.ConnectionState;
-import org.apache.tomcat.jdbc.pool.jmx.JmxUtil;
 
 /**
  * Represents a pooled connection
  * and holds a reference to the {@link java.sql.Connection} object
+ * @author Filip Hanik
  * @version 1.0
  */
-public class PooledConnection implements PooledConnectionMBean {
+public class PooledConnection {
     /**
      * Logger
      */
@@ -106,13 +102,9 @@ public class PooledConnection implements PooledConnectionMBean {
      */
     protected ConnectionPool parent;
 
-    private HashMap<Object, Object> attributes = new HashMap<>();
+    private HashMap<Object, Object> attributes = new HashMap<Object, Object>();
 
     private volatile long connectionVersion=0;
-
-    private static final AtomicLong connectionIndex = new AtomicLong(0);
-
-    private ObjectName oname = null;
 
     /**
      * Weak reference to cache the list of interceptors for this connection
@@ -138,34 +130,12 @@ public class PooledConnection implements PooledConnectionMBean {
         connectionVersion = parent.getPoolVersion();
     }
 
-    @Override
     public long getConnectionVersion() {
         return connectionVersion;
     }
 
-    /**
-     * @deprecated use {@link #shouldForceReconnect(String, String)}
-     * method kept since it was public, to avoid changing interface.
-     * @param username The user name
-     * @param password The password
-     * @return <code>true</code>if the pool does not need to reconnect
-     */
-    @Deprecated
     public boolean checkUser(String username, String password) {
-        return !shouldForceReconnect(username, password);
-    }
-
-    /**
-     * Returns true if we must force reconnect based on credentials passed in.
-     * Returns false if {@link PoolConfiguration#isAlternateUsernameAllowed()} method returns false.
-     * Returns false if the username/password has not changed since this connection was connected
-     * @param username the username you wish to connect with, pass in null to accept the default username from {@link PoolConfiguration#getUsername()}
-     * @param password the password you wish to connect with, pass in null to accept the default username from {@link org.apache.tomcat.jdbc.pool.PoolConfiguration#getPassword()}
-     * @return true is the pool must reconnect
-     */
-    public boolean shouldForceReconnect(String username, String password) {
-
-        if (!getPoolProperties().isAlternateUsernameAllowed()) return false;
+        if (!getPoolProperties().isAlternateUsernameAllowed()) return true;
 
         if (username==null) username = poolProperties.getUsername();
         if (password==null) password = poolProperties.getPassword();
@@ -173,15 +143,15 @@ public class PooledConnection implements PooledConnectionMBean {
         String storedUsr = (String)getAttributes().get(PROP_USER);
         String storedPwd = (String)getAttributes().get(PROP_PASSWORD);
 
-        boolean noChangeInCredentials = (username==null && storedUsr==null);
-        noChangeInCredentials = (noChangeInCredentials || (username!=null && username.equals(storedUsr)));
+        boolean result = (username==null && storedUsr==null);
+        result = (result || (username!=null && username.equals(storedUsr)));
 
-        noChangeInCredentials = noChangeInCredentials && ((password==null && storedPwd==null) || (password!=null && password.equals(storedPwd)));
+        result = result && ((password==null && storedPwd==null) || (password!=null && password.equals(storedPwd)));
 
         if (username==null)  getAttributes().remove(PROP_USER); else getAttributes().put(PROP_USER, username);
         if (password==null)  getAttributes().remove(PROP_PASSWORD); else getAttributes().put(PROP_PASSWORD, password);
 
-        return !noChangeInCredentials;
+        return result;
     }
 
     /**
@@ -273,17 +243,9 @@ public class PooledConnection implements PooledConnectionMBean {
                 if (log.isDebugEnabled()) {
                     log.debug("Instantiating driver using class: "+poolProperties.getDriverClassName()+" [url="+poolProperties.getUrl()+"]");
                 }
-                if (poolProperties.getDriverClassName()==null) {
-                    //rely on DriverManager
-                    log.warn("Not loading a JDBC driver as driverClassName property is null.");
-                } else {
-                    driver = (java.sql.Driver)
-                        ClassLoaderUtil.loadClass(
-                            poolProperties.getDriverClassName(),
-                            PooledConnection.class.getClassLoader(),
-                            Thread.currentThread().getContextClassLoader()
-                        ).getConstructor().newInstance();
-                }
+                driver = (java.sql.Driver) Class.forName(poolProperties.getDriverClassName(),
+                                                         true, PooledConnection.class.getClassLoader()
+                                                         ).newInstance();
             }
         } catch (java.lang.Exception cn) {
             if (log.isDebugEnabled()) {
@@ -313,11 +275,7 @@ public class PooledConnection implements PooledConnectionMBean {
         if (pwd != null) properties.setProperty(PROP_PASSWORD, pwd);
 
         try {
-            if (driver==null) {
-                connection = DriverManager.getConnection(driverURL, properties);
-            } else {
-                connection = driver.connect(driverURL, properties);
-            }
+            connection = driver.connect(driverURL, properties);
         } catch (Exception x) {
             if (log.isDebugEnabled()) {
                 log.debug("Unable to connect to database.", x);
@@ -343,25 +301,10 @@ public class PooledConnection implements PooledConnectionMBean {
      *
      * @return true if connect() was called successfully and disconnect has not yet been called
      */
-    @Override
     public boolean isInitialized() {
         return connection!=null;
     }
 
-    /**
-     * Returns true if the connection has been connected more than
-     * {@link PoolConfiguration#getMaxAge()} milliseconds. false otherwise.
-     * @return Returns true if the connection has been connected more than
-     * {@link PoolConfiguration#getMaxAge()} milliseconds. false otherwise.
-     */
-    @Override
-    public boolean isMaxAgeExpired() {
-        if (getPoolProperties().getMaxAge()>0 ) {
-            return (System.currentTimeMillis() - getLastConnected()) > getPoolProperties().getMaxAge();
-        } else {
-            return false;
-        }
-    }
     /**
      * Issues a call to {@link #disconnect(boolean)} with the argument false followed by a call to
      * {@link #connect()}
@@ -419,9 +362,9 @@ public class PooledConnection implements PooledConnectionMBean {
     }
 
     /**
-     * Returns <code>true</code> if the connection pool is configured
+     * Returns true if the connection pool is configured
      * to do validation for a certain action.
-     * @param action The validation action
+     * @param action
      */
     private boolean doValidate(int action) {
         if (action == PooledConnection.VALIDATE_BORROW &&
@@ -443,12 +386,9 @@ public class PooledConnection implements PooledConnectionMBean {
             return false;
     }
 
-    /**
-     * Returns <code>true</code> if the object is still valid. if not
+    /**Returns true if the object is still valid. if not
      * the pool will call the getExpiredAction() and follow up with one
      * of the four expired methods
-     * @param validateAction The value
-     * @return <code>true</code> if the connection is valid
      */
     public boolean validate(int validateAction) {
         return validate(validateAction,null);
@@ -582,7 +522,7 @@ public class PooledConnection implements PooledConnectionMBean {
     }
 
     /**
-     * This method is called if (Now - timeCheckedIn &gt; getReleaseTime())
+     * This method is called if (Now - timeCheckedIn > getReleaseTime())
      * This method disconnects the connection, logs an error in debug mode if it happens
      * then sets the {@link #released} flag to false. Any attempts to connect this cached object again
      * will fail per {@link #connect()}
@@ -596,10 +536,6 @@ public class PooledConnection implements PooledConnectionMBean {
             if (log.isDebugEnabled()) {
                 log.debug("Unable to close SQL connection",x);
             }
-        }
-        if (oname != null) {
-            JmxUtil.unregisterJmx(oname);
-            oname = null;
         }
         return released.compareAndSet(false, true);
 
@@ -633,7 +569,7 @@ public class PooledConnection implements PooledConnectionMBean {
         setSuspect(false);
     }
 
-    @Override
+
     public boolean isSuspect() {
         return suspect;
     }
@@ -664,7 +600,7 @@ public class PooledConnection implements PooledConnectionMBean {
     /**
      * Sets the pool configuration for this connection and connection pool.
      * Object is shared with the {@link ConnectionPool}
-     * @param poolProperties The pool properties
+     * @param poolProperties
      */
     public void setPoolProperties(PoolConfiguration poolProperties) {
         this.poolProperties = poolProperties;
@@ -676,7 +612,6 @@ public class PooledConnection implements PooledConnectionMBean {
      * This timestamp can also be reset by the {@link org.apache.tomcat.jdbc.pool.interceptor.ResetAbandonedTimer#invoke(Object, java.lang.reflect.Method, Object[])}
      * @return the timestamp of the last pool action as defined by {@link System#currentTimeMillis()}
      */
-    @Override
     public long getTimestamp() {
         return timestamp;
     }
@@ -686,7 +621,6 @@ public class PooledConnection implements PooledConnectionMBean {
      * @return the discarded flag. If the value is true,
      * either {@link #disconnect(boolean)} has been called or it will be called when the connection is returned to the pool.
      */
-    @Override
     public boolean isDiscarded() {
         return discarded;
     }
@@ -695,7 +629,6 @@ public class PooledConnection implements PooledConnectionMBean {
      * Returns the timestamp of the last successful validation query execution.
      * @return the timestamp of the last successful validation query execution as defined by {@link System#currentTimeMillis()}
      */
-    @Override
     public long getLastValidated() {
         return lastValidated;
     }
@@ -755,7 +688,6 @@ public class PooledConnection implements PooledConnectionMBean {
      * ie, a successful call to {@link java.sql.Driver#connect(String, java.util.Properties)}.
      * @return the timestamp when this connection was created as defined by {@link System#currentTimeMillis()}
      */
-    @Override
     public long getLastConnected() {
         return lastConnected;
     }
@@ -788,7 +720,6 @@ public class PooledConnection implements PooledConnectionMBean {
      * Returns true if this connection has been released and wont be reused.
      * @return true if the method {@link #release()} has been called
      */
-    @Override
     public boolean isReleased() {
         return released.get();
     }
@@ -797,57 +728,11 @@ public class PooledConnection implements PooledConnectionMBean {
         return attributes;
     }
 
-    public void createMBean() {
-        if (oname != null) return;
-        String keyprop = ",connections=PooledConnection["+connectionIndex.getAndIncrement()+"]";
-        oname = JmxUtil.registerJmx(parent.getJmxPool().getObjectName(), keyprop, this);
-    }
-
-    public ObjectName getObjectName() {
-        return oname;
-    }
-
-    @Override
     public void clearWarnings() {
         try {
             connection.clearWarnings();
         } catch (SQLException e) {
             log.warn("Unable to clear Warnings, connection will be closed.", e);
         }
-    }
-
-    @Override
-    public boolean isClosed() throws SQLException {
-        return connection.isClosed();
-    }
-
-    @Override
-    public boolean getAutoCommit() throws SQLException {
-        return connection.getAutoCommit();
-    }
-
-    @Override
-    public String getCatalog() throws SQLException {
-        return connection.getCatalog();
-    }
-
-    @Override
-    public int getHoldability() throws SQLException {
-        return connection.getHoldability();
-    }
-
-    @Override
-    public boolean isReadOnly() throws SQLException {
-        return connection.isReadOnly();
-    }
-
-    @Override
-    public String getSchema() throws SQLException {
-        return connection.getSchema();
-    }
-
-    @Override
-    public int getTransactionIsolation() throws SQLException {
-        return connection.getTransactionIsolation();
     }
 }

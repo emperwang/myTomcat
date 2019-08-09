@@ -29,7 +29,6 @@ import org.junit.Test;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.websocket.server.WsContextListener;
 
 public class TestWebdavServlet extends TomcatBaseTest {
 
@@ -48,7 +47,7 @@ public class TestWebdavServlet extends TomcatBaseTest {
             tomcat.addWebapp(null, "/examples", appDir.getAbsolutePath());
 
         Tomcat.addServlet(ctx, "webdav", new WebdavServlet());
-        ctx.addServletMappingDecoded("/*", "webdav");
+        ctx.addServletMapping("/*", "webdav");
 
         tomcat.start();
 
@@ -92,8 +91,7 @@ public class TestWebdavServlet extends TomcatBaseTest {
             tomcat.addWebapp(null, "/examples", appDir.getAbsolutePath());
 
         Tomcat.addServlet(ctx, "webdav", new WebdavServlet());
-        ctx.addServletMappingDecoded("/webdav/*", "webdav");
-        ctx.addApplicationListener(WsContextListener.class.getName());
+        ctx.addServletMapping("/webdav/*", "webdav");
 
         tomcat.start();
 

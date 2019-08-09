@@ -20,7 +20,7 @@ import java.util.List;
 
 public class TesterThreadScopedHolder {
     private static final ThreadLocal<List<TesterCounter>> threadLocal =
-            new ThreadLocal<>();
+            new ThreadLocal<List<TesterCounter>>();
 
     public static void saveInHolder(List<TesterCounter> o) {
         threadLocal.set(o);

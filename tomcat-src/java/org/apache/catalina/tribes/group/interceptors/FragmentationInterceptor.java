@@ -27,9 +27,6 @@ import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.group.ChannelInterceptorBase;
 import org.apache.catalina.tribes.group.InterceptorPayload;
 import org.apache.catalina.tribes.io.XByteBuffer;
-import org.apache.catalina.tribes.util.StringManager;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 
 /**
  *
@@ -38,19 +35,19 @@ import org.apache.juli.logging.LogFactory;
  * and smaller messages can make it through.
  *
  * <br><b>Configuration Options</b><br>
- * FragmentationInterceptor.expire=&lt;milliseconds&gt; - how long do we keep the fragments in memory and wait for the rest to arrive <b>default=60,000ms -&gt; 60seconds</b>
+ * FragmentationInterceptor.expire=<milliseconds> - how long do we keep the fragments in memory and wait for the rest to arrive <b>default=60,000ms -> 60seconds</b>
  * This setting is useful to avoid OutOfMemoryErrors<br>
- * FragmentationInterceptor.maxSize=&lt;max message size&gt; - message size in bytes <b>default=1024*100 (around a tenth of a MB)</b><br>
+ * FragmentationInterceptor.maxSize=<max message size> - message size in bytes <b>default=1024*100 (around a tenth of a MB)</b><br>
+ * @author Filip Hanik
  * @version 1.0
  */
-public class FragmentationInterceptor extends ChannelInterceptorBase implements FragmentationInterceptorMBean {
-    private static final Log log = LogFactory.getLog(FragmentationInterceptor.class);
-    protected static final StringManager sm = StringManager.getManager(FragmentationInterceptor.class);
+public class FragmentationInterceptor extends ChannelInterceptorBase {
+    private static final org.apache.juli.logging.Log log = org.apache.juli.logging.LogFactory.getLog( FragmentationInterceptor.class );
 
-    protected final HashMap<FragKey, FragCollection> fragpieces = new HashMap<>();
+    protected HashMap<FragKey, FragCollection> fragpieces = new HashMap<FragKey, FragCollection>();
     private int maxSize = 1024*100;
     private long expire = 1000 * 60; //one minute expiration
-    protected final boolean deepclone = true;
+    protected boolean deepclone = true;
 
 
     @Override
@@ -151,36 +148,33 @@ public class FragmentationInterceptor extends ChannelInterceptorBase implements 
             }
         }catch ( Exception x ) {
             if ( log.isErrorEnabled() ) {
-                log.error(sm.getString("fragmentationInterceptor.heartbeat.failed"),x);
+                log.error("Unable to perform heartbeat clean up in the frag interceptor",x);
             }
         }
         super.heartbeat();
     }
 
-    @Override
+
     public int getMaxSize() {
         return maxSize;
     }
 
-    @Override
     public long getExpire() {
         return expire;
     }
 
-    @Override
     public void setMaxSize(int maxSize) {
         this.maxSize = maxSize;
     }
 
-    @Override
     public void setExpire(long expire) {
         this.expire = expire;
     }
 
     public static class FragCollection {
-        private final long received = System.currentTimeMillis();
-        private final ChannelMessage msg;
-        private final XByteBuffer[] frags;
+        private long received = System.currentTimeMillis();
+        private ChannelMessage msg;
+        private XByteBuffer[] frags;
         public FragCollection(ChannelMessage msg) {
             //get the total messages
             int count = XByteBuffer.toInt(msg.getMessage().getBytesDirect(),msg.getMessage().getLength()-4);
@@ -206,7 +200,7 @@ public class FragmentationInterceptor extends ChannelInterceptorBase implements 
         }
 
         public ChannelMessage assemble() {
-            if ( !complete() ) throw new IllegalStateException(sm.getString("fragmentationInterceptor.fragments.missing"));
+            if ( !complete() ) throw new IllegalStateException("Fragments are missing.");
             int buffersize = 0;
             for (int i=0; i<frags.length; i++ ) buffersize += frags[i].getLength();
             XByteBuffer buf = new XByteBuffer(buffersize,false);
@@ -220,11 +214,13 @@ public class FragmentationInterceptor extends ChannelInterceptorBase implements 
         public boolean expired(long expire) {
             return (System.currentTimeMillis()-received)>expire;
         }
+
+
     }
 
     public static class FragKey {
-        private final byte[] uniqueId;
-        private final long received = System.currentTimeMillis();
+        private byte[] uniqueId;
+        private long received = System.currentTimeMillis();
         public FragKey(byte[] id ) {
             this.uniqueId = id;
         }

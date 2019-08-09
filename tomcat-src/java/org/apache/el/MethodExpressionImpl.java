@@ -41,7 +41,7 @@ import org.apache.el.util.ReflectionUtil;
  * An <code>Expression</code> that refers to a method on an object.
  *
  * <p>
- * The {@link javax.el.ExpressionFactory#createMethodExpression} method
+ * <code>The {@link javax.el.ExpressionFactory#createMethodExpression} method
  * can be used to parse an expression string and return a concrete instance
  * of <code>MethodExpression</code> that encapsulates the parsed expression.
  * The {@link FunctionMapper} is used at parse time, not evaluation time,
@@ -88,10 +88,20 @@ public final class MethodExpressionImpl extends MethodExpression implements
 
     private Class<?>[] paramTypes;
 
+    /**
+     *
+     */
     public MethodExpressionImpl() {
         super();
     }
 
+    /**
+     * @param expr
+     * @param node
+     * @param fnMapper
+     * @param expectedType
+     * @param paramTypes
+     */
     public MethodExpressionImpl(String expr, Node node,
             FunctionMapper fnMapper, VariableMapper varMapper,
             Class<?> expectedType, Class<?>[] paramTypes) {
@@ -192,10 +202,7 @@ public final class MethodExpressionImpl extends MethodExpression implements
         Node n = this.getNode();
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        ctx.notifyBeforeEvaluation(getExpressionString());
-        MethodInfo result = n.getMethodInfo(ctx, this.paramTypes);
-        ctx.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return n.getMethodInfo(ctx, this.paramTypes);
     }
 
     private Node getNode() throws ELException {
@@ -263,10 +270,7 @@ public final class MethodExpressionImpl extends MethodExpression implements
             ELException {
         EvaluationContext ctx = new EvaluationContext(context, this.fnMapper,
                 this.varMapper);
-        ctx.notifyBeforeEvaluation(getExpressionString());
-        Object result = this.getNode().invoke(ctx, this.paramTypes, params);
-        ctx.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return this.getNode().invoke(ctx, this.paramTypes, params);
     }
 
     /*
@@ -306,15 +310,6 @@ public final class MethodExpressionImpl extends MethodExpression implements
     @Override
     public boolean isLiteralText() {
         return false;
-    }
-
-
-    /**
-     * @since EL 3.0
-     */
-    @Override
-    public boolean isParametersProvided() {
-        return this.getNode().isParametersProvided();
     }
 
     /**

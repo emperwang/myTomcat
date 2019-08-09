@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -36,6 +37,7 @@ import javax.websocket.Extension;
 import javax.websocket.HandshakeResponse;
 import javax.websocket.server.ServerEndpointConfig;
 
+import org.apache.catalina.connector.RequestFacade;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.security.ConcurrentMessageDigest;
@@ -126,7 +128,7 @@ public class UpgradeUtil {
         // Extensions
         // Should normally only be one header but handle the case of multiple
         // headers
-        List<Extension> extensionsRequested = new ArrayList<>();
+        List<Extension> extensionsRequested = new ArrayList<Extension>();
         Enumeration<String> extHeaders = req.getHeaders(Constants.WS_EXTENSIONS_HEADER_NAME);
         while (extHeaders.hasMoreElements()) {
             Util.parseExtensionHeader(extensionsRequested, extHeaders.nextElement());
@@ -138,7 +140,7 @@ public class UpgradeUtil {
         if (sec.getExtensions().size() == 0) {
             installedExtensions = Constants.INSTALLED_EXTENSIONS;
         } else {
-            installedExtensions = new ArrayList<>();
+            installedExtensions = new ArrayList<Extension>();
             installedExtensions.addAll(sec.getExtensions());
             installedExtensions.addAll(Constants.INSTALLED_EXTENSIONS);
         }
@@ -155,7 +157,7 @@ public class UpgradeUtil {
         if (transformations.isEmpty()) {
             negotiatedExtensionsPhase2 = Collections.emptyList();
         } else {
-            negotiatedExtensionsPhase2 = new ArrayList<>(transformations.size());
+            negotiatedExtensionsPhase2 = new ArrayList<Extension>(transformations.size());
             for (Transformation t : transformations) {
                 negotiatedExtensionsPhase2.add(t.getExtensionResponse());
             }
@@ -231,12 +233,21 @@ public class UpgradeUtil {
             throw new ServletException(e);
         }
 
-        WsHttpUpgradeHandler wsHandler =
-                req.upgrade(WsHttpUpgradeHandler.class);
-        wsHandler.preInit(ep, perSessionServerEndpointConfig, sc, wsRequest,
-                negotiatedExtensionsPhase2, subProtocol, transformation, pathParams,
-                req.isSecure());
-
+        // Small hack until the Servlet API provides a way to do this.
+        ServletRequest inner = req;
+        // Unwrap the request
+        while (inner instanceof ServletRequestWrapper) {
+            inner = ((ServletRequestWrapper) inner).getRequest();
+        }
+        if (inner instanceof RequestFacade) {
+            WsHttpUpgradeHandler wsHandler =
+                    ((RequestFacade) inner).upgrade(WsHttpUpgradeHandler.class);
+            wsHandler.preInit(ep, perSessionServerEndpointConfig, sc, wsRequest,
+                    negotiatedExtensionsPhase2, subProtocol, transformation, pathParams,
+                    req.isSecure());
+        } else {
+            throw new ServletException("Upgrade failed");
+        }
     }
 
 
@@ -246,17 +257,17 @@ public class UpgradeUtil {
         TransformationFactory factory = TransformationFactory.getInstance();
 
         LinkedHashMap<String,List<List<Extension.Parameter>>> extensionPreferences =
-                new LinkedHashMap<>();
+                new LinkedHashMap<String,List<List<Extension.Parameter>>>();
 
         // Result will likely be smaller than this
-        List<Transformation> result = new ArrayList<>(negotiatedExtensions.size());
+        List<Transformation> result = new ArrayList<Transformation>(negotiatedExtensions.size());
 
         for (Extension extension : negotiatedExtensions) {
             List<List<Extension.Parameter>> preferences =
                     extensionPreferences.get(extension.getName());
 
             if (preferences == null) {
-                preferences = new ArrayList<>();
+                preferences = new ArrayList<List<Extension.Parameter>>();
                 extensionPreferences.put(extension.getName(), preferences);
             }
 
@@ -318,7 +329,7 @@ public class UpgradeUtil {
      */
     private static List<String> getTokensFromHeader(HttpServletRequest req,
             String headerName) {
-        List<String> result = new ArrayList<>();
+        List<String> result = new ArrayList<String>();
         Enumeration<String> headers = req.getHeaders(headerName);
         while (headers.hasMoreElements()) {
             String header = headers.nextElement();

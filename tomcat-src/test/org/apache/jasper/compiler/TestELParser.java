@@ -18,7 +18,6 @@ package org.apache.jasper.compiler;
 
 import javax.el.ELContext;
 import javax.el.ELException;
-import javax.el.ELManager;
 import javax.el.ExpressionFactory;
 import javax.el.ValueExpression;
 
@@ -28,6 +27,7 @@ import org.junit.Test;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.compiler.ELNode.Nodes;
 import org.apache.jasper.compiler.ELParser.TextBuilder;
+import org.apache.jasper.el.ELContextImpl;
 
 /**
  * You will need to keep your wits about you when working with this class. Keep
@@ -293,9 +293,8 @@ public class TestELParser {
         // Don't try and evaluate expressions that depend on variables or functions
         if (expectedResult != null) {
             try {
-                ELManager manager = new ELManager();
-                ELContext context = manager.getELContext();
-                ExpressionFactory factory = ELManager.getExpressionFactory();
+                ExpressionFactory factory = ExpressionFactory.newInstance();
+                ELContext context = new ELContextImpl();
                 ValueExpression ve = factory.createValueExpression(context, input, String.class);
                 elResult = ve.getValue(context).toString();
                 Assert.assertEquals(expectedResult, elResult);

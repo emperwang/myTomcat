@@ -35,6 +35,7 @@ import java.io.ObjectOutput;
  * If you are using multiple applications on top of Tribes you should add some sort of header
  * so that you can decide with the <code>ChannelListener.accept()</code> whether this message was intended
  * for you.
+ * @author Filip Hanik
  */
 public class ByteMessage implements Externalizable {
     /**
@@ -77,7 +78,7 @@ public class ByteMessage implements Externalizable {
     /**
      * @see java.io.Externalizable#readExternal
      * @param in ObjectInput
-     * @throws IOException An IO error occurred
+     * @throws IOException
      */
     @Override
     public void readExternal(ObjectInput in ) throws IOException {
@@ -89,7 +90,7 @@ public class ByteMessage implements Externalizable {
     /**
      * @see java.io.Externalizable#writeExternal
      * @param out ObjectOutput
-     * @throws IOException An IO error occurred
+     * @throws IOException
      */
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {

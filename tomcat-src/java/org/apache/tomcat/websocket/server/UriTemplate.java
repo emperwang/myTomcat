@@ -37,7 +37,7 @@ public class UriTemplate {
     private static final StringManager sm = StringManager.getManager(UriTemplate.class);
 
     private final String normalized;
-    private final List<Segment> segments = new ArrayList<>();
+    private final List<Segment> segments = new ArrayList<Segment>();
     private final boolean hasParameters;
 
 
@@ -49,7 +49,7 @@ public class UriTemplate {
         }
 
         StringBuilder normalized = new StringBuilder(path.length());
-        Set<String> paramNames = new HashSet<>();
+        Set<String> paramNames = new HashSet<String>();
 
         // Include empty segments.
         String[] segments = path.split("/", -1);
@@ -102,7 +102,7 @@ public class UriTemplate {
 
     public Map<String,String> match(UriTemplate candidate) {
 
-        Map<String,String> result = new HashMap<>();
+        Map<String,String> result = new HashMap<String, String>();
 
         // Should not happen but for safety
         if (candidate.getSegmentCount() != getSegmentCount()) {

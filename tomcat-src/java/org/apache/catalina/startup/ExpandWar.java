@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.startup;
 
 import java.io.BufferedOutputStream;
@@ -24,16 +26,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.JarURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import java.nio.channels.FileChannel;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.zip.ZipException;
 
+import org.apache.catalina.Globals;
 import org.apache.catalina.Host;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -56,7 +59,8 @@ public class ExpandWar {
 
     /**
      * Expand the WAR file found at the specified URL into an unpacked
-     * directory structure.
+     * directory structure, and return the absolute pathname to the expanded
+     * directory.
      *
      * @param host Host war is being installed for
      * @param war URL of the web application archive to be expanded
@@ -67,68 +71,44 @@ public class ExpandWar {
      *            WAR file is invalid
      * @exception IOException if an input/output error was encountered
      *  during expansion
-     *
-     * @return The absolute path to the expanded directory foe the given WAR
      */
     public static String expand(Host host, URL war, String pathname)
         throws IOException {
 
-        /* Obtaining the last modified time opens an InputStream and there is no
-         * explicit close method. We have to obtain and then close the
-         * InputStream to avoid a file leak and the associated locked file.
-         */
-        JarURLConnection juc = (JarURLConnection) war.openConnection();
-        juc.setUseCaches(false);
-        URL jarFileUrl = juc.getJarFileURL();
-        URLConnection jfuc = jarFileUrl.openConnection();
-
-        boolean success = false;
-        File docBase = new File(host.getAppBaseFile(), pathname);
-        File warTracker = new File(host.getAppBaseFile(), pathname + Constants.WarTracker);
-        long warLastModified = -1;
-
-        try (InputStream is = jfuc.getInputStream()) {
-            // Get the last modified time for the WAR
-            warLastModified = jfuc.getLastModified();
+        // Make sure that there is no such directory already existing
+        File appBase = new File(host.getAppBase());
+        if (!appBase.isAbsolute()) {
+            appBase = new File(System.getProperty(Globals.CATALINA_BASE_PROP),
+                               host.getAppBase());
+        }
+        if (!appBase.exists() || !appBase.isDirectory()) {
+            throw new IOException
+                (sm.getString("hostConfig.appBase",
+                              appBase.getAbsolutePath()));
         }
 
-        // Check to see of the WAR has been expanded previously
+        File docBase = new File(appBase, pathname);
         if (docBase.exists()) {
-            // A WAR was expanded. Tomcat will have set the last modified
-            // time of warTracker file to the last modified time of the WAR so
-            // changes to the WAR while Tomcat is stopped can be detected
-            if (!warTracker.exists() || warTracker.lastModified() == warLastModified) {
-                // No (detectable) changes to the WAR
-                success = true;
-                return docBase.getAbsolutePath();
-            }
-
-            // WAR must have been modified. Remove expanded directory.
-            log.info(sm.getString("expandWar.deleteOld", docBase));
-            if (!delete(docBase)) {
-                throw new IOException(sm.getString("expandWar.deleteFailed", docBase));
-            }
+            // War file is already installed
+            return (docBase.getAbsolutePath());
         }
 
         // Create the new document base directory
-        if(!docBase.mkdir() && !docBase.isDirectory()) {
+        if(!docBase.mkdir() && !docBase.isDirectory())
             throw new IOException(sm.getString("expandWar.createFailed", docBase));
-        }
 
         // Expand the WAR into the new document base directory
         String canonicalDocBasePrefix = docBase.getCanonicalPath();
         if (!canonicalDocBasePrefix.endsWith(File.separator)) {
             canonicalDocBasePrefix += File.separator;
         }
-
-        // Creating war tracker parent (normally META-INF)
-        File warTrackerParent = warTracker.getParentFile();
-        if (!warTrackerParent.isDirectory() && !warTrackerParent.mkdirs()) {
-            throw new IOException(sm.getString("expandWar.createFailed", warTrackerParent.getAbsolutePath()));
-        }
-
-        try (JarFile jarFile = juc.getJarFile()) {
-
+        JarURLConnection juc = (JarURLConnection) war.openConnection();
+        juc.setUseCaches(false);
+        JarFile jarFile = null;
+        InputStream input = null;
+        boolean success = false;
+        try {
+            jarFile = juc.getJarFile();
             Enumeration<JarEntry> jarEntries = jarFile.entries();
             while (jarEntries.hasMoreElements()) {
                 JarEntry jarEntry = jarEntries.nextElement();
@@ -155,27 +135,21 @@ public class ExpandWar {
                 if (name.endsWith("/")) {
                     continue;
                 }
+                input = jarFile.getInputStream(jarEntry);
 
-                try (InputStream input = jarFile.getInputStream(jarEntry)) {
-                    if (null == input) {
-                        throw new ZipException(sm.getString("expandWar.missingJarEntry",
-                                jarEntry.getName()));
-                    }
+                if(null == input)
+                    throw new ZipException(sm.getString("expandWar.missingJarEntry", jarEntry.getName()));
 
-                    // Bugzilla 33636
-                    expand(input, expandedFile);
-                    long lastModified = jarEntry.getTime();
-                    if ((lastModified != -1) && (lastModified != 0)) {
-                        expandedFile.setLastModified(lastModified);
-                    }
+                // Bugzilla 33636
+                expand(input, expandedFile);
+                long lastModified = jarEntry.getTime();
+                if ((lastModified != -1) && (lastModified != 0)) {
+                    expandedFile.setLastModified(lastModified);
                 }
+
+                input.close();
+                input = null;
             }
-
-            // Create the warTracker file and align the last modified time
-            // with the last modified time of the WAR
-            warTracker.createNewFile();
-            warTracker.setLastModified(warLastModified);
-
             success = true;
         } catch (IOException e) {
             throw e;
@@ -185,10 +159,27 @@ public class ExpandWar {
                 // clean
                 deleteDir(docBase);
             }
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
+                }
+                input = null;
+            }
+            if (jarFile != null) {
+                try {
+                    jarFile.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
+                }
+                jarFile = null;
+            }
         }
 
         // Return the absolute path to our new document base directory
-        return docBase.getAbsolutePath();
+        return (docBase.getAbsolutePath());
+
     }
 
 
@@ -205,9 +196,17 @@ public class ExpandWar {
      * @exception IOException if an input/output error was encountered
      *            during validation
      */
-    public static void validate(Host host, URL war, String pathname) throws IOException {
+    public static void validate(Host host, URL war, String pathname)
+        throws IOException {
 
-        File docBase = new File(host.getAppBaseFile(), pathname);
+        // Make the appBase absolute
+        File appBase = new File(host.getAppBase());
+        if (!appBase.isAbsolute()) {
+            appBase = new File(System.getProperty(Globals.CATALINA_BASE_PROP),
+                               host.getAppBase());
+        }
+
+        File docBase = new File(appBase, pathname);
 
         // Calculate the document base directory
         String canonicalDocBasePrefix = docBase.getCanonicalPath();
@@ -216,7 +215,9 @@ public class ExpandWar {
         }
         JarURLConnection juc = (JarURLConnection) war.openConnection();
         juc.setUseCaches(false);
-        try (JarFile jarFile = juc.getJarFile()) {
+        JarFile jarFile = null;
+        try {
+            jarFile = juc.getJarFile();
             Enumeration<JarEntry> jarEntries = jarFile.entries();
             while (jarEntries.hasMoreElements()) {
                 JarEntry jarEntry = jarEntries.nextElement();
@@ -234,6 +235,15 @@ public class ExpandWar {
             }
         } catch (IOException e) {
             throw e;
+        } finally {
+            if (jarFile != null) {
+                try {
+                    jarFile.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
+                }
+                jarFile = null;
+            }
         }
     }
 
@@ -243,7 +253,6 @@ public class ExpandWar {
      *
      * @param src File object representing the source
      * @param dest File object representing the destination
-     * @return <code>true</code> if the copy was successful
      */
     public static boolean copy(File src, File dest) {
 
@@ -266,16 +275,34 @@ public class ExpandWar {
             if (fileSrc.isDirectory()) {
                 result = copy(fileSrc, fileDest);
             } else {
-                try (FileChannel ic = (new FileInputStream(fileSrc)).getChannel();
-                        FileChannel oc = (new FileOutputStream(fileDest)).getChannel()) {
+                FileChannel ic = null;
+                FileChannel oc = null;
+                try {
+                    ic = (new FileInputStream(fileSrc)).getChannel();
+                    oc = (new FileOutputStream(fileDest)).getChannel();
                     ic.transferTo(0, ic.size(), oc);
                 } catch (IOException e) {
-                    log.error(sm.getString("expandWar.copy", fileSrc, fileDest), e);
+                    log.error(sm.getString
+                            ("expandWar.copy", fileSrc, fileDest), e);
                     result = false;
+                } finally {
+                    if (ic != null) {
+                        try {
+                            ic.close();
+                        } catch (IOException e) {
+                        }
+                    }
+                    if (oc != null) {
+                        try {
+                            oc.close();
+                        } catch (IOException e) {
+                        }
+                    }
                 }
             }
         }
         return result;
+
     }
 
 
@@ -284,13 +311,11 @@ public class ExpandWar {
      * sub-directories recursively. Any failure will be logged.
      *
      * @param dir File object representing the directory to be deleted
-     * @return <code>true</code> if the deletion was successful
      */
     public static boolean delete(File dir) {
         // Log failure by default
         return delete(dir, true);
     }
-
 
     /**
      * Delete the specified directory, including all of its contents and
@@ -299,7 +324,6 @@ public class ExpandWar {
      * @param dir File object representing the directory to be deleted
      * @param logFailure <code>true</code> if failure to delete the resource
      *                   should be logged
-     * @return <code>true</code> if the deletion was successful
      */
     public static boolean delete(File dir, boolean logFailure) {
         boolean result;
@@ -325,12 +349,10 @@ public class ExpandWar {
      * sub-directories recursively. Any failure will be logged.
      *
      * @param dir File object representing the directory to be deleted
-     * @return <code>true</code> if the deletion was successful
      */
     public static boolean deleteDir(File dir) {
         return deleteDir(dir, true);
     }
-
 
     /**
      * Delete the specified directory, including all of its contents and
@@ -339,7 +361,6 @@ public class ExpandWar {
      * @param dir File object representing the directory to be deleted
      * @param logFailure <code>true</code> if failure to delete the resource
      *                   should be logged
-     * @return <code>true</code> if the deletion was successful
      */
     public static boolean deleteDir(File dir, boolean logFailure) {
 
@@ -369,6 +390,7 @@ public class ExpandWar {
         }
 
         return result;
+
     }
 
 
@@ -380,9 +402,12 @@ public class ExpandWar {
      *
      * @exception IOException if an input/output error occurs
      */
-    private static void expand(InputStream input, File file) throws IOException {
-        try (BufferedOutputStream output =
-                new BufferedOutputStream(new FileOutputStream(file))) {
+    private static void expand(InputStream input, File file)
+        throws IOException {
+        BufferedOutputStream output = null;
+        try {
+            output =
+                new BufferedOutputStream(new FileOutputStream(file));
             byte buffer[] = new byte[2048];
             while (true) {
                 int n = input.read(buffer);
@@ -390,6 +415,16 @@ public class ExpandWar {
                     break;
                 output.write(buffer, 0, n);
             }
+        } finally {
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (IOException e) {
+                    // Ignore
+                }
+            }
         }
     }
+
+
 }

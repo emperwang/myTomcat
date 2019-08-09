@@ -35,7 +35,7 @@ public class Snake {
     private Direction direction;
     private int length = DEFAULT_LENGTH;
     private Location head;
-    private final Deque<Location> tail = new ArrayDeque<>();
+    private final Deque<Location> tail = new ArrayDeque<Location>();
     private final String hexColor;
 
     public Snake(int id, Session session) {
@@ -54,12 +54,12 @@ public class Snake {
 
     private synchronized void kill() {
         resetState();
-        sendMessage("{\"type\": \"dead\"}");
+        sendMessage("{'type': 'dead'}");
     }
 
     private synchronized void reward() {
         length++;
-        sendMessage("{\"type\": \"kill\"}");
+        sendMessage("{'type': 'kill'}");
     }
 
 
@@ -129,14 +129,14 @@ public class Snake {
 
     public synchronized String getLocationsJson() {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("{\"x\": %d, \"y\": %d}",
+        sb.append(String.format("{x: %d, y: %d}",
                 Integer.valueOf(head.x), Integer.valueOf(head.y)));
         for (Location location : tail) {
             sb.append(',');
-            sb.append(String.format("{\"x\": %d, \"y\": %d}",
+            sb.append(String.format("{x: %d, y: %d}",
                     Integer.valueOf(location.x), Integer.valueOf(location.y)));
         }
-        return String.format("{\"id\":%d,\"body\":[%s]}",
+        return String.format("{'id':%d,'body':[%s]}",
                 Integer.valueOf(id), sb.toString());
     }
 

@@ -17,7 +17,8 @@
 package org.apache.tomcat.util.codec.binary;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+
+import org.apache.tomcat.util.buf.B2CConverter;
 
 /**
  * Converts String to and from bytes using the encodings required by the Java specification. These encodings are
@@ -57,7 +58,7 @@ public class StringUtils {
      * @see <a href="http://download.oracle.com/javase/7/docs/api/java/nio/charset/Charset.html">Standard charsets</a>
      */
     public static byte[] getBytesUtf8(final String string) {
-        return getBytes(string, StandardCharsets.UTF_8);
+        return getBytes(string, B2CConverter.UTF_8);
     }
 
     /**
@@ -83,7 +84,7 @@ public class StringUtils {
      *         or <code>null</code> if the input byte array was <code>null</code>.
      */
     public static String newStringUsAscii(final byte[] bytes) {
-        return newString(bytes, StandardCharsets.US_ASCII);
+        return newString(bytes, Charset.forName("US-ASCII"));
     }
 
     /**
@@ -95,6 +96,6 @@ public class StringUtils {
      *         or <code>null</code> if the input byte array was <code>null</code>.
      */
     public static String newStringUtf8(final byte[] bytes) {
-        return newString(bytes, StandardCharsets.UTF_8);
+        return newString(bytes, B2CConverter.UTF_8);
     }
 }

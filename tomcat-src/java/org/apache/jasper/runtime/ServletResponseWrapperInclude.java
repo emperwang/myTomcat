@@ -41,9 +41,9 @@ public class ServletResponseWrapperInclude extends HttpServletResponseWrapper {
     /**
      * PrintWriter which appends to the JspWriter of the including page.
      */
-    private final PrintWriter printWriter;
+    private PrintWriter printWriter;
 
-    private final JspWriter jspWriter;
+    private JspWriter jspWriter;
 
     public ServletResponseWrapperInclude(ServletResponse response,
                                          JspWriter jspWriter) {

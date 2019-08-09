@@ -38,7 +38,22 @@ import javax.servlet.ServletResponseWrapper;
  */
 class ApplicationResponse extends ServletResponseWrapper {
 
+
     // ----------------------------------------------------------- Constructors
+
+
+    /**
+     * Construct a new wrapped response around the specified servlet response.
+     *
+     * @param response The servlet response being wrapped
+     */
+    @Deprecated
+    public ApplicationResponse(ServletResponse response) {
+
+        this(response, false);
+
+    }
+
 
     /**
      * Construct a new wrapped response around the specified servlet response.
@@ -85,8 +100,7 @@ class ApplicationResponse extends ServletResponseWrapper {
 
 
     /**
-     * Disallow <code>setContentLength(int)</code> calls on an included
-     * response.
+     * Disallow <code>setContentLength()</code> calls on an included response.
      *
      * @param len The new content length
      */
@@ -95,21 +109,6 @@ class ApplicationResponse extends ServletResponseWrapper {
 
         if (!included)
             getResponse().setContentLength(len);
-
-    }
-
-
-    /**
-     * Disallow <code>setContentLengthLong(long)</code> calls on an included
-     * response.
-     *
-     * @param len The new content length
-     */
-    @Override
-    public void setContentLengthLong(long len) {
-
-        if (!included)
-            getResponse().setContentLengthLong(len);
 
     }
 
@@ -170,6 +169,18 @@ class ApplicationResponse extends ServletResponseWrapper {
 
     // -------------------------------------------------------- Package Methods
 
+
+    /**
+     * Return the included flag for this response.
+     */
+    @Deprecated
+    boolean isIncluded() {
+
+        return (this.included);
+
+    }
+
+
     /**
      * Set the included flag for this response.
      *
@@ -180,4 +191,6 @@ class ApplicationResponse extends ServletResponseWrapper {
         this.included = included;
 
     }
+
+
 }

@@ -17,6 +17,8 @@
 package org.apache.catalina.valves;
 
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
@@ -29,9 +31,10 @@ import org.apache.catalina.Host;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Session;
 import org.apache.catalina.Store;
-import org.apache.catalina.StoreManager;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import org.apache.catalina.session.PersistentManager;
+import org.apache.tomcat.util.security.PrivilegedSetTccl;
 
 /**
  * Valve that implements per-request session persistence. It is intended to be
@@ -61,7 +64,24 @@ public class PersistentValve extends ValveBase {
     }
 
 
-    // --------------------------------------------------------- Public Methods
+    // ----------------------------------------------------- Instance Variables
+
+    /**
+     * The descriptive information related to this implementation.
+     */
+    private static final String info = "org.apache.catalina.valves.PersistentValve/1.0";
+
+
+    // ------------------------------------------------------------- Properties
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+        return info;
+    }
+
 
     @Override
     public void setContainer(Container container) {
@@ -73,6 +93,8 @@ public class PersistentValve extends ValveBase {
         }
     }
 
+
+    // --------------------------------------------------------- Public Methods
 
     /**
      * Select the appropriate child Context to process this request,
@@ -100,8 +122,8 @@ public class PersistentValve extends ValveBase {
         // Update the session last access time for our session (if any)
         String sessionId = request.getRequestedSessionId();
         Manager manager = context.getManager();
-        if (sessionId != null && manager instanceof StoreManager) {
-            Store store = ((StoreManager) manager).getStore();
+        if (sessionId != null &&  manager instanceof PersistentManager) {
+            Store store = ((PersistentManager) manager).getStore();
             if (store != null) {
                 Session session = null;
                 try {
@@ -156,15 +178,14 @@ public class PersistentValve extends ValveBase {
             if (newsessionId!=null) {
                 try {
                     bind(context);
-
                     /* store the session and remove it from the manager */
-                    if (manager instanceof StoreManager) {
+                    if (manager instanceof PersistentManager) {
                         Session session = manager.findSession(newsessionId);
-                        Store store = ((StoreManager) manager).getStore();
+                        Store store = ((PersistentManager) manager).getStore();
                         if (store != null && session != null && session.isValid() &&
                                 !isSessionStale(session, System.currentTimeMillis())) {
                             store.save(session);
-                            ((StoreManager) manager).removeSuper(session);
+                            ((PersistentManager) manager).removeSuper(session);
                             session.recycle();
                         } else {
                             if (container.getLogger().isDebugEnabled()) {
@@ -176,7 +197,6 @@ public class PersistentValve extends ValveBase {
                                         " stale: " + isSessionStale(session,
                                                 System.currentTimeMillis()));
                             }
-
                         }
                     } else {
                         if (container.getLogger().isDebugEnabled()) {
@@ -185,7 +205,7 @@ public class PersistentValve extends ValveBase {
                         }
                     }
                 } finally {
-                    unbind(context);
+                    unbind();
                 }
             }
         }
@@ -197,9 +217,6 @@ public class PersistentValve extends ValveBase {
      * than its expiration date as of the supplied time.
      *
      * FIXME: Probably belongs in the Session class.
-     * @param session The session to check
-     * @param timeNow The current time to check for
-     * @return <code>true</code> if the session is past its expiration
      */
     protected boolean isSessionStale(Session session, long timeNow) {
 
@@ -219,15 +236,27 @@ public class PersistentValve extends ValveBase {
 
 
     private void bind(Context context) {
-        if (clBindRequired) {
-            context.bind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
+        // Bind the context CL to the current thread
+        if (clBindRequired && context.getLoader() != null) {
+            if (Globals.IS_SECURITY_ENABLED) {
+                PrivilegedAction<Void> pa =
+                        new PrivilegedSetTccl(context.getLoader().getClassLoader());
+                AccessController.doPrivileged(pa);
+            } else {
+                Thread.currentThread().setContextClassLoader(context.getLoader().getClassLoader());
+            }
         }
     }
 
 
-    private void unbind(Context context) {
+    private void unbind() {
         if (clBindRequired) {
-            context.unbind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
+            if (Globals.IS_SECURITY_ENABLED) {
+                PrivilegedAction<Void> pa = new PrivilegedSetTccl(MY_CLASSLOADER);
+                AccessController.doPrivileged(pa);
+            } else {
+                Thread.currentThread().setContextClassLoader(MY_CLASSLOADER);
+            }
         }
     }
 }

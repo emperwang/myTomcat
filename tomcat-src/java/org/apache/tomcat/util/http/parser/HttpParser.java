@@ -18,6 +18,11 @@ package org.apache.tomcat.util.http.parser;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -35,8 +40,23 @@ import org.apache.tomcat.util.res.StringManager;
  * assuming that wrapped header lines have already been unwrapped. (The Tomcat
  * header processing code does the unwrapping.)
  *
+ * Provides parsing of the following HTTP header values as per RFC 2616:
+ * - Authorization for DIGEST authentication
+ * - MediaType (used for Content-Type header)
+ *
+ * Support for additional headers will be provided as required.
  */
 public class HttpParser {
+
+    @SuppressWarnings("unused")  // Unused due to buggy client implementations
+    private static final Integer FIELD_TYPE_TOKEN = Integer.valueOf(0);
+    private static final Integer FIELD_TYPE_QUOTED_STRING = Integer.valueOf(1);
+    private static final Integer FIELD_TYPE_TOKEN_OR_QUOTED_STRING = Integer.valueOf(2);
+    private static final Integer FIELD_TYPE_LHEX = Integer.valueOf(3);
+    private static final Integer FIELD_TYPE_QUOTED_TOKEN = Integer.valueOf(4);
+
+    private static final Map<String,Integer> fieldTypes =
+            new HashMap<String,Integer>();
 
     private static final StringManager sm = StringManager.getManager(HttpParser.class);
 
@@ -61,6 +81,25 @@ public class HttpParser {
 
 
     static {
+        // Digest field types.
+        // Note: These are more relaxed than RFC2617. This adheres to the
+        //       recommendation of RFC2616 that servers are tolerant of buggy
+        //       clients when they can be so without ambiguity.
+        fieldTypes.put("username", FIELD_TYPE_QUOTED_STRING);
+        fieldTypes.put("realm", FIELD_TYPE_QUOTED_STRING);
+        fieldTypes.put("nonce", FIELD_TYPE_QUOTED_STRING);
+        fieldTypes.put("digest-uri", FIELD_TYPE_QUOTED_STRING);
+        // RFC2617 says response is <">32LHEX<">. 32LHEX will also be accepted
+        fieldTypes.put("response", FIELD_TYPE_LHEX);
+        // RFC2617 says algorithm is token. <">token<"> will also be accepted
+        fieldTypes.put("algorithm", FIELD_TYPE_QUOTED_TOKEN);
+        fieldTypes.put("cnonce", FIELD_TYPE_QUOTED_STRING);
+        fieldTypes.put("opaque", FIELD_TYPE_QUOTED_STRING);
+        // RFC2617 says qop is token. <">token<"> will also be accepted
+        fieldTypes.put("qop", FIELD_TYPE_QUOTED_TOKEN);
+        // RFC2617 says nc is 8LHEX. <">8LHEX<"> will also be accepted
+        fieldTypes.put("nc", FIELD_TYPE_LHEX);
+
         for (int i = 0; i < ARRAY_SIZE; i++) {
             // Control> 0-31, 127
             if (i < 32 || i == 127) {
@@ -180,6 +219,135 @@ public class HttpParser {
 
         relax(IS_ABSOLUTEPATH_RELAXED, relaxedPathChars);
         relax(IS_QUERY_RELAXED, relaxedQueryChars);
+    }
+
+    /**
+     * Parses an HTTP Authorization header for DIGEST authentication as per RFC
+     * 2617 section 3.2.2.
+     *
+     * @param input The header value to parse
+     *
+     * @return  A map of directives and values as {@link String}s or
+     *          <code>null</code> if a parsing error occurs. Although the
+     *          values returned are {@link String}s they will have been
+     *          validated to ensure that they conform to RFC 2617.
+     *
+     * @throws IllegalArgumentException If the header does not conform to RFC
+     *                                  2617
+     * @throws IOException If an error occurs while reading the input
+     */
+    public static Map<String,String> parseAuthorizationDigest (
+            StringReader input) throws IllegalArgumentException, IOException {
+
+        Map<String,String> result = new HashMap<String,String>();
+
+        if (skipConstant(input, "Digest") != SkipResult.FOUND) {
+            return null;
+        }
+        // All field names are valid tokens
+        String field = readToken(input);
+        if (field == null) {
+            return null;
+        }
+        while (!field.equals("")) {
+            if (skipConstant(input, "=") != SkipResult.FOUND) {
+                return null;
+            }
+            String value = null;
+            Integer type = fieldTypes.get(field.toLowerCase(Locale.ENGLISH));
+            if (type == null) {
+                // auth-param = token "=" ( token | quoted-string )
+                type = FIELD_TYPE_TOKEN_OR_QUOTED_STRING;
+            }
+            switch (type.intValue()) {
+                case 0:
+                    // FIELD_TYPE_TOKEN
+                    value = readToken(input);
+                    break;
+                case 1:
+                    // FIELD_TYPE_QUOTED_STRING
+                    value = readQuotedString(input, false);
+                    break;
+                case 2:
+                    // FIELD_TYPE_TOKEN_OR_QUOTED_STRING
+                    value = readTokenOrQuotedString(input, false);
+                    break;
+                case 3:
+                    // FIELD_TYPE_LHEX
+                    value = readLhex(input);
+                    break;
+                case 4:
+                    // FIELD_TYPE_QUOTED_TOKEN
+                    value = readQuotedToken(input);
+                    break;
+                default:
+                    // Error
+                    throw new IllegalArgumentException(
+                            "TODO i18n: Unsupported type");
+            }
+
+            if (value == null) {
+                return null;
+            }
+            result.put(field, value);
+
+            if (skipConstant(input, ",") == SkipResult.NOT_FOUND) {
+                return null;
+            }
+            field = readToken(input);
+            if (field == null) {
+                return null;
+            }
+        }
+
+        return result;
+    }
+
+    public static MediaType parseMediaType(StringReader input)
+            throws IOException {
+
+        // Type (required)
+        String type = readToken(input);
+        if (type == null || type.length() == 0) {
+            return null;
+        }
+
+        if (skipConstant(input, "/") == SkipResult.NOT_FOUND) {
+            return null;
+        }
+
+        // Subtype (required)
+        String subtype = readToken(input);
+        if (subtype == null || subtype.length() == 0) {
+            return null;
+        }
+
+        LinkedHashMap<String,String> parameters =
+                new LinkedHashMap<String,String>();
+
+        SkipResult lookForSemiColon = skipConstant(input, ";");
+        if (lookForSemiColon == SkipResult.NOT_FOUND) {
+            return null;
+        }
+        while (lookForSemiColon == SkipResult.FOUND) {
+            String attribute = readToken(input);
+
+            String value = "";
+            if (skipConstant(input, "=") == SkipResult.FOUND) {
+                value = readTokenOrQuotedString(input, true);
+            }
+
+            if (attribute != null) {
+                parameters.put(attribute.toLowerCase(Locale.ENGLISH), value);
+            }
+
+            lookForSemiColon = skipConstant(input, ";");
+            if (lookForSemiColon == SkipResult.NOT_FOUND) {
+                return null;
+            }
+        }
+
+        return new MediaType(type, subtype, parameters);
     }
 
 
@@ -340,7 +508,7 @@ public class HttpParser {
     // Skip any LWS and position to read the next character. The next character
     // is returned as being able to 'peek()' it allows a small optimisation in
     // some cases.
-    static int skipLws(Reader input) throws IOException {
+    private static int skipLws(Reader input) throws IOException {
 
         input.mark(1);
         int c = input.read();
@@ -354,7 +522,8 @@ public class HttpParser {
         return c;
     }
 
-    static SkipResult skipConstant(Reader input, String constant) throws IOException {
+    static SkipResult skipConstant(Reader input, String constant)
+            throws IOException {
         int len = constant.length();
 
         skipLws(input);
@@ -405,48 +574,11 @@ public class HttpParser {
     }
 
     /**
-     * @return  the digits if any were found, the empty string if no data was
-     *          found or if data other than digits was found
-     */
-    static String readDigits(Reader input) throws IOException {
-        StringBuilder result = new StringBuilder();
-
-        skipLws(input);
-        input.mark(1);
-        int c = input.read();
-
-        while (c != -1 && isNumeric(c)) {
-            result.append((char) c);
-            input.mark(1);
-            c = input.read();
-        }
-        // Use mark(1)/reset() rather than skip(-1) since skip() is a NOP
-        // once the end of the String has been reached.
-        input.reset();
-
-        return result.toString();
-    }
-
-    /**
-     * @return  the number if digits were found, -1 if no data was found
-     *          or if data other than digits was found
-     */
-    static long readLong(Reader input) throws IOException {
-        String digits = readDigits(input);
-
-        if (digits.length() == 0) {
-            return -1;
-        }
-
-        return Long.parseLong(digits);
-    }
-
-    /**
      * @return the quoted string if one was found, null if data other than a
      *         quoted string was found or null if the end of data was reached
      *         before the quoted string was terminated
      */
-    static String readQuotedString(Reader input, boolean returnQuoted) throws IOException {
+    private static String readQuotedString(Reader input, boolean returnQuoted) throws IOException {
 
         skipLws(input);
         int c = input.read();
@@ -482,7 +614,7 @@ public class HttpParser {
         return result.toString();
     }
 
-    static String readTokenOrQuotedString(Reader input, boolean returnQuoted)
+    private static String readTokenOrQuotedString(Reader input, boolean returnQuoted)
             throws IOException {
 
         // Peek at next character to enable correct method to be called
@@ -507,7 +639,7 @@ public class HttpParser {
      *         quoted token was found or null if the end of data was reached
      *         before a quoted token was terminated
      */
-    static String readQuotedToken(Reader input) throws IOException {
+    private static String readQuotedToken(Reader input) throws IOException {
 
         StringBuilder result = new StringBuilder();
         boolean quoted = false;
@@ -563,7 +695,7 @@ public class HttpParser {
      * @return  the sequence of LHEX (minus any surrounding quotes) if any was
      *          found, or <code>null</code> if data other LHEX was found
      */
-    static String readLhex(Reader input) throws IOException {
+    private static String readLhex(Reader input) throws IOException {
 
         StringBuilder result = new StringBuilder();
         boolean quoted = false;
@@ -611,77 +743,10 @@ public class HttpParser {
         }
     }
 
-    static double readWeight(Reader input, char delimiter) throws IOException {
-        skipLws(input);
-        int c = input.read();
-        if (c == -1 || c == delimiter) {
-            // No q value just whitespace
-            return 1;
-        } else if (c != 'q') {
-            // Malformed. Use quality of zero so it is dropped.
-            skipUntil(input, c, delimiter);
-            return 0;
-        }
-        // RFC 7231 does not allow whitespace here but be tolerant
-        skipLws(input);
-        c = input.read();
-        if (c != '=') {
-            // Malformed. Use quality of zero so it is dropped.
-            skipUntil(input, c, delimiter);
-            return 0;
-        }
-
-        // RFC 7231 does not allow whitespace here but be tolerant
-        skipLws(input);
-        c = input.read();
-
-        // Should be no more than 3 decimal places
-        StringBuilder value = new StringBuilder(5);
-        int decimalPlacesRead = -1;
-
-        if (c == '0' || c == '1') {
-            value.append((char) c);
-            c = input.read();
-
-            while (true) {
-                if (decimalPlacesRead == -1 && c == '.') {
-                    value.append('.');
-                    decimalPlacesRead = 0;
-                } else if (decimalPlacesRead > -1 && c >= '0' && c <= '9') {
-                    if (decimalPlacesRead < 3) {
-                        value.append((char) c);
-                        decimalPlacesRead++;
-                    }
-                } else {
-                    break;
-                }
-                c = input.read();
-            }
-        } else {
-            // Malformed. Use quality of zero so it is dropped and skip until
-            // EOF or the next delimiter
-            skipUntil(input, c, delimiter);
-            return 0;
-        }
-
-        if (c == 9 || c == 32) {
-            skipLws(input);
-            c = input.read();
-        }
-
-        // Must be at delimiter or EOF
-        if (c != delimiter && c != -1) {
-            // Malformed. Use quality of zero so it is dropped and skip until
-            // EOF or the next delimiter
-            skipUntil(input, c, delimiter);
-            return 0;
-        }
-
-        double result = Double.parseDouble(value.toString());
-        if (result > 1) {
-            return 0;
-        }
-        return result;
+    static enum SkipResult {
+        FOUND,
+        NOT_FOUND,
+        EOF
     }
 
 

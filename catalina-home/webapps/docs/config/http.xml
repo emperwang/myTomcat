@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -81,17 +81,7 @@
 
     <attribute name="asyncTimeout" required="false">
       <p>The default timeout for asynchronous requests in milliseconds. If not
-      specified, this attribute is set to the Servlet specification default of
-      30000 (30 seconds).</p>
-    </attribute>
-
-    <attribute name="defaultSSLHostConfigName" required="false">
-      <p>The name of the default <strong>SSLHostConfig</strong> that will be
-      used for secure connections (if this connector is configured for secure
-      connections) if the client connection does not provide SNI or if the SNI
-      is provided but does not match any configured
-      <strong>SSLHostConfig</strong>. If not specified the default value of
-      <code>_default_</code> will be used.</p>
+      specified, this attribute is set to 10000 (10 seconds).</p>
     </attribute>
 
     <attribute name="enableLookups" required="false">
@@ -169,21 +159,19 @@
     <attribute name="protocol" required="false">
       <p>Sets the protocol to handle incoming traffic. The default value is
         <code>HTTP/1.1</code> which uses an auto-switching mechanism to select
-        either a Java NIO based connector or an APR/native based connector.
+        either a blocking Java based connector or an APR/native based connector.
         If the <code>PATH</code> (Windows) or <code>LD_LIBRARY_PATH</code> (on
         most unix systems) environment variables contain the Tomcat native
-        library, and the <code>AprLifecycleListener</code> that is used to
-        initialize APR has its <code>useAprConnector</code> attribute set to
-        <code>true</code>, the APR/native connector will be used. If the native library
-        cannot be found or the attribute is not configured, the Java NIO based
-        connector will be used. Note that the APR/native connector has different
-        settings for HTTPS than the Java connectors.<br/>
+        library, the APR/native connector will be used. If the native library
+        cannot be found, the blocking Java based connector will be used. Note
+        that the APR/native connector has different settings for HTTPS than the
+        Java connectors.<br/>
         To use an explicit protocol rather than rely on the auto-switching
         mechanism described above, the following values may be used:<br/>
+        <code>org.apache.coyote.http11.Http11Protocol</code> -
+              blocking Java connector<br/>
         <code>org.apache.coyote.http11.Http11NioProtocol</code> -
-              non blocking Java NIO connector<br/>
-        <code>org.apache.coyote.http11.Http11Nio2Protocol</code> -
-              non blocking Java NIO2 connector<br/>
+              non blocking Java connector<br/>
         <code>org.apache.coyote.http11.Http11AprProtocol</code> -
               the APR/native connector.<br/>
         Custom implementations may also be used.<br/>
@@ -236,20 +224,10 @@
       The default value is <code>false</code>.</p>
     </attribute>
 
-    <attribute name="sendReasonPhrase" required="false">
-      <p>Set this attribute to <code>true</code> if you wish to have
-      a reason phrase in the response.
-      The default value is <code>false</code>.</p>
-      <p><strong>Note:</strong> This option is deprecated and will be removed
-      in Tomcat 9. The reason phrase will not be sent.</p>
-    </attribute>
-
     <attribute name="URIEncoding" required="false">
       <p>This specifies the character encoding used to decode the URI bytes,
-      after %xx decoding the URL. If not specified, UTF-8 will be used unless
-      the <code>org.apache.catalina.STRICT_SERVLET_COMPLIANCE</code>
-      <a href="systemprops.html">system property</a> is set to <code>true</code>
-      in which case ISO-8859-1 will be used.</p>
+      after %xx decoding the URL. If not specified, ISO-8859-1 will be used.
+      </p>
     </attribute>
 
     <attribute name="useBodyEncodingForURI" required="false">
@@ -289,7 +267,7 @@
 
   <subsection name="Standard Implementation">
 
-  <p>The standard HTTP connectors (NIO, NIO2 and APR/native) all support the
+  <p>The standard HTTP connectors (BIO, NIO and APR/native) all support the
   following attributes in addition to the common Connector attributes listed
   above.</p>
 
@@ -319,16 +297,10 @@
     </attribute>
 
     <attribute name="address" required="false">
-      <p>For servers with more than one IP address, this attribute specifies
-      which address will be used for listening on the specified port. By
-      default, the connector will listen all local addresses. Unless the JVM is
-      configured otherwise using system properties, the Java based connectors
-      (NIO, NIO2) will listen on both IPv4 and IPv6 addresses when configured
-      with either <code>0.0.0.0</code> or <code>::</code>. The APR/native
-      connector will only listen on IPv4 addresses if configured with
-      <code>0.0.0.0</code> and will listen on IPv6 addresses (and optionally
-      IPv4 addresses depending on the setting of <strong>ipv6onlyv6</strong>) if
-      configured with <code>::</code>.</p>
+      <p>For servers with more than one IP address, this attribute
+      specifies which address will be used for listening on the specified
+      port.  By default, this port will be used on all IP addresses
+      associated with the server.</p>
     </attribute>
 
     <attribute name="allowHostHeaderMismatch" required="false">
@@ -351,23 +323,12 @@
       connector is started and unbound when it is stopped.</p>
     </attribute>
 
-    <attribute name="clientCertProvider" required="false">
-      <p>When client certificate information is presented in a form other than
-      instances of <code>java.security.cert.X509Certificate</code> it needs to
-      be converted before it can be used and this property controls which JSSE
-      provider is used to perform the conversion. For example it is used with
-      the <a href="ajp.html">AJP connectors</a>, the HTTP APR connector and
-      with the <a href="valve.html#SSL_Authenticator_Valve">
-      org.apache.catalina.valves.SSLValve</a>. If not specified, the default
-      provider will be used.</p>
-    </attribute>
-
     <attribute name="compressibleMimeType" required="false">
       <p>The value is a comma separated list of MIME types for which HTTP
       compression may be used.
       The default value is
       <code>
-      text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+      text/html,text/xml,text/plain,text/css,text/javascript,application/javascript
       </code>.
       </p>
     </attribute>
@@ -444,8 +405,9 @@
     <attribute name="executorTerminationTimeoutMillis" required="false">
       <p>The time that the private internal executor will wait for request
       processing threads to terminate before continuing with the process of
-      stopping the connector. If not set, the default is  <code>5000</code> (5
-      seconds).</p>
+      stopping the connector. If not set, the default is <code>0</code> (zero)
+      for the BIO connector and <code>5000</code> (5 seconds) for the NIO and
+      APR/native connectors.</p>
     </attribute>
 
     <attribute name="keepAliveTimeout" required="false">
@@ -465,7 +427,10 @@
       start accepting and processing new connections again. Note that once the
       limit has been reached, the operating system may still accept connections
       based on the <code>acceptCount</code> setting. The default value varies by
-      connector type. For NIO and NIO2 the default is <code>10000</code>.
+      connector type. For BIO the default is the value of
+      <strong>maxThreads</strong> unless an <a href="executor.html">Executor</a>
+      is used in which case the default will be the value of maxThreads from the
+      executor. For NIO the default is <code>10000</code>.
       For APR/native, the default is <code>8192</code>.</p>
       <p>Note that for APR/native on Windows, the configured value will be
       reduced to the highest multiple of 1024 that is less than or equal to
@@ -604,16 +569,18 @@
 
     <attribute name="server" required="false">
       <p>Overrides the Server header for the http response. If set, the value
-      for this attribute overrides any Server header set by a web application.
-      If not set, any value specified by the application is used. If the
-      application does not specify a value then no Server header is set.</p>
+      for this attribute overrides the Tomcat default and any Server header set
+      by a web application. If not set, any value specified by the application
+      is used. If the application does not specify a value then
+      <code>Apache-Coyote/1.1</code> is used. Unless you are paranoid, you won't
+      need this feature.
+      </p>
     </attribute>
 
-    <attribute name="serverRemoveAppProvidedValues" required="false">
-      <p>If <code>true</code>, any Server header set by a web
-      application will be removed. Note that if <strong>server</strong> is set,
-      this attribute is effectively ignored. If not set, the default value of
-      <code>false</code> will be used.</p>
+    <attribute name="socketBuffer" required="false">
+      <p>The size (in bytes) of the buffer to be provided for socket
+      output buffering. -1 can be specified to disable the use of a buffer.
+      By default, a buffers of 9000 bytes will be used.</p>
     </attribute>
 
     <attribute name="SSLEnabled" required="false">
@@ -647,15 +614,24 @@
       recorded correctly but it will be reported (e.g. via JMX) as
       <code>-1</code> to make clear that it is not used.</p>
     </attribute>
+
+    <attribute name="upgradeAsyncWriteBufferSize" required="false">
+      <p>The default size of the buffer to allocate to for asynchronous writes
+      that can not be completed in a single operation, specified in bytes. Data that can't be
+      written immediately will be stored in this buffer until it can be written.
+      If more data needs to be stored than space is available in the buffer than
+      the size of the buffer will be increased for the duration of the write. If
+      not specified the default value of 8192 will be used.</p>
+    </attribute>
   </attributes>
 
   </subsection>
 
   <subsection name="Java TCP socket attributes">
 
-    <p>The NIO and NIO2 implementation support the following Java TCP
-    socket attributes in addition to the common Connector and HTTP attributes
-    listed above.</p>
+    <p>The BIO and NIO implementation support the following Java TCP socket
+    attributes in addition to the common Connector and HTTP attributes listed
+    above.</p>
 
     <attributes>
       <attribute name="socket.rxBufSize" required="false">
@@ -704,19 +680,19 @@
       </attribute>
       <attribute name="socket.performanceConnectionTime" required="false">
         <p>(int)The first value for the performance settings. See
-        <a href="http://docs.oracle.com/javase/7/docs/api/java/net/Socket.html#setPerformancePreferences(int,%20int,%20int)">Socket Performance Options</a>.
+        <a href="http://docs.oracle.com/javase/6/docs/api/java/net/Socket.html#setPerformancePreferences(int,%20int,%20int)">Socket Performance Options</a>.
         All three performance attributes must be set else the JVM defaults will
         be used for all three.</p>
       </attribute>
       <attribute name="socket.performanceLatency" required="false">
         <p>(int)The second value for the performance settings. See
-        <a href="http://docs.oracle.com/javase/7/docs/api/java/net/Socket.html#setPerformancePreferences(int,%20int,%20int)">Socket Performance Options</a>.
+        <a href="http://docs.oracle.com/javase/6/docs/api/java/net/Socket.html#setPerformancePreferences(int,%20int,%20int)">Socket Performance Options</a>.
         All three performance attributes must be set else the JVM defaults will
         be used for all three.</p>
       </attribute>
       <attribute name="socket.performanceBandwidth" required="false">
         <p>(int)The third value for the performance settings. See
-        <a href="http://docs.oracle.com/javase/7/docs/api/java/net/Socket.html#setPerformancePreferences(int,%20int,%20int)">Socket Performance Options</a>.
+        <a href="http://docs.oracle.com/javase/6/docs/api/java/net/Socket.html#setPerformancePreferences(int,%20int,%20int)">Socket Performance Options</a>.
         All three performance attributes must be set else the JVM defaults will
         be used for all three.</p>
       </attribute>
@@ -727,6 +703,24 @@
     </attributes>
   </subsection>
 
+  <subsection name="BIO specific configuration">
+
+    <p>The following attributes are specific to the BIO connector.</p>
+
+    <attributes>
+
+      <attribute name="disableKeepAlivePercentage" required="false">
+        <p>The percentage of processing threads that have to be in use before
+        HTTP keep-alives are disabled to improve scalability. Values less than
+        <code>0</code> will be changed to <code>0</code> and values greater than
+        <code>100</code> will be changed to <code>100</code>. If not specified,
+        the default value is <code>75</code>.</p>
+      </attribute>
+
+    </attributes>
+
+  </subsection>
+
   <subsection name="NIO specific configuration">
 
     <p>The following attributes are specific to the NIO connector.</p>
@@ -735,7 +729,8 @@
 
       <attribute name="pollerThreadCount" required="false">
         <p>(int)The number of threads to be used to run for the polling events.
-        Default value is <code>1</code> per processor but not more than 2.<br/>
+        Default value is <code>1</code> per processor up to and including version 7.0.27.
+        Default value as of version 7.0.28 is <code>1</code> per processor but not more than 2.<br/>
         When accepting a socket, the operating system holds a global lock. So the benefit of
         going above 2 threads diminishes rapidly. Having more than one thread is for
         system that need to accept connections very rapidly. However usually just
@@ -760,11 +755,14 @@
         default value is <code>1000</code> milliseconds.</p>
       </attribute>
 
+      <attribute name="useComet" required="false">
+        <p>(bool)Whether to allow comet servlets or not. Default value is
+        <code>true</code>.</p>
+      </attribute>
+
       <attribute name="useSendfile" required="false">
         <p>(bool)Use this attribute to enable or disable sendfile capability.
-        The default value is <code>true</code>. Note that the use of sendfile
-        will disable any compression that Tomcat may otherwise have performed on
-        the response.</p>
+        The default value is <code>true</code>.</p>
       </attribute>
 
       <attribute name="socket.directBuffer" required="false">
@@ -776,19 +774,6 @@
         is <code>false</code>.<br/>
         When you are using direct buffers, make sure you allocate the
         appropriate amount of memory for the direct memory space. On Sun's JDK
-        that would be something like <code>-XX:MaxDirectMemorySize=256m</code>.
-        </p>
-      </attribute>
-
-      <attribute name="socket.directSslBuffer" required="false">
-        <p>(bool)Boolean value, whether to use direct ByteBuffers or java mapped
-        ByteBuffers for the SSL buffers. If <code>true</code> then
-        <code>java.nio.ByteBuffer.allocateDirect()</code> is used to allocate
-        the buffers, if <code>false</code> then
-        <code>java.nio.ByteBuffer.allocate()</code> is used. The default value
-        is <code>false</code>.<br/>
-        When you are using direct buffers, make sure you allocate the
-        appropriate amount of memory for the direct memory space. On Oracle's JDK
         that would be something like <code>-XX:MaxDirectMemorySize=256m</code>.
         </p>
       </attribute>
@@ -870,16 +855,6 @@
         value is set to false. Default value is <code>-1</code> (unlimited).</p>
       </attribute>
 
-      <attribute name="useInheritedChannel" required="false">
-        <p>(bool)Defines if this connector should inherit an inetd/systemd network socket.
-        Only one connector can inherit a network socket. This can option can be
-        used to automatcially start Tomcat once a connection request is made to
-        the systemd super daemon's port.
-        The default value is <code>false</code>. See the JavaDoc
-        for the <code>java.nio.channels.spi.SelectorProvider</code> class for
-        more details.</p>
-      </attribute>
-
       <attribute name="command-line-options" required="false">
         <p>The following command line options are available for the NIO
         connector:<br/>
@@ -890,84 +865,18 @@
         <strong>selectorPool.maxSelectors</strong> attribute.</p>
       </attribute>
 
-    </attributes>
-  </subsection>
-
-  <subsection name="NIO2 specific configuration">
-
-    <p>The following attributes are specific to the NIO2 connector.</p>
-
-    <attributes>
-
-      <attribute name="useSendfile" required="false">
-        <p>(bool)Use this attribute to enable or disable sendfile capability.
-        The default value is <code>true</code>. Note that the use of sendfile
-        will disable any compression that Tomcat may otherwise have performed on
-        the response.</p>
-      </attribute>
-
-      <attribute name="socket.directBuffer" required="false">
-        <p>(bool)Boolean value, whether to use direct ByteBuffers or java mapped
-        ByteBuffers. If <code>true</code> then
-        <code>java.nio.ByteBuffer.allocateDirect()</code> is used to allocate
-        the buffers, if <code>false</code> then
-        <code>java.nio.ByteBuffer.allocate()</code> is used. The default value
-        is <code>false</code>.<br/>
-        When you are using direct buffers, make sure you allocate the
-        appropriate amount of memory for the direct memory space. On Sun's JDK
-        that would be something like <code>-XX:MaxDirectMemorySize=256m</code>.
+      <attribute name="oomParachute" required="false">
+        <p>(int)The NIO connector implements an OutOfMemoryError strategy called
+        parachute. It holds a chunk of data as a byte array. In case of an OOM,
+        this chunk of data is released and the error is reported. This will give
+        the VM enough room to clean up. The <code>oomParachute</code> represents
+        the size in bytes of the parachute(the byte array). The default value is
+        <code>1024*1024</code>(1MB). Please note, this only works for OOM errors
+        regarding the Java Heap space, and there is absolutely no  guarantee
+        that you will be able to recover at all. If you have an OOM outside of
+        the Java Heap, then this parachute trick will not help.
         </p>
       </attribute>
-
-      <attribute name="socket.directSslBuffer" required="false">
-        <p>(bool)Boolean value, whether to use direct ByteBuffers or java mapped
-        ByteBuffers for the SSL buffers. If <code>true</code> then
-        <code>java.nio.ByteBuffer.allocateDirect()</code> is used to allocate
-        the buffers, if <code>false</code> then
-        <code>java.nio.ByteBuffer.allocate()</code> is used. The default value
-        is <code>false</code>.<br/>
-        When you are using direct buffers, make sure you allocate the
-        appropriate amount of memory for the direct memory space. On Oracle's JDK
-        that would be something like <code>-XX:MaxDirectMemorySize=256m</code>.
-        </p>
-      </attribute>
-
-      <attribute name="socket.appReadBufSize" required="false">
-        <p>(int)Each connection that is opened up in Tomcat get associated with
-        a read ByteBuffer. This attribute controls the size of this buffer. By
-        default this read buffer is sized at <code>8192</code> bytes. For lower
-        concurrency, you can increase this to buffer more data. For an extreme
-        amount of keep alive connections, decrease this number or increase your
-        heap size.</p>
-      </attribute>
-
-      <attribute name="socket.appWriteBufSize" required="false">
-        <p>(int)Each connection that is opened up in Tomcat get associated with
-        a write ByteBuffer. This attribute controls the size of this buffer. By
-        default this write buffer is sized at <code>8192</code> bytes. For low
-        concurrency you can increase this to buffer more response data. For an
-        extreme amount of keep alive connections, decrease this number or
-        increase your heap size.<br/>
-        The default value here is pretty low, you should up it if you are not
-        dealing with tens of thousands concurrent connections.</p>
-      </attribute>
-
-      <attribute name="socket.bufferPool" required="false">
-        <p>(int)The NIO2 connector uses a class called Nio2Channel that holds
-        elements linked to a socket. To reduce garbage collection, the NIO2
-        connector caches these channel objects. This value specifies the size of
-        this cache. The default value is <code>500</code>, and represents that
-        the cache will hold 500 Nio2Channel objects. Other values are
-        <code>-1</code> for unlimited cache and <code>0</code> for no cache.</p>
-      </attribute>
-
-      <attribute name="socket.processorCache" required="false">
-        <p>(int)Tomcat will cache SocketProcessor objects to reduce garbage
-        collection. The integer value specifies how many objects to keep in the
-        cache at most. The default is <code>500</code>. Other values are
-        <code>-1</code> for unlimited cache and <code>0</code> for no cache.</p>
-      </attribute>
-
     </attributes>
   </subsection>
 
@@ -984,18 +893,11 @@
         otherwise it is <code>false</code>.</p>
       </attribute>
 
-      <attribute name="ipv6v6only" required="false">
-        <p>If listening on an IPv6 address on a dual stack system, should the
-        connector only listen on the IPv6 address? If not specified the default
-        is <code>false</code> and the connector will listen on the IPv6 address
-        and the equivalent IPv4 address if present.</p>
-      </attribute>
-
-      <attribute name="pollerThreadCount" required="false">
-        <p>Number of threads used to poll kept alive connections. On Windows the
-        default is chosen so that the sockets managed by each thread is
-        less than 1024. For Linux the default is 1. Changing the default on
-        Windows is likely to have a negative performance impact.</p>
+      <attribute name="pollerSize" required="false">
+        <p>Amount of sockets that the poller responsible for polling kept alive
+        connections can hold at a given time. Extra connections will be closed
+        right away. The default value is 8192, corresponding to 8192 keep-alive
+        connections. This is a synonym for maxConnections.</p>
       </attribute>
 
       <attribute name="pollTime" required="false">
@@ -1024,11 +926,14 @@
         this priority means.</p>
       </attribute>
 
+      <attribute name="useComet" required="false">
+        <p>(bool)Whether to allow comet servlets or not. Default value is
+        <code>true</code>.</p>
+      </attribute>
+
       <attribute name="useSendfile" required="false">
         <p>(bool)Use this attribute to enable or disable sendfile capability.
-        The default value is <code>true</code>. Note that the use of sendfile
-        will disable any compression that Tomcat may otherwise have performed on
-        the response.</p>
+        The default value is <code>true</code>.</p>
       </attribute>
 
     </attributes>
@@ -1040,18 +945,7 @@
 
 <section name="Nested Components">
 
-  <p>First implemented in Tomcat 9 and back-ported to 8.5, Tomcat now supports
-  Server Name Indication (SNI). This allows multiple SSL configurations to be
-  associated with a single secure connector with the configuration used for any
-  given connection determined by the host name requested by the client. To
-  facilitate this, the <strong>SSLHostConfig</strong> element was added which
-  can be used to define one of these configurations. Any number of
-  <strong>SSLHostConfig</strong> may be nested in a <strong>Connector</strong>.
-  At the same time, support was added for multiple certificates to be associated
-  with a single <strong>SSLHostConfig</strong>. Each SSL certificate is
-  therefore configured in a <strong>Certificate</strong> element with in an
-  <strong>SSLHostConfig</strong>. For further information, see the SSL Support
-  section below.</p>
+  <p>None at this time.</p>
 
 </section>
 
@@ -1062,44 +956,21 @@
   <subsection name="HTTP/1.1 and HTTP/1.0 Support">
 
   <p>This <strong>Connector</strong> supports all of the required features
-  of the HTTP/1.1 protocol, as described in RFCs 7230-7235, including persistent
+  of the HTTP/1.1 protocol, as described in RFC 2616, including persistent
   connections, pipelining, expectations and chunked encoding.  If the client
-  supports only HTTP/1.0 or HTTP/0.9, the
+  (typically a browser) supports only HTTP/1.0, the
   <strong>Connector</strong> will gracefully fall back to supporting this
   protocol as well.  No special configuration is required to enable this
   support. The <strong>Connector</strong> also supports HTTP/1.0
   keep-alive.</p>
 
-  <p>RFC 7230 requires that HTTP servers always begin their responses with
+  <p>RFC 2616 requires that HTTP servers always begin their responses with
   the highest HTTP version that they claim to support.  Therefore, this
   <strong>Connector</strong> will always return <code>HTTP/1.1</code> at
   the beginning of its responses.</p>
 
   </subsection>
 
-  <subsection name="HTTP/2 Support">
-
-  <p>HTTP/2 is support is provided for TLS (h2), non-TLS via HTTP upgrade (h2c)
-     and direct HTTP/2 (h2c) connections. To enable HTTP/2 support for an HTTP
-     connector the following <strong>UpgradeProtocol</strong> element must be
-     nested within the <strong>Connector</strong> with a
-     <strong>className</strong> attribute of
-     <code>org.apache.coyote.http2.Http2Protocol</code>.</p>
-
-<source><![CDATA[<Connector ... >
-  <UpgradeProtocol className="org.apache.coyote.http2.Http2Protocol" />
-</Connector>]]></source>
-
-  <p>Because Java 8's TLS implementation does not support ALPN (which is
-     required for HTTP/2 over TLS), you must be using an OpenSSL based TLS
-     implementation to enable HTTP/2 support. See the
-     <code>sslImplementationName</code> attribute of the
-     <strong>Connector</strong>.</p>
-
-  <p>Additional configuration attributes are available. See the
-  <a href="http2.html">HTTP/2 Upgrade Protocol</a> documentation for details.</p>
-
-  </subsection>
 
   <subsection name="Proxy Support">
 
@@ -1114,9 +985,10 @@
   directed the original request.</p>
 
   <p>For more information, see the
-  <a href="../proxy-howto.html">Proxy Support How-To</a>.</p>
+  <a href="../proxy-howto.html">Proxy Support HOW-TO</a>.</p>
 
   </subsection>
+
 
 
   <subsection name="SSL Support">
@@ -1129,193 +1001,136 @@
   attributes to the values <code>https</code> and <code>true</code>
   respectively, to pass correct information to the servlets.</p>
 
-  <p>The NIO and NIO2 connectors use either the JSSE Java SSL implementation or
-  an OpenSSL implementation, whereas the APR/native connector uses OpenSSL only.
-  Prior to Tomcat 8.5, different configuration attributes were used for JSSE and
-  OpenSSL. From Tomcat 8.5 onwards, and as far as possible, common configuration
-  attributes are used for both JSSE and OpenSSL. Also if using the JSSE OpenSSL
-  implementation, configuration can be set using either the JSSE or APR
-  attributes (note: but not both types within the same configuration). This is
-  to aid simpler switching between connector implementations for SSL
-  connectors.</p>
-
-  <p>Each secure connector must define at least one
-  <strong>SSLHostConfig</strong>. The names of the
-  <strong>SSLHostConfig</strong> elements must be unique and one of them must
-  match the <code>defaultSSLHostConfigName</code> attribute of the
-  <strong>Connector</strong>.</p>
-
-  <p>Each <strong>SSLHostConfig</strong> must in turn define at least one
-  <strong>Certificate</strong>. The types of the <strong>Certificate</strong>s
-  must be unique.</p>
-
-  <p>As of Tomcat 8.5, the majority of the SSL configuration attributes in the
-  <strong>Connector</strong> are deprecated. If specified, they will be used to
-  configure a <strong>SSLHostConfig</strong> and <strong>Certificate</strong>
-  for the <code>defaultSSLHostConfigName</code>. Note that if an explicit
-  <strong>SSLHostConfig</strong> element also exists for the
-  <code>defaultSSLHostConfigName</code> then that will be treated as a configuration
-  error. It is expected that Tomcat 10 will drop support for the SSL
-  configuration attributes in the <strong>Connector</strong>.</p>
+  <p>The BIO and NIO connectors use the JSSE SSL whereas the APR/native
+  connector uses OpenSSL. Therefore, in addition to using different attributes
+  to configure SSL, the APR/native connector also requires keys and certificates
+  to be provided in a different format.</p>
 
   <p>For more information, see the
-  <a href="../ssl-howto.html">SSL Configuration How-To</a>.</p>
+  <a href="../ssl-howto.html">SSL Configuration HOW-TO</a>.</p>
 
-  </subsection>
+  <subsection name="SSL Support - BIO and NIO">
 
-  <subsection name="SSL Support - SSLHostConfig">
-
-  <p></p>
+  <p>The BIO and NIO connectors use the following attributes to configure SSL:
+  </p>
 
   <attributes>
 
-    <attribute name="certificateRevocationListFile" required="false">
-      <p>Name of the file that contains the concatenated certificate revocation
-      lists for the certificate authorities. The format is PEM-encoded. If not
-      defined, client certificates will not be checked against a certificate
-      revocation list (unless an OpenSSL based connector is used and
-      <strong>certificateRevocationListPath</strong> is defined). Relative paths
-      will be resolved against <code>$CATALINA_BASE</code>. JSSE based
-      connectors may also specify a URL for this attribute.</p>
-    </attribute>
-
-    <attribute name="certificateRevocationListPath" required="false">
-      <p>OpenSSL only.</p>
-      <p>Name of the directory that contains the certificate revocation lists
-      for the certificate authorities. The format is PEM-encoded. Relative paths
-      will be resolved against <code>$CATALINA_BASE</code>.</p>
-    </attribute>
-
-    <attribute name="certificateVerification" required="false">
-      <p>Set to <code>required</code> if you want the SSL stack to require a
-      valid certificate chain from the client before accepting a connection.
-      Set to <code>optional</code> if you want the SSL stack to request a client
-      Certificate, but not fail if one isn't presented. Set to
-      <code>optionalNoCA</code> if you want client certificates to be optional
-      and you don't want Tomcat to check them against the list of trusted CAs.
-      If the TLS provider doesn't support this option (OpenSSL does, JSSE does
-      not) it is treated as if <code>optional</code> was specified. A
-      <code>none</code> value (which is the default) will not require a
-      certificate chain unless the client requests a resource protected by a
-      security constraint that uses <code>CLIENT-CERT</code> authentication.</p>
-    </attribute>
-
-    <attribute name="certificateVerificationDepth" required="false">
-      <p>The maximum number of intermediate certificates that will be allowed
-      when validating client certificates. If not specified, the default value
-      of 10 will be used.</p>
-    </attribute>
-
-    <attribute name="caCertificateFile" required="false">
-      <p>OpenSSL only.</p>
-      <p>Name of the file that contains the concatenated certificates for the
-      trusted certificate authorities. The format is PEM-encoded.</p>
-    </attribute>
-
-    <attribute name="caCertificatePath" required="false">
-      <p>OpenSSL only.</p>
-      <p>Name of the directory that contains the certificates for the trusted
-      certificate authorities. The format is PEM-encoded.</p>
-    </attribute>
-
-    <attribute name="ciphers" required="false">
-      <p>The ciphers to enable using the OpenSSL syntax. (See the OpenSSL
-      documentation for the list of ciphers supported and the syntax).
-      Alternatively, a comma separated list of ciphers using the standard
-      OpenSSL cipher names or the standard JSSE cipher names may be used.</p>
-      <p>When converting from OpenSSL syntax to JSSE ciphers for JSSE based
-      connectors, the behaviour of the OpenSSL syntax parsing is kept aligned
-      with the behaviour of the OpenSSL 1.1.0 development branch.</p>
-      <p>Only the ciphers that are supported by the SSL implementation will be
-      used.</p>
-      <p>If not specified, a default (using the OpenSSL notation) of
-      <code>HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA</code> will be
-      used.</p>
-      <p>Note that, by default, the order in which ciphers are defined is
-      treated as an order of preference. See <code>honorCipherOrder</code>.</p>
-    </attribute>
-
-    <attribute name="disableCompression" required="false">
-      <p>OpenSSL only.</p>
-      <p>Configures if compression is disabled. The default is
-      <code>true</code>. If the OpenSSL version used does not support disabling
-      compression then the default for that OpenSSL version will be used.</p>
-    </attribute>
-
-    <attribute name="disableSessionTickets" required="false">
-      <p>OpenSSL only.</p>
-      <p>Disables use of TLS session tickets (RFC 5077) if set to
-      <code>true</code>. Default is <code>false</code>. Note that when TLS
-      session tickets are in use, the full peer certificate chain will only be
-      available on the first connection. Subsequent connections (that use a
-      ticket to estrablish the TLS session) will only have the peer certificate,
-      not the full chain.</p>
-    </attribute>
-
-    <attribute name="honorCipherOrder" required="false">
-      <p>Set to <code>true</code> to enforce the server's cipher order
-      (from the <code>ciphers</code> setting) instead of allowing
-      the client to choose the cipher. The default is <code>false</code>.
-      Use of this feature requires Java 8 or later.</p>
-    </attribute>
-
-    <attribute name="hostName" required="false">
-      <p>The name of the SSL Host. This should either be the fully qualified
-      domain name (e.g. <code>tomcat.apache.org</code>) or a wild card domain
-      name (e.g. <code>*.apache.org</code>). If not specified, the default value
-      of <code>_default_</code> will be used.</p>
-    </attribute>
-
-    <attribute name="insecureRenegotiation" required="false">
-      <p>OpenSSL only.</p>
-      <p>Configures if insecure renegotiation is allowed. The default is
-      <code>false</code>. If the OpenSSL version used does not support
-      configuring if insecure renegotiation is allowed then the default for that
-      OpenSSL version will be used.</p>
-    </attribute>
-
-    <attribute name="keyManagerAlgorithm" required="false">
-      <p>JSSE only.</p>
-      <p>The <code>KeyManager</code> algorithm to be used. This defaults to
+    <attribute name="algorithm" required="false">
+      <p>The certificate encoding algorithm to be used. This defaults to
       <code>KeyManagerFactory.getDefaultAlgorithm()</code> which returns
       <code>SunX509</code> for Sun JVMs. IBM JVMs return
       <code>IbmX509</code>. For other vendors, consult the JVM
       documentation for the default value.</p>
     </attribute>
 
-    <attribute name="protocols" required="false">
-      <p>The names of the protocols to support when communicating with clients.
-      This should be a list of any combination of the following:
+    <attribute name="allowUnsafeLegacyRenegotiation" required="false">
+      <p>Is unsafe legacy TLS renegotiation allowed which is likely to expose
+      users to CVE-2009-3555, a man-in-the-middle vulnerability in the TLS
+      protocol that allows an attacker to inject arbitrary data into the user's
+      request. If not specified, a default of <code>false</code> is used. This
+      attribute only has an effect if the JVM does not support RFC 5746 as
+      indicated by the presence of the pseudo-ciphersuite
+      TLS_EMPTY_RENEGOTIATION_INFO_SCSV. This is available JRE/JDK 6 update 22
+      onwards. Where RFC 5746 is supported the renegotiation - including support
+      for unsafe legacy renegotiation - is controlled by the JVM configuration.
       </p>
-      <ul><li>SSLv2Hello</li><li>SSLv3</li><li>TLSv1</li><li>TLSv1.1</li>
-      <li>TLSv1.2</li><li>TLSv1.3</li><li>all</li></ul>
-      <p>Each token in the list can be prefixed with a plus sign ("+")
-      or a minus sign ("-"). A plus sign adds the protocol, a minus sign
-      removes it form the current list. The list is built starting from
-      an empty list.</p>
-      <p>The token <code>all</code> is an alias for
-      <code>SSLv2Hello,TLSv1,TLSv1.1,TLSv1.2,TLSv1.3</code>.</p>
-      <p>Note that <code>TLSv1.3</code> is only supported for JSSE when using a
-      JVM that implements <code>TLSv1.3</code>.</p>
-      <p>Note that <code>SSLv2Hello</code> will be ignored for OpenSSL based
-      secure connectors. If more than one protocol is specified for an OpenSSL
-      based secure connector it will always support <code>SSLv2Hello</code>. If a
-      single protocol is specified it will not support
-      <code>SSLv2Hello</code>.</p>
-      <p>Note that <code>SSLv2</code> and <code>SSLv3</code> are inherently
-      unsafe.</p>
-      <p>If not specified, the default value of <code>all</code> will be
-      used.</p>
     </attribute>
 
-    <attribute name="revocationEnabled" required="false">
-      <p>JSSE only.</p>
-      <p>Should the JSSE provider enable certificate revocation checks? If
-      <strong>certificateRevocationListFile</strong> is set then this attribute
-      is ignored and revocation checks are always enabled. This attribute is
-      intended to enable revocation checks that have been configured for the
-      current JSSE provider via other means. If not specified, a default of
-      <code>false</code> is used.</p>
+    <attribute name="useServerCipherSuitesOrder" required="false">
+      <p>
+        Set to <code>true</code> to enforce the server's cipher order
+        (from the <code>ciphers</code> setting). Set to <code>false</code>
+        to choose the first acceptable cipher suite presented by the client.
+        <b>Use of this feature requires Java 8 or later.</b>
+        Default is <i>undefined</i>, leaving the choice up to the JSSE
+        implementation.
+      </p>
+    </attribute>
+
+    <attribute name="ciphers" required="false">
+      <p>The comma separated list of encryption ciphers to support for HTTPS
+      connections. If specified, only the ciphers that are listed and supported
+      by the SSL implementation will be used. By default, the default ciphers
+      for the JVM will be used less those considered to be insecure. Note that
+      with older JVMs this will result in a very limited set of ciphers being
+      available by default. The ciphers are specified using the JSSE cipher
+      naming convention. The special value of <code>ALL</code> will enable all
+      supported ciphers. This will include many that are not secure.
+      <code>ALL</code> is intended for testing purposes only.</p>
+    </attribute>
+
+    <attribute name="clientAuth" required="false">
+      <p>Set to <code>true</code> if you want the SSL stack to require a
+      valid certificate chain from the client before accepting a connection.
+      Set to <code>want</code> if you want the SSL stack to request a client
+      Certificate, but not fail if one isn't presented. A <code>false</code>
+      value (which is the default) will not require a certificate chain
+      unless the client requests a resource protected by a security
+      constraint that uses <code>CLIENT-CERT</code> authentication.</p>
+    </attribute>
+
+    <attribute name="clientCertProvider" required="false">
+      <p>When client certificate information is presented in a form other than
+      instances of <code>java.security.cert.X509Certificate</code> it needs to
+      be converted before it can be used and this property controls which JSSE
+      provider is used to perform the conversion. For example it is used with
+      the <a href="ajp.html">AJP connectors</a>, the HTTP APR connector and
+      with the <a href="valve.html#SSL_Authenticator_Valve">
+      org.apache.catalina.valves.SSLValve</a>. If not specified, the default
+      provider will be used.</p>
+    </attribute>
+
+    <attribute name="crlFile" required="false">
+      <p>The certificate revocation list to be used to verify client
+      certificates. If not defined, client certificates will not be checked
+      against a certificate revocation list. The file may be specified using a
+      URL, an absolute path or a relative (to CATALINA_BASE) path.</p>
+    </attribute>
+
+    <attribute name="keyAlias" required="false">
+      <p>The alias used for the server key and certificate in the keystore. If
+      not specified, the first key read from the keystore will be used. The
+      order in which keys are read from the keystore is implementation
+      dependent. It may not be the case that keys are read from the keystore in
+      the same order as they were added. If more than one key is present in the
+      keystore it is strongly recommended that a keyAlias is configured to
+      ensure that the correct key is used.</p>
+    </attribute>
+
+    <attribute name="keyPass" required="false">
+      <p>The password used to access the server certificate from the
+      specified keystore file.  The default value is "<code>changeit</code>".
+      </p>
+    </attribute>
+
+    <attribute name="keystoreFile" required="false">
+      <p>The pathname of the keystore file where you have stored the
+      server certificate to be loaded.  By default, the pathname is
+      the file "<code>.keystore</code>" in the operating system home
+      directory of the user that is running Tomcat. If your
+      <code>keystoreType</code> doesn't need a file use <code>""</code>
+      (empty string) for this parameter. The file may be specified using a
+      URL, an absolute path or a relative (to CATALINA_BASE) path.</p>
+    </attribute>
+
+    <attribute name="keystorePass" required="false">
+      <p>The password used to access the specified keystore file. The default
+      value is the value of the <code>keyPass</code> attribute.
+      </p>
+    </attribute>
+
+    <attribute name="keystoreProvider" required="false">
+      <p>The name of the keystore provider to be used for the server
+      certificate. If not specified, the list of registered providers is
+      traversed in preference order and the first provider that supports the
+      <code>keystoreType</code> is used.
+      </p>
+    </attribute>
+
+    <attribute name="keystoreType" required="false">
+      <p>The type of keystore file to be used for the server certificate.
+      If not specified, the default value is "<code>JKS</code>".</p>
     </attribute>
 
     <attribute name="sessionCacheSize" required="false">
@@ -1330,28 +1145,56 @@
       default of 86400 (24 hours) is used.</p>
     </attribute>
 
+    <attribute name="sslEnabledProtocols" required="false">
+      <p>The comma separated list of SSL protocols to support for HTTPS
+      connections. If specified, only the protocols that are listed and
+      supported by the SSL implementation will be enabled.  If not specified,
+      the JVM default (excluding SSLv2 and SSLv3 if the JVM enables either or
+      both of them by default) is used. The permitted values may be obtained from the
+      JVM documentation for the allowed values for
+      <code>SSLSocket.setEnabledProtocols()</code> e.g.
+      <a href="http://docs.oracle.com/javase/6/docs/technotes/guides/security/StandardNames.html#jssenames">
+      Oracle Java 6</a> and
+      <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#jssenames">
+      Oracle Java 7</a>. Note: There is overlap between this attribute and
+      <code>sslProtocol</code>.</p>
+    </attribute>
+
+    <attribute name="sslImplementationName" required="false">
+      <p>The class name of the SSL implementation to use. If not specified, the
+      default of <code>org.apache.tomcat.util.net.jsse.JSSEImplementation</code>
+      will be used which wraps JVM&apos;s default JSSE provider. Note that the
+      JVM can be configured to use a different JSSE provider as the default.</p>
+    </attribute>
+
     <attribute name="sslProtocol" required="false">
-      <p>JSSE only.</p>
       <p>The SSL protocol(s) to use (a single value may enable multiple
       protocols - see the JVM documentation for details). If not specified, the
       default is <code>TLS</code>. The permitted values may be obtained from the
       JVM documentation for the allowed values for algorithm when creating an
       <code>SSLContext</code> instance e.g.
+      <a href="http://docs.oracle.com/javase/6/docs/technotes/guides/security/StandardNames.html#SSLContext">
+      Oracle Java 6</a> and
       <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#SSLContext">
       Oracle Java 7</a>. Note: There is overlap between this attribute and
-      <code>protocols</code>.</p>
+      <code>sslEnabledProtocols</code>.</p>
     </attribute>
 
     <attribute name="trustManagerClassName" required="false">
-      <p>JSSE only.</p>
       <p>The name of a custom trust manager class to use to validate client
       certificates. The class must have a zero argument constructor and must
       also implement <code>javax.net.ssl.X509TrustManager</code>. If this
-      attribute is set, the trust store attributes may be ignored.</p>
+      attribute is set, the trust store attributes may be ignored.
+      </p>
+    </attribute>
+
+    <attribute name="trustMaxCertLength" required="false">
+      <p>The maximum number of intermediate certificates that will be allowed
+      when validating client certificates. If not specified, the default value
+      of 5 will be used.</p>
     </attribute>
 
     <attribute name="truststoreAlgorithm" required="false">
-      <p>JSSE only.</p>
       <p>The algorithm to use for truststore. If not specified, the default
       value returned by
       <code>javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm()</code> is
@@ -1359,17 +1202,14 @@
     </attribute>
 
     <attribute name="truststoreFile" required="false">
-      <p>JSSE only.</p>
       <p>The trust store file to use to validate client certificates. The
       default is the value of the <code>javax.net.ssl.trustStore</code> system
       property. If neither this attribute nor the default system property is
-      set, no trust store will be configured. Relative paths
-      will be resolved against <code>$CATALINA_BASE</code>. A URL may also be
-      used for this attribute.</p>
+      set, no trust store will be configured. The file may be specified using a
+      URL, an absolute path or a relative (to CATALINA_BASE) path.</p>
     </attribute>
 
-    <attribute name="truststorePassword" required="false">
-      <p>JSSE only.</p>
+    <attribute name="truststorePass" required="false">
       <p>The password to access the trust store. The default is the value of the
       <code>javax.net.ssl.trustStorePassword</code> system property. If that
       property is null, no trust store password will be configured. If an
@@ -1379,7 +1219,6 @@
     </attribute>
 
     <attribute name="truststoreProvider" required="false">
-      <p>JSSE only.</p>
       <p>The name of the truststore provider to be used for the server
       certificate. The default is the value of the
       <code>javax.net.ssl.trustStoreProvider</code> system property. If
@@ -1392,383 +1231,17 @@
     </attribute>
 
     <attribute name="truststoreType" required="false">
-      <p>JSSE only.</p>
       <p>The type of key store used for the trust store. The default is the
       value of the <code>javax.net.ssl.trustStoreType</code> system property. If
-      that property is null, a single certificate has been configured for this
-      TLS virtual host and that certificate has a <code>keystoreType</code> that
-      is not <code>PKCS12</code> then the default will be the
-      <code>keystoreType</code> of the single certificate. If none of these
-      identify a default, the default will be <code>JKS</code>.</p>
+      that property is null, the value of <code>keystoreType</code> is used as
+      the default.</p>
      </attribute>
 
   </attributes>
 
   </subsection>
 
-  <subsection name="SSL Support - Certificate">
-
-  <p></p>
-
-  <attributes>
-
-    <attribute name="certificateFile" required="true">
-      <p>Name of the file that contains the server certificate. The format is
-      PEM-encoded. Relative paths will be resolved against
-      <code>$CATALINA_BASE</code>.</p>
-      <p>In addition to the certificate, the file can also contain as optional
-      elements DH parameters and/or an EC curve name for ephemeral keys, as
-      generated by <code>openssl dhparam</code> and <code>openssl ecparam</code>,
-      respectively. The output of the respective OpenSSL command can simply
-      be concatenated to the certificate file.</p>
-    </attribute>
-
-    <attribute name="certificateChainFile" required="false">
-      <p>Name of the file that contains the certificate chain associated with
-      the server certificate used. The format is
-      PEM-encoded. Relative paths will be resolved against
-      <code>$CATALINA_BASE</code>.</p>
-      <p>The certificate chain used for Tomcat should not include the server
-      certificate as its first element.</p>
-      <p>Note that when using more than one certificate for different types,
-      they all must use the same certificate chain.</p>
-    </attribute>
-
-    <attribute name="certificateKeyAlias" required="false">
-      <p>JSSE only.</p>
-      <p>The alias used for the server key and certificate in the keystore. If
-      not specified, the first key read from the keystore will be used. The
-      order in which keys are read from the keystore is implementation
-      dependent. It may not be the case that keys are read from the keystore in
-      the same order as they were added. If more than one key is present in the
-      keystore it is strongly recommended that a keyAlias is configured to
-      ensure that the correct key is used.</p>
-    </attribute>
-
-    <attribute name="certificateKeyFile" required="false">
-      <p>Name of the file that contains the server private key. The format is
-      PEM-encoded. The default value is the value of
-      <strong>certificateFile</strong> and in this case both certificate and
-      private key have to be in this file (NOT RECOMMENDED). Relative paths will
-      be resolved against <code>$CATALINA_BASE</code>.</p>
-    </attribute>
-
-    <attribute name="certificateKeyPassword" required="false">
-      <p>The password used to access the private key associated with the server
-      certificate from the specified file.</p>
-      <p>If not specified, the default behaviour for JSSE is to use the
-      <strong>certificateKeystorePassword</strong>. For OpenSSL the default
-      behaviour is not to use a password.</p>
-    </attribute>
-
-    <attribute name="certificateKeystoreFile" required="false">
-      <p>JSSE only.</p>
-      <p>The pathname of the keystore file where you have stored the server
-      certificate and key to be loaded. By default, the pathname is the file
-      <code>.keystore</code> in the operating system home directory of the user
-      that is running Tomcat. If your <code>keystoreType</code> doesn't need a
-      file use <code>""</code> (empty string) or <code>NONE</code> for this
-      parameter.  Relative paths will be resolved against
-      <code>$CATALINA_BASE</code>.  A URI may also be used for this attribute.
-      When using a domain keystore (<code>keystoreType</code> of
-      <code>DKS</code>), this parameter should be the URI to the domain
-      keystore.</p>
-    </attribute>
-
-    <attribute name="certificateKeystorePassword" required="false">
-      <p>JSSE only.</p>
-      <p>The password to use to access the keystore containing the server&apos;s
-      private key and certificate. If not specified, a default of
-      <code>changeit</code> will be used.</p>
-    </attribute>
-
-    <attribute name="certificateKeystoreProvider" required="false">
-      <p>JSSE only.</p>
-      <p>The name of the keystore provider to be used for the server
-      certificate. If not specified, the value of the system property
-      <code>javax.net.ssl.keyStoreProvider</code> is used. If neither this
-      attribute nor the system property are set, the list of registered
-      providers is traversed in preference order and the first provider that
-      supports the <code>keystoreType</code> is used.
-      </p>
-    </attribute>
-
-    <attribute name="certificateKeystoreType" required="false">
-      <p>JSSE only.</p>
-      <p>The type of keystore file to be used for the server certificate.
-      If not specified, the value of the system property
-      <code>javax.net.ssl.keyStoreType</code> is used. If neither this attribute
-      nor the system property are set, a default value of "<code>JKS</code>". is
-      used.</p>
-    </attribute>
-
-    <attribute name="type" required="false">
-      <p>The type of certificate. This is used to identify the ciphers that are
-      compatible with the certificate. It must be one of <code>UNDEFINED</code>,
-      <code>RSA</code>, <code>DSS</code> or <code>EC</code>. If only one
-      <strong>Certificate</strong> is nested within a <code>SSLHostConfig</code>
-      then this attribute is not required and will default to
-      <code>UNDEFINED</code>. If multiple <strong>Certificate</strong>s are
-      nested within a <code>SSLHostConfig</code> then this attribute is required
-      and each <strong>Certificate</strong> must have a unique type.</p>
-    </attribute>
-
-  </attributes>
-
-  </subsection>
-
-  <subsection name="SSL Support - Connector - NIO and NIO2">
-
-  <p>When APR/native is enabled, the connectors will default to using OpenSSL through JSSE,
-  which may be more optimized than the JSSE Java implementation depending on the processor being used,
-  and can be complemented with many commercial accelerator components.</p>
-
-  <p>The following NIO and NIO2 SSL configuration attributes are not specific to
-  a virtual host and, therefore, must be configured on the connector.</p>
-
-  <attributes>
-
-    <attribute name="sniParseLimit" required="false">
-      <p>In order to implement SNI support, Tomcat has to parse the first TLS
-      message received on a new TLS connection (the client hello) to extract the
-      requested server name. The message needs to be buffered so it can then be
-      passed to the JSSE implementation for normal TLS processing. In theory,
-      this first message could be very large although in practice it is
-      typically a few hundred bytes. This attribute sets the maximum message
-      size that Tomcat will buffer. If a message exceeds this size, the
-      connection will be configured as if no server name was indicated by the
-      client. If not specified a default of <code>65536</code> (64k) will be
-      used.</p>
-    </attribute>
-
-    <attribute name="sslImplementationName" required="false">
-      <p>The class name of the SSL implementation to use. If not specified and
-      the tomcat-native library is not installed, the
-      default of <code>org.apache.tomcat.util.net.jsse.JSSEImplementation</code>
-      will be used which wraps JVM&apos;s default JSSE provider. Note that the
-      JVM can be configured to use a different JSSE provider as the default.
-      Tomcat also bundles a special SSL implementation for JSSE that is backed
-      by OpenSSL. To enable it, the native library should be enabled as if
-      intending to use the APR connector, and Tomcat will automatically enable it
-      and the default value of this attribute becomes
-      <code>org.apache.tomcat.util.net.openssl.OpenSSLImplementation</code>.
-      In that case, the attributes from either JSSE and OpenSSL
-      configuration styles can be used, as long as the two types are not mixed
-      (for example, it is not allowed to define use of a Java keystore and
-      specify a separate pem private key using the OpenSSL attribute).</p>
-    </attribute>
-
-  </attributes>
-
-  </subsection>
-
-  <subsection name="SSL Support - Connector - NIO and NIO2 (deprecated)">
-
-  <p>The following NIO and NIO2 SSL configuration attributes have been
-  deprecated in favor of the default
-  <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-  the <code>hostName</code> of <code>_default_</code>. If this
-  <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-  explicitly defined, it will be created..
-  </p>
-
-  <attributes>
-
-    <attribute name="algorithm" required="false">
-      <p>This is an alias for the <code>keyManagerAlgorithm</code> attribute of
-      the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="ciphers" required="false">
-      <p>This is an alias for the <code>ciphers</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with the
-      <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="clientAuth" required="false">
-      <p>This is an alias for the <code>certificateVerification</code> attribute
-      of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element
-      with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="crlFile" required="false">
-      <p>This is an alias for the <code>certificateRevocationListFile</code>
-      attribute of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="keyAlias" required="false">
-      <p>This is an alias for the <code>certificateKeyAlias</code> attribute of
-      the first <a href="#SSL_Support_-_Certificate">Certificate</a> element
-      nested in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
-    </attribute>
-
-    <attribute name="keyPass" required="false">
-      <p>This is an alias for the <code>certificateKeyPassword</code> attribute
-      of the first <a href="#SSL_Support_-_Certificate">Certificate</a> element
-      nested in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
-    </attribute>
-
-    <attribute name="keystoreFile" required="false">
-      <p>This is an alias for the <code>certificateKeystoreFile</code> attribute
-      of the first <a href="#SSL_Support_-_Certificate">Certificate</a> element
-      nested in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
-    </attribute>
-
-    <attribute name="keystorePass" required="false">
-      <p>This is an alias for the <code>certificateKeystorePassword</code>
-      attribute of the first
-      <a href="#SSL_Support_-_Certificate">Certificate</a> element nested in the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
-    </attribute>
-
-    <attribute name="keystoreProvider" required="false">
-      <p>This is an alias for the <code>certificateKeystoreProvider</code>
-      attribute of the first
-      <a href="#SSL_Support_-_Certificate">Certificate</a> element nested in the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
-    </attribute>
-
-    <attribute name="keystoreType" required="false">
-      <p>This is an alias for the <code>certificateKeystoreType</code> attribute
-      of the first <a href="#SSL_Support_-_Certificate">Certificate</a> element
-      nested in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
-    </attribute>
-
-    <attribute name="sessionCacheSize" required="false">
-      <p>This is an alias for the <code>sessionCacheSize</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="sessionTimeout" required="false">
-      <p>This is an alias for the <code>sessionTimeout</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="sslEnabledProtocols" required="false">
-      <p>This is an alias for the <code>protocols</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="sslProtocol" required="false">
-      <p>This is an alias for the <code>sslProtocol</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="trustManagerClassName" required="false">
-      <p>This is an alias for the <code>trustManagerClassName</code> attribute
-      of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element
-      with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="trustMaxCertLength" required="false">
-      <p>This is an alias for the <code>certificateVerificationDepth</code>
-      attribute of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="truststoreAlgorithm" required="false">
-      <p>This is an alias for the <code>truststoreAlgorithm</code> attribute of
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="truststoreFile" required="false">
-      <p>This is an alias for the <code>truststoreFile</code> attribute of
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="truststorePass" required="false">
-      <p>This is an alias for the <code>truststorePassword</code> attribute of
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="truststoreProvider" required="false">
-      <p>This is an alias for the <code>truststoreProvider</code> attribute of
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="truststoreType" required="false">
-      <p>This is an alias for the <code>truststoreType</code> attribute of
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-     </attribute>
-
-    <attribute name="useServerCipherSuitesOrder" required="false">
-      <p>This is an alias for the <code>honorCipherOrder</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-  </attributes>
-
-  </subsection>
-
-  <subsection name="SSL Support - Connector - APR/Native (deprecated)">
+  <subsection name="SSL Support - APR/Native">
 
   <p>When APR/native is enabled, the HTTPS connector will use a socket poller
   for keep-alive, increasing scalability of the server. It also uses OpenSSL,
@@ -1787,205 +1260,155 @@
   <attributes>
 
     <attribute name="SSLCACertificateFile" required="false">
-      <p>This is an alias for the <code>caCertificateFile</code> attribute of
-      the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>See <a href="http://httpd.apache.org/docs/2.2/mod/mod_ssl.html#sslcacertificatefile">
+      the mod_ssl documentation</a>.</p>
     </attribute>
 
     <attribute name="SSLCACertificatePath" required="false">
-      <p>This is an alias for the <code>caCertificatePath</code> attribute of
-      the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>See <a href="http://httpd.apache.org/docs/2.2/mod/mod_ssl.html#sslcacertificatepath">
+      the mod_ssl documentation</a>.</p>
     </attribute>
 
     <attribute name="SSLCARevocationFile" required="false">
-      <p>This is an alias for the <code>certificateRevocationListFile</code>
-      attribute of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>See <a href="http://httpd.apache.org/docs/2.2/mod/mod_ssl.html#sslcarevocationfile">
+      the mod_ssl documentation</a>.</p>
     </attribute>
 
     <attribute name="SSLCARevocationPath" required="false">
-      <p>This is an alias for the <code>certificateRevocationListPath</code>
-      attribute of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>See <a href="http://httpd.apache.org/docs/2.2/mod/mod_ssl.html#sslcarevocationpath">
+      the mod_ssl documentation</a>.</p>
+    </attribute>
+
+    <attribute name="SSLCertificateChainFile" required="false">
+      <p>See <a href="http://httpd.apache.org/docs/2.2/mod/mod_ssl.html#sslcertificatechainfile">
+      the mod_ssl documentation</a>.</p>
+    </attribute>
+
+    <attribute name="SSLCACertificateFile" required="false">
+      <p>Name of the file that contains the concatenated certificates for the
+      trusted certificate authorities. The format is PEM-encoded.</p>
+    </attribute>
+
+    <attribute name="SSLCACertificatePath" required="false">
+      <p>Name of the directory that contains the certificates for the trusted
+      certificate authorities. The format is PEM-encoded.</p>
+    </attribute>
+
+    <attribute name="SSLCARevocationFile" required="false">
+      <p>Name of the file that contains the concatenated certificate revocation
+      lists for the certificate authorities. The format is PEM-encoded.</p>
+    </attribute>
+
+    <attribute name="SSLCARevocationPath" required="false">
+      <p>Name of the directory that contains the certificate revocation lists
+      for the certificate authorities. The format is PEM-encoded.</p>
+    </attribute>
+
+    <attribute name="SSLCertificateChainFile" required="false">
+      <p>Name of the file that contains concatenated certifcates for the
+      certificate authorities which form the certifcate chain for the server
+      certificate. The format is PEM-encoded.</p>
     </attribute>
 
     <attribute name="SSLCertificateFile" required="true">
-      <p>This is an alias for the <code>certificateFile</code> attribute of the
-      first <a href="#SSL_Support_-_Certificate">Certificate</a> element nested
-      in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element
-      with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
+      <p>Name of the file that contains the server certificate. The format is
+      PEM-encoded.</p>
+      <p>In addition to the certificate, the file can also contain as optional
+      elements DH parameters and/or an EC curve name for ephemeral keys, as
+      generated by <code>openssl dhparam</code> and <code>openssl ecparam</code>,
+      respectively. The output of the respective OpenSSL command can simply
+      be concatenated to the certificate file. This feature needs APR/native
+      version 1.1.34 or later.</p>
     </attribute>
 
     <attribute name="SSLCertificateKeyFile" required="false">
-      <p>This is an alias for the <code>certificateKeyFile</code> attribute of
-      the first <a href="#SSL_Support_-_Certificate">Certificate</a> element
-      nested in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
+      <p>Name of the file that contains the server private key. The format is
+      PEM-encoded. The default value is the value of "SSLCertificateFile" and in
+      this case both certificate and private key have to be in this file (NOT
+      RECOMMENDED).</p>
     </attribute>
 
     <attribute name="SSLCipherSuite" required="false">
-      <p>This is an alias for the <code>ciphers</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with the
-      <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>Ciphers which may be used for communicating with clients. The default
+      is "HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!kRSA". See the OpenSSL
+      documentation for details of the cipher configuration options.</p>
     </attribute>
 
     <attribute name="SSLDisableCompression" required="false">
-      <p>This is an alias for the <code>disableCompression</code> attribute of
-      the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with
-      the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>Disables compression if set to <code>true</code> and OpenSSL supports
+      disabling compression. Default is <code>false</code> which inherits the
+      default compression setting in OpenSSL.</p>
     </attribute>
 
     <attribute name="SSLHonorCipherOrder" required="false">
-      <p>This is an alias for the <code>honorCipherOrder</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with the
-      <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>Set to <code>true</code> to enforce the server's cipher order
+      (from the <code>SSLCipherSuite</code> setting) instead of allowing
+      the client to choose the cipher (which is the default).</p>
     </attribute>
 
     <attribute name="SSLPassword" required="false">
-      <p>This is an alias for the <code>certificateKeyPassword</code> attribute
-      of the first <a href="#SSL_Support_-_Certificate">Certificate</a> element
-      nested in the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_Certificate">Certificate</a> and/or
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, they will be created.</p>
+      <p>Pass phrase for the encrypted private key. If "SSLPassword" is not
+      provided, the callback function should prompt for the pass phrase.</p>
     </attribute>
 
     <attribute name="SSLProtocol" required="false">
-      <p>This is an alias for the <code>protocols</code> attribute of the
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element with the
-      <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>The names of the protocols to support when communicating with clients.
+      This should be a list of any combination of the following:
+      </p>
+      <ul><li>SSLv2</li><li>SSLv3</li><li>TLSv1</li>
+          <li>TLSv1.1</li><li>TLSv1.2</li><li>TLSv1.3</li><li>all</li></ul>
+      <p>Each token in the list can be prefixed with a plus sign ("+")
+      or a minus sign ("-"). A plus sign adds the protocol, a minus sign
+      removes it form the current list. The list is built starting from
+      an empty list.</p>
+      <p>The token <code>all</code> is an alias for
+      <code>TLSv1+TLSv1.1+TLSv1.2+TLSv1.3</code>.</p>
+      <p>If more than one protocol is specified for an OpenSSL
+      based secure connector it will always support <code>SSLv2Hello</code>. If a
+      single protocol is specified it will not support
+      <code>SSLv2Hello</code>.</p>
+      <p>Note that <code>SSLv2</code> and <code>SSLv3</code> are inherently
+      unsafe.</p>
+      <p>If not specified, the default value of <code>all</code> will be
+      used.</p>
     </attribute>
 
     <attribute name="SSLVerifyClient" required="false">
-      <p>This is an alias for the <code>certificateVerification</code> attribute
-      of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element
-      with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>Ask client for certificate. The default is "none", meaning the client
+      will not have the opportunity to submit a certificate. Other acceptable
+      values include "optional", "require" and "optionalNoCA".</p>
     </attribute>
 
     <attribute name="SSLVerifyDepth" required="false">
-      <p>This is an alias for the <code>certificateVerificationDepth</code>
-      attribute of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
-      element with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
-    </attribute>
-
-    <attribute name="SSLDisableSessionTickets" required="false">
-      <p>This is an alias for the <code>disableSessionTickets</code> attribute
-      of the <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element
-      with the <code>hostName</code> of <code>_default_</code>. If this
-      <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a> element is not
-      explicitly defined, it will be created.</p>
+      <p>Maximum verification depth for client certificates. The default is
+      "10".</p>
     </attribute>
 
   </attributes>
 
   </subsection>
 
+  </subsection>
   <subsection name="Connector Comparison">
 
     <p>Below is a small chart that shows how the connectors differ.</p>
+    <source>
+                       Java Blocking Connector   Java Non Blocking Connector   APR/native Connector
+                                 BIO                         NIO                       APR
+    Classname              Http11Protocol             Http11NioProtocol         Http11AprProtocol
+    Tomcat Version           3.x onwards                 6.x onwards              5.5.x onwards
+    Support Polling              NO                          YES                       YES
+    Polling Size                 N/A                   maxConnections             maxConnections
+    Read Request Headers      Blocking                  Non Blocking                 Blocking
+    Read Request Body         Blocking                    Blocking                   Blocking
+    Write Response            Blocking                    Blocking                   Blocking
+    Wait for next Request     Blocking                  Non Blocking               Non Blocking
+    SSL Support               Java SSL                    Java SSL                   OpenSSL
+    SSL Handshake             Blocking                  Non blocking                 Blocking
+    Max Connections        maxConnections              maxConnections             maxConnections
 
-    <table class="defaultTable" style="text-align: center;">
-      <tr>
-        <th />
-        <th style="text-align: center;">Java Nio Connector<br />NIO</th>
-        <th style="text-align: center;">Java Nio2 Connector<br />NIO2</th>
-        <th style="text-align: center;">APR/native Connector<br />APR</th>
-      </tr>
-      <tr>
-        <th>Classname</th>
-        <td><code class="noHighlight">Http11NioProtocol</code></td>
-        <td><code class="noHighlight">Http11Nio2Protocol</code></td>
-        <td><code class="noHighlight">Http11AprProtocol</code></td>
-      </tr>
-      <tr>
-        <th>Tomcat Version</th>
-        <td>6.x onwards</td>
-        <td>8.x onwards</td>
-        <td>5.5.x onwards</td>
-      </tr>
-      <tr>
-        <th>Support Polling</th>
-        <td>YES</td>
-        <td>YES</td>
-        <td>YES</td>
-      </tr>
-      <tr>
-        <th>Polling Size</th>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-      </tr>
-      <tr>
-        <th>Read Request Headers</th>
-        <td>Non Blocking</td>
-        <td>Non Blocking</td>
-        <td>Non Blocking</td>
-      </tr>
-      <tr>
-        <th>Read Request Body</th>
-        <td>Blocking</td>
-        <td>Blocking</td>
-        <td>Blocking</td>
-      </tr>
-      <tr>
-        <th>Write Response Headers and Body</th>
-        <td>Blocking</td>
-        <td>Blocking</td>
-        <td>Blocking</td>
-      </tr>
-      <tr>
-        <th>Wait for next Request</th>
-        <td>Non Blocking</td>
-        <td>Non Blocking</td>
-        <td>Non Blocking</td>
-      </tr>
-      <tr>
-        <th>SSL Support</th>
-        <td>Java SSL or OpenSSL</td>
-        <td>Java SSL or OpenSSL</td>
-        <td>OpenSSL</td>
-      </tr>
-      <tr>
-        <th>SSL Handshake</th>
-        <td>Non blocking</td>
-        <td>Non blocking</td>
-        <td>Blocking</td>
-      </tr>
-      <tr>
-        <th>Max Connections</th>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-        <td><code class="noHighlight">maxConnections</code></td>
-      </tr>
-    </table>
+
+    </source>
 
   </subsection>
 </section>

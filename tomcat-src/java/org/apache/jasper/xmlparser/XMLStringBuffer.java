@@ -43,10 +43,7 @@ package org.apache.jasper.xmlparser;
  *
  * @author Andy Clark, IBM
  * @author Eric Ye, IBM
- *
- * @deprecated Will be removed in Tomcat 9.0.x onwards
  */
-@Deprecated
 public class XMLStringBuffer
     extends XMLString {
 
@@ -54,25 +51,24 @@ public class XMLStringBuffer
     // Constants
     //
 
-    /**
-     * Default buffer size (32).
-     */
-    private static final int DEFAULT_SIZE = 32;
+    /** Default buffer size (32). */
+    public static final int DEFAULT_SIZE = 32;
 
     //
     // Constructors
     //
 
     /**
-     * Build a string buffer with the default size (32).
+     *
      */
     public XMLStringBuffer() {
         this(DEFAULT_SIZE);
     } // <init>()
 
     /**
-     * Build a string buffer with the specified size.
-     * @param size The backing array size
+     *
+     *
+     * @param size
      */
     public XMLStringBuffer(int size) {
         ch = new char[size];
@@ -82,9 +78,7 @@ public class XMLStringBuffer
     // Public methods
     //
 
-    /**
-     * Clears the string buffer.
-     */
+    /** Clears the string buffer. */
     @Override
     public void clear() {
         offset = 0;
@@ -92,9 +86,9 @@ public class XMLStringBuffer
     }
 
     /**
-     * Append character.
+     * append
      *
-     * @param c The character to append
+     * @param c
      */
     public void append(char c) {
         if (this.length + 1 > this.ch.length) {
@@ -110,9 +104,9 @@ public class XMLStringBuffer
     } // append(char)
 
     /**
-     * Append string.
+     * append
      *
-     * @param s The string to append
+     * @param s
      */
     public void append(String s) {
         int length = s.length();
@@ -129,11 +123,11 @@ public class XMLStringBuffer
     } // append(String)
 
     /**
-     * Append characters.
+     * append
      *
-     * @param ch The character array
-     * @param offset The offset
-     * @param length The length
+     * @param ch
+     * @param offset
+     * @param length
      */
     public void append(char[] ch, int offset, int length) {
         if (this.length + length > this.ch.length) {
@@ -146,9 +140,9 @@ public class XMLStringBuffer
     } // append(char[],int,int)
 
     /**
-     * Append XML string
+     * append
      *
-     * @param s The string
+     * @param s
      */
     public void append(XMLString s) {
         append(s.ch, s.offset, s.length);

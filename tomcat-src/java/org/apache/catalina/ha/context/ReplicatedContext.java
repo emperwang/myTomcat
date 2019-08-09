@@ -36,16 +36,15 @@ import org.apache.catalina.tribes.tipis.AbstractReplicatedMap.MapOwner;
 import org.apache.catalina.tribes.tipis.ReplicatedMap;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
+ * @author Filip Hanik
  * @version 1.0
  */
 public class ReplicatedContext extends StandardContext implements MapOwner {
     private int mapSendOptions = Channel.SEND_OPTIONS_DEFAULT;
-    private static final Log log = LogFactory.getLog(ReplicatedContext.class);
-    protected static final long DEFAULT_REPL_TIMEOUT = 15000;//15 seconds
-    private static final StringManager sm = StringManager.getManager(ReplicatedContext.class);
+    private static final Log log = LogFactory.getLog( ReplicatedContext.class );
+    protected static long DEFAULT_REPL_TIMEOUT = 15000;//15 seconds
 
     /**
      * Start this component and implement the requirements
@@ -60,15 +59,16 @@ public class ReplicatedContext extends StandardContext implements MapOwner {
         try {
             CatalinaCluster catclust = (CatalinaCluster)this.getCluster();
             if ( catclust != null ) {
-                ReplicatedMap<String,Object> map = new ReplicatedMap<>(
-                        this, catclust.getChannel(),DEFAULT_REPL_TIMEOUT,
-                        getName(),getClassLoaders());
+                ReplicatedMap<String,Object> map =
+                        new ReplicatedMap<String,Object>(this,
+                                catclust.getChannel(),DEFAULT_REPL_TIMEOUT,
+                                getName(),getClassLoaders());
                 map.setChannelSendOptions(mapSendOptions);
                 ((ReplApplContext)this.context).setAttributeMap(map);
             }
         }  catch ( Exception x ) {
-            log.error(sm.getString("replicatedContext.startUnable", getName()),x);
-            throw new LifecycleException(sm.getString("replicatedContext.startFailed", getName()),x);
+            log.error("Unable to start ReplicatedContext",x);
+            throw new LifecycleException("Failed to start ReplicatedContext",x);
         }
     }
 
@@ -87,7 +87,7 @@ public class ReplicatedContext extends StandardContext implements MapOwner {
 
         super.stopInternal();
 
-        if (map instanceof ReplicatedMap) {
+        if ( map!=null && map instanceof ReplicatedMap) {
             ((ReplicatedMap<?, ?>) map).breakdown();
         }
 
@@ -129,7 +129,8 @@ public class ReplicatedContext extends StandardContext implements MapOwner {
 
 
     protected static class ReplApplContext extends ApplicationContext {
-        protected final Map<String, Object> tomcatAttributes = new ConcurrentHashMap<>();
+        protected final Map<String, Object> tomcatAttributes =
+                new ConcurrentHashMap<String, Object>();
 
         public ReplApplContext(ReplicatedContext context) {
             super(context);
@@ -186,17 +187,17 @@ public class ReplicatedContext extends StandardContext implements MapOwner {
         @SuppressWarnings("unchecked")
         @Override
         public Enumeration<String> getAttributeNames() {
-            Set<String> names = new HashSet<>();
+            Set<String> names = new HashSet<String>();
             names.addAll(attributes.keySet());
 
-            return new MultiEnumeration<>(new Enumeration[] {
+            return new MultiEnumeration<String>(new Enumeration[] {
                     super.getAttributeNames(),
                     Collections.enumeration(names) });
         }
     }
 
     protected static class MultiEnumeration<T> implements Enumeration<T> {
-        private final Enumeration<T>[] e;
+        Enumeration<T>[] e=null;
         public MultiEnumeration(Enumeration<T>[] lists) {
             e = lists;
         }
@@ -218,7 +219,7 @@ public class ReplicatedContext extends StandardContext implements MapOwner {
     }
 
     @Override
-    public void objectMadePrimary(Object key, Object value) {
+    public void objectMadePrimay(Object key, Object value) {
         //noop
     }
 

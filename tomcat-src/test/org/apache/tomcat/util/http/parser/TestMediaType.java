@@ -132,7 +132,7 @@ public class TestMediaType {
         sb.append(PARAM_TOKEN);
 
         StringReader sr = new StringReader(sb.toString());
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         Assert.assertEquals("foo/bar; charset=UTF-8; a=b", m.toString());
         Assert.assertEquals(CHARSET, m.getCharset());
@@ -147,7 +147,7 @@ public class TestMediaType {
         sb.append(PARAM_CHARSET_QUOTED);
 
         StringReader sr = new StringReader(sb.toString());
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         Assert.assertEquals(CHARSET_WS, m.getCharset());
         Assert.assertEquals(TYPES.replaceAll(" ", ""),
@@ -162,7 +162,7 @@ public class TestMediaType {
                 "Type=\"application/smil;charset=UTF-8\"";
 
         StringReader sr = new StringReader(input);
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         // Check the types
         Assert.assertEquals("multipart", m.getType());
@@ -190,7 +190,7 @@ public class TestMediaType {
         String input = "text/html; UTF-8;charset=UTF-8";
 
         StringReader sr = new StringReader(input);
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         // Check the types
         Assert.assertEquals("text", m.getType());
@@ -213,7 +213,7 @@ public class TestMediaType {
         String input = "text/html;;charset=UTF-8";
 
         StringReader sr = new StringReader(input);
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         Assert.assertEquals("text", m.getType());
         Assert.assertEquals("html", m.getSubtype());
@@ -242,7 +242,7 @@ public class TestMediaType {
         }
 
         StringReader sr = new StringReader(sb.toString());
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         // Check all expected parameters are present
         Assert.assertTrue(m.getParameterCount() == parameters.length);
@@ -299,7 +299,7 @@ public class TestMediaType {
     @Test
     public void testCase() throws Exception {
         StringReader sr = new StringReader("type/sub-type;a=1;B=2");
-        MediaType m = MediaType.parseMediaType(sr);
+        MediaType m = HttpParser.parseMediaType(sr);
 
         Assert.assertEquals("1", m.getParameterValue("A"));
         Assert.assertEquals("1", m.getParameterValue("a"));

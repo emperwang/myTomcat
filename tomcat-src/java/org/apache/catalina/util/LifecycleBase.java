@@ -17,11 +17,7 @@
 
 package org.apache.catalina.util;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import org.apache.catalina.Lifecycle;
-import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.LifecycleState;
@@ -38,15 +34,17 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public abstract class LifecycleBase implements Lifecycle {
 
-    private static final Log log = LogFactory.getLog(LifecycleBase.class);
+    private static Log log = LogFactory.getLog(LifecycleBase.class);
 
-    private static final StringManager sm = StringManager.getManager(LifecycleBase.class);
+    private static StringManager sm =
+        StringManager.getManager("org.apache.catalina.util");
 
 
     /**
-     * The list of registered LifecycleListeners for event notifications.
+     * Used to handle firing lifecycle events.
+     * TODO: Consider merging LifecycleSupport into this class.
      */
-    private final List<LifecycleListener> lifecycleListeners = new CopyOnWriteArrayList<>();
+    private LifecycleSupport lifecycle = new LifecycleSupport(this);
 
 
     /**
@@ -60,7 +58,7 @@ public abstract class LifecycleBase implements Lifecycle {
      */
     @Override
     public void addLifecycleListener(LifecycleListener listener) {
-        lifecycleListeners.add(listener);
+        lifecycle.addLifecycleListener(listener);
     }
 
 
@@ -69,7 +67,7 @@ public abstract class LifecycleBase implements Lifecycle {
      */
     @Override
     public LifecycleListener[] findLifecycleListeners() {
-        return lifecycleListeners.toArray(new LifecycleListener[0]);
+        return lifecycle.findLifecycleListeners();
     }
 
 
@@ -78,7 +76,7 @@ public abstract class LifecycleBase implements Lifecycle {
      */
     @Override
     public void removeLifecycleListener(LifecycleListener listener) {
-        lifecycleListeners.remove(listener);
+        lifecycle.removeLifecycleListener(listener);
     }
 
 
@@ -89,10 +87,7 @@ public abstract class LifecycleBase implements Lifecycle {
      * @param data  Data associated with event.
      */
     protected void fireLifecycleEvent(String type, Object data) {
-        LifecycleEvent event = new LifecycleEvent(this, type, data);
-        for (LifecycleListener listener : lifecycleListeners) {
-            listener.lifecycleEvent(event);
-        }
+        lifecycle.fireLifecycleEvent(type, data);
     }
 
 
@@ -180,7 +175,7 @@ public abstract class LifecycleBase implements Lifecycle {
      * will be called on the failed component but the parent component will
      * continue to start normally.
      *
-     * @throws LifecycleException Start error occurred
+     * @throws LifecycleException
      */
     protected abstract void startInternal() throws LifecycleException;
 
@@ -251,7 +246,7 @@ public abstract class LifecycleBase implements Lifecycle {
      * {@link LifecycleState#STOPPING} during the execution of this method.
      * Changing state will trigger the {@link Lifecycle#STOP_EVENT} event.
      *
-     * @throws LifecycleException Stop error occurred
+     * @throws LifecycleException
      */
     protected abstract void stopInternal() throws LifecycleException;
 
@@ -331,7 +326,6 @@ public abstract class LifecycleBase implements Lifecycle {
      * transition is valid for a sub-class.
      *
      * @param state The new state for this component
-     * @throws LifecycleException when attempting to set an invalid state
      */
     protected synchronized void setState(LifecycleState state)
             throws LifecycleException {
@@ -347,7 +341,6 @@ public abstract class LifecycleBase implements Lifecycle {
      *
      * @param state The new state for this component
      * @param data  The data to pass to the associated {@link Lifecycle} event
-     * @throws LifecycleException when attempting to set an invalid state
      */
     protected synchronized void setState(LifecycleState state, Object data)
             throws LifecycleException {

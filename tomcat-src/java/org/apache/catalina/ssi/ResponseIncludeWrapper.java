@@ -51,7 +51,7 @@ public class ResponseIncludeWrapper extends HttpServletResponseWrapper {
     /**
      * Our ServletOutputStream
      */
-    protected final ServletOutputStream captureServletOutputStream;
+    protected ServletOutputStream captureServletOutputStream;
     protected ServletOutputStream servletOutputStream;
     protected PrintWriter printWriter;
 
@@ -143,6 +143,17 @@ public class ResponseIncludeWrapper extends HttpServletResponseWrapper {
      */
     public long getLastModified() {
         return lastModified;
+    }
+
+    /**
+     * Sets the value of the <code>last-modified</code> header field.
+     *
+     * @param lastModified The number of milliseconds since January 1, 1970 GMT.
+     */
+    public void setLastModified(long lastModified) {
+        this.lastModified = lastModified;
+        ((HttpServletResponse) getResponse()).setDateHeader(LAST_MODIFIED,
+                lastModified);
     }
 
     @Override

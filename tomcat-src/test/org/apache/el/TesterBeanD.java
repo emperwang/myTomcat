@@ -24,7 +24,7 @@ import java.util.List;
  */
 public class TesterBeanD {
 
-    private List<Object> things = new ArrayList<>();
+    private List<Object> things = new ArrayList<Object>();
 
     public void addThing(String thing) {
         things.add(thing);

@@ -31,8 +31,18 @@ import org.apache.catalina.tribes.ManagedChannel;
 import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.TesterUtil;
 import org.apache.catalina.tribes.group.GroupChannel;
-import org.apache.catalina.tribes.group.interceptors.MessageDispatchInterceptor;
+import org.apache.catalina.tribes.group.interceptors.MessageDispatch15Interceptor;
 
+/**
+ * <p>Title: </p>
+ *
+ * <p>Description: </p>
+ *
+ * <p>Company: </p>
+ *
+ * @author not attributable
+ * @version 1.0
+ */
 public class TestDataIntegrity {
     private int msgCount = 500;
     private int threadCount = 20;
@@ -43,9 +53,9 @@ public class TestDataIntegrity {
     @Before
     public void setUp() throws Exception {
         channel1 = new GroupChannel();
-        channel1.addInterceptor(new MessageDispatchInterceptor());
+        channel1.addInterceptor(new MessageDispatch15Interceptor());
         channel2 = new GroupChannel();
-        channel2.addInterceptor(new MessageDispatchInterceptor());
+        channel2.addInterceptor(new MessageDispatch15Interceptor());
         listener1 = new Listener();
         channel2.addChannelListener(listener1);
         TesterUtil.addRandomDomain(new ManagedChannel[] {channel1, channel2});
@@ -170,7 +180,7 @@ public class TestDataIntegrity {
         public int length;
         public byte[] data;
         public byte key;
-        public static final Random r = new Random();
+        public static Random r = new Random();
         public static Data createRandomData() {
             int i = r.nextInt();
             i = ( i % 127 );

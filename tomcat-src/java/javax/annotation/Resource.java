@@ -32,10 +32,8 @@ public @interface Resource {
         APPLICATION
     }
     public String name() default "";
-    /**
-     * Uses generics since Common Annotations 1.2.
-     */
-    public Class<?> type() default Object.class;
+    @SuppressWarnings("rawtypes") // Can't use Class<?> because API needs to match specification
+    public Class type() default Object.class;
     public AuthenticationType authenticationType() default AuthenticationType.CONTAINER;
     public boolean shareable() default true;
     public String description() default "";

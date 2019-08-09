@@ -14,9 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina;
 
+
 import java.beans.PropertyChangeListener;
+
 
 /**
  * A <b>Loader</b> represents a Java ClassLoader implementation that can
@@ -47,7 +51,11 @@ import java.beans.PropertyChangeListener;
  *
  * @author Craig R. McClanahan
  */
+
 public interface Loader {
+
+
+    // ------------------------------------------------------------- Properties
 
 
     /**
@@ -59,27 +67,27 @@ public interface Loader {
 
 
     /**
-     * @return the Java class loader to be used by this Container.
+     * Return the Java class loader to be used by this Container.
      */
     public ClassLoader getClassLoader();
 
 
     /**
-     * @return the Context with which this Loader has been associated.
+     * Return the Container with which this Loader has been associated.
      */
-    public Context getContext();
+    public Container getContainer();
 
 
     /**
-     * Set the Context with which this Loader has been associated.
+     * Set the Container with which this Loader has been associated.
      *
-     * @param context The associated Context
+     * @param container The associated Container
      */
-    public void setContext(Context context);
+    public void setContainer(Container container);
 
 
     /**
-     * @return the "follow standard delegation model" flag used to configure
+     * Return the "follow standard delegation model" flag used to configure
      * our ClassLoader.
      */
     public boolean getDelegate();
@@ -95,7 +103,15 @@ public interface Loader {
 
 
     /**
-     * @return the reloadable flag for this Loader.
+     * Return descriptive information about this Loader implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    public String getInfo();
+
+
+    /**
+     * Return the reloadable flag for this Loader.
      */
     public boolean getReloadable();
 
@@ -108,6 +124,9 @@ public interface Loader {
     public void setReloadable(boolean reloadable);
 
 
+    // --------------------------------------------------------- Public Methods
+
+
     /**
      * Add a property change listener to this component.
      *
@@ -117,11 +136,23 @@ public interface Loader {
 
 
     /**
+     * Add a new repository to the set of repositories for this class loader.
+     *
+     * @param repository Repository to be added
+     */
+    public void addRepository(String repository);
+
+
+    /**
+     * Return the set of repositories defined for this class loader.
+     * If none are defined, a zero-length array is returned.
+     */
+    public String[] findRepositories();
+
+
+    /**
      * Has the internal repository associated with this Loader been modified,
      * such that the loaded classes should be reloaded?
-     *
-     * @return <code>true</code> when the repository has been modified,
-     *         <code>false</code> otherwise
      */
     public boolean modified();
 
@@ -132,4 +163,6 @@ public interface Loader {
      * @param listener The listener to remove
      */
     public void removePropertyChangeListener(PropertyChangeListener listener);
+
+
 }

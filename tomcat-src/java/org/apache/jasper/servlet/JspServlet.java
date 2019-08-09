@@ -43,7 +43,6 @@ import org.apache.jasper.security.SecurityUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.PeriodicEventListener;
-import org.apache.tomcat.util.security.Escape;
 
 /**
  * The JSP engine (a.k.a Jasper).
@@ -121,10 +120,10 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
             jspFile = config.getInitParameter("jspFile");
             try {
                 if (null == context.getResource(jspFile)) {
-                    return;
+                    throw new ServletException("missing jspFile: [" + jspFile + "]");
                 }
             } catch (MalformedURLException e) {
-                throw new ServletException("cannot locate jsp file", e);
+                throw new ServletException("Can not locate jsp file", e);
             }
             try {
                 if (SecurityUtil.isPackageProtectionEnabled()){
@@ -236,22 +235,22 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
 
         String queryString = request.getQueryString();
         if (queryString == null) {
-            return false;
+            return (false);
         }
         int start = queryString.indexOf(Constants.PRECOMPILE);
         if (start < 0) {
-            return false;
+            return (false);
         }
         queryString =
             queryString.substring(start + Constants.PRECOMPILE.length());
         if (queryString.length() == 0) {
-            return true;             // ?jsp_precompile
+            return (true);             // ?jsp_precompile
         }
         if (queryString.startsWith("&")) {
-            return true;             // ?jsp_precompile&foo=bar...
+            return (true);             // ?jsp_precompile&foo=bar...
         }
         if (!queryString.startsWith("=")) {
-            return false;            // part of some other name or value
+            return (false);            // part of some other name or value
         }
         int limit = queryString.length();
         int ampersand = queryString.indexOf('&');
@@ -260,14 +259,14 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
         }
         String value = queryString.substring(1, limit);
         if (value.equals("true")) {
-            return true;             // ?jsp_precompile=true
+            return (true);             // ?jsp_precompile=true
         } else if (value.equals("false")) {
             // Spec says if jsp_precompile=false, the request should not
             // be delivered to the JSP page; the easiest way to implement
             // this is to set the flag to true, and precompile the page anyway.
             // This still conforms to the spec, since it says the
             // precompilation request can be ignored.
-            return true;             // ?jsp_precompile=false
+            return (true);             // ?jsp_precompile=false
         } else {
             throw new ServletException("Cannot have request parameter " +
                                        Constants.PRECOMPILE + " set to " +
@@ -277,13 +276,23 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
     }
 
 
+    @SuppressWarnings("deprecation") // Use of JSP_FILE to be removed in 9.0.x
     @Override
-    public void service (HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
-        // jspFile may be configured as an init-param for this servlet instance
+    public void service (HttpServletRequest request,
+                             HttpServletResponse response)
+                throws ServletException, IOException {
+        //jspFile may be configured as an init-param for this servlet instance
         String jspUri = jspFile;
 
+        if (jspUri == null) {
+            // JSP specified via <jsp-file> in <servlet> declaration and
+            // supplied through custom servlet container code
+            String jspFile = (String) request.getAttribute(Constants.JSP_FILE);
+            if (jspFile != null) {
+                jspUri = jspFile;
+                request.removeAttribute(Constants.JSP_FILE);
+            }
+        }
         if (jspUri == null) {
             /*
              * Check to see if the requested JSP has been the target of a
@@ -405,7 +414,7 @@ public class JspServlet extends HttpServlet implements PeriodicEventListener {
                 Localizer.getMessage("jsp.error.file.not.found",jspUri);
             // Strictly, filtering this is an application
             // responsibility but just in case...
-            throw new ServletException(Escape.htmlElementContent(msg));
+            throw new ServletException(SecurityUtil.filter(msg));
         } else {
             try {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND,

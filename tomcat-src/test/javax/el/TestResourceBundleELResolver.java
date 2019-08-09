@@ -32,7 +32,7 @@ public class TestResourceBundleELResolver {
     @Test
     public void bug53001() {
         ExpressionFactory factory = ExpressionFactory.newInstance();
-        ELContext context = new ELContextImpl(factory);
+        ELContext context = new ELContextImpl();
 
         ResourceBundle rb = new TesterResourceBundle();
 
@@ -96,8 +96,7 @@ public class TestResourceBundleELResolver {
     @Test
     public void testGetValue03() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         ResourceBundle resourceBundle = new TesterResourceBundle();
         Object result = resolver.getValue(context, resourceBundle, "key1");
@@ -142,8 +141,7 @@ public class TestResourceBundleELResolver {
     @Test
     public void testGetType03() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         ResourceBundle resourceBundle = new TesterResourceBundle();
         Class<?> result = resolver.getType(context, resourceBundle, "key1");
@@ -176,8 +174,7 @@ public class TestResourceBundleELResolver {
     @Test(expected = PropertyNotWritableException.class)
     public void testSetValue03() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         ResourceBundle resourceBundle = new TesterResourceBundle();
         resolver.setValue(context, resourceBundle, new Object(), new Object());
@@ -199,8 +196,7 @@ public class TestResourceBundleELResolver {
     @Test
     public void testIsReadOnly02() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         boolean result = resolver.isReadOnly(context, new Object(),
                 new Object());
@@ -215,8 +211,7 @@ public class TestResourceBundleELResolver {
     @Test
     public void testIsReadOnly03() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         ResourceBundle resourceBundle = new TesterResourceBundle();
         boolean result = resolver.isReadOnly(context, resourceBundle,
@@ -233,9 +228,9 @@ public class TestResourceBundleELResolver {
     @Test
     public void testGetFeatureDescriptors01() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
+        @SuppressWarnings("unchecked")
         Iterator<FeatureDescriptor> result = resolver.getFeatureDescriptors(
                 context, new Object());
 
@@ -248,11 +243,11 @@ public class TestResourceBundleELResolver {
     @Test
     public void testGetFeatureDescriptors02() {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         ResourceBundle resourceBundle = new TesterResourceBundle(
                 new Object[][] { { "key", "value" } });
+        @SuppressWarnings("unchecked")
         Iterator<FeatureDescriptor> result = resolver.getFeatureDescriptors(
                 context, resourceBundle);
 
@@ -292,8 +287,7 @@ public class TestResourceBundleELResolver {
     private void doNegativeTest(Object base, Object trigger,
             MethodUnderTest method, boolean checkResult) {
         ResourceBundleELResolver resolver = new ResourceBundleELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         Object result = null;
         switch (method) {
@@ -321,7 +315,7 @@ public class TestResourceBundleELResolver {
         Assert.assertFalse(context.isPropertyResolved());
     }
 
-    private enum MethodUnderTest {
+    private static enum MethodUnderTest {
         GET_VALUE, SET_VALUE, GET_TYPE
     }
 }

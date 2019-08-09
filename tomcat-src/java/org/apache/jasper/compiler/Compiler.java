@@ -20,12 +20,14 @@ package org.apache.jasper.compiler;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -35,8 +37,6 @@ import org.apache.jasper.Options;
 import org.apache.jasper.servlet.JspServletWrapper;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.Jar;
-import org.apache.tomcat.util.scan.JarFactory;
 
 /**
  * Main JSP compiler class. This class uses Ant for compiling.
@@ -68,7 +68,6 @@ public abstract class Compiler {
 
     protected Node.Nodes pageNodes;
 
-
     // ------------------------------------------------------------ Constructor
 
     public void init(JspCompilationContext ctxt, JspServletWrapper jsw) {
@@ -85,19 +84,16 @@ public abstract class Compiler {
      * return null. Used in development mode for generating detailed error
      * messages. http://bz.apache.org/bugzilla/show_bug.cgi?id=37062.
      * </p>
-     * @return the page nodes
      */
     public Node.Nodes getPageNodes() {
         return this.pageNodes;
     }
-
 
     /**
      * Compile the jsp file into equivalent servlet in .java file
      *
      * @return a smap for the current JSP page, if one is generated, null
      *         otherwise
-     * @throws Exception Error generating Java source
      */
     protected String[] generateJava() throws Exception {
 
@@ -176,6 +172,7 @@ public abstract class Compiler {
         ctxt.checkOutputDir();
         String javaFileName = ctxt.getServletJavaFileName();
 
+        ServletWriter writer = null;
         try {
             /*
              * The setting of isELIgnored changes the behaviour of the parser
@@ -209,10 +206,11 @@ public abstract class Compiler {
 
             if (ctxt.isPrototypeMode()) {
                 // generate prototype .java file for the tag file
-                try (ServletWriter writer = setupContextWriter(javaFileName)) {
-                    Generator.generate(writer, this, pageNodes);
-                    return null;
-                }
+                writer = setupContextWriter(javaFileName);
+                Generator.generate(writer, this, pageNodes);
+                writer.close();
+                writer = null;
+                return null;
             }
 
             // Validate and process attributes - don't re-validate the
@@ -249,9 +247,10 @@ public abstract class Compiler {
             ELFunctionMapper.map(pageNodes);
 
             // generate servlet .java file
-            try (ServletWriter writer = setupContextWriter(javaFileName)) {
-                Generator.generate(writer, this, pageNodes);
-            }
+            writer = setupContextWriter(javaFileName);
+            Generator.generate(writer, this, pageNodes);
+            writer.close();
+            writer = null;
 
             // The writer is only used during the compile, dereference
             // it in the JspCompilationContext when done to allow it
@@ -265,6 +264,14 @@ public abstract class Compiler {
             }
 
         } catch (Exception e) {
+            if (writer != null) {
+                try {
+                    writer.close();
+                    writer = null;
+                } catch (Exception e1) {
+                    // do nothing
+                }
+            }
             // Remove the generated .java file
             File file = new File(javaFileName);
             if (file.exists()) {
@@ -275,6 +282,14 @@ public abstract class Compiler {
                 }
             }
             throw e;
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (Exception e2) {
+                    // do nothing
+                }
+            }
         }
 
         // JSR45 Support
@@ -313,21 +328,13 @@ public abstract class Compiler {
     }
 
     /**
-     * Servlet compilation. This compiles the generated sources into
-     * Servlets.
-     * @param smap The SMAP files for source debugging
-     * @throws FileNotFoundException Source files not found
-     * @throws JasperException Compilation error
-     * @throws Exception Some other error
+     * Compile the servlet from .java file to .class file
      */
     protected abstract void generateClass(String[] smap)
             throws FileNotFoundException, JasperException, Exception;
 
     /**
-     * Compile the jsp file from the current engine context.
-     * @throws FileNotFoundException Source files not found
-     * @throws JasperException Compilation error
-     * @throws Exception Some other error
+     * Compile the jsp file from the current engine context
      */
     public void compile() throws FileNotFoundException, JasperException,
             Exception {
@@ -341,9 +348,6 @@ public abstract class Compiler {
      * @param compileClass
      *            If true, generate both .java and .class file If false,
      *            generate only .java file
-     * @throws FileNotFoundException Source files not found
-     * @throws JasperException Compilation error
-     * @throws Exception Some other error
      */
     public void compile(boolean compileClass) throws FileNotFoundException,
             JasperException, Exception {
@@ -359,9 +363,6 @@ public abstract class Compiler {
      *            generate only .java file
      * @param jspcMode
      *            true if invoked from JspC, false otherwise
-     * @throws FileNotFoundException Source files not found
-     * @throws JasperException Compilation error
-     * @throws Exception Some other error
      */
     public void compile(boolean compileClass, boolean jspcMode)
             throws FileNotFoundException, JasperException, Exception {
@@ -417,8 +418,6 @@ public abstract class Compiler {
     /**
      * This is a protected method intended to be overridden by subclasses of
      * Compiler. This is used by the compile method to do all the compilation.
-     * @return <code>true</code> if the source generation and compilation
-     *  should occur
      */
     public boolean isOutDated() {
         return isOutDated(true);
@@ -433,8 +432,6 @@ public abstract class Compiler {
      * @param checkClass
      *            If true, check against .class file, if false, check against
      *            .java file.
-     * @return <code>true</code> if the source generation and compilation
-     *  should occur
      */
     public boolean isOutDated(boolean checkClass) {
 
@@ -449,30 +446,29 @@ public abstract class Compiler {
             jsw.setLastModificationTest(System.currentTimeMillis());
         }
 
-        // Test the target file first. Unless there is an error checking the
-        // last modified time of the source (unlikely) the target is going to
-        // have to be checked anyway. If the target doesn't exist (likely during
-        // startup) this saves an unnecessary check of the source.
-        File targetFile;
-        if (checkClass) {
-            targetFile = new File(ctxt.getClassFileName());
-        } else {
-            targetFile = new File(ctxt.getServletJavaFileName());
-        }
-        if (!targetFile.exists()) {
-            return true;
-        }
-        long targetLastModified = targetFile.lastModified();
-        if (checkClass && jsw != null) {
-            jsw.setServletClassLastModifiedTime(targetLastModified);
-        }
-
         Long jspRealLastModified = ctxt.getLastModified(ctxt.getJspFile());
         if (jspRealLastModified.longValue() < 0) {
             // Something went wrong - assume modification
             return true;
         }
 
+        long targetLastModified = 0;
+        File targetFile;
+
+        if (checkClass) {
+            targetFile = new File(ctxt.getClassFileName());
+        } else {
+            targetFile = new File(ctxt.getServletJavaFileName());
+        }
+
+        if (!targetFile.exists()) {
+            return true;
+        }
+
+        targetLastModified = targetFile.lastModified();
+        if (checkClass && jsw != null) {
+            jsw.setServletClassLastModifiedTime(targetLastModified);
+        }
         if (targetLastModified != jspRealLastModified.longValue()) {
             if (log.isDebugEnabled()) {
                 log.debug("Compiler: outdated: " + targetFile + " "
@@ -492,35 +488,29 @@ public abstract class Compiler {
             return false;
         }
 
-        for (Entry<String, Long> include : depends.entrySet()) {
+        Iterator<Entry<String,Long>> it = depends.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String,Long> include = it.next();
+            URLConnection iuc = null;
             try {
                 String key = include.getKey();
                 URL includeUrl;
-                long includeLastModified = 0;
-                if (key.startsWith("jar:jar:")) {
-                    // Assume we constructed this correctly
-                    int entryStart = key.lastIndexOf("!/");
-                    String entry = key.substring(entryStart + 2);
-                    try (Jar jar = JarFactory.newInstance(new URL(key.substring(4, entryStart)))) {
-                        includeLastModified = jar.getLastModified(entry);
-                    }
+                if (key.startsWith("jar:") || key.startsWith("file:")) {
+                    includeUrl = new URL(key);
                 } else {
-                    if (key.startsWith("jar:") || key.startsWith("file:")) {
-                        includeUrl = new URL(key);
-                    } else {
-                        includeUrl = ctxt.getResource(include.getKey());
-                    }
-                    if (includeUrl == null) {
-                        return true;
-                    }
-                    URLConnection iuc = includeUrl.openConnection();
-                    if (iuc instanceof JarURLConnection) {
-                        includeLastModified =
-                            ((JarURLConnection) iuc).getJarEntry().getTime();
-                    } else {
-                        includeLastModified = iuc.getLastModified();
-                    }
-                    iuc.getInputStream().close();
+                    includeUrl = ctxt.getResource(include.getKey());
+                }
+                if (includeUrl == null) {
+                    return true;
+                }
+
+                iuc = includeUrl.openConnection();
+                long includeLastModified = 0;
+                if (iuc instanceof JarURLConnection) {
+                    includeLastModified =
+                        ((JarURLConnection) iuc).getJarEntry().getTime();
+                } else {
+                    includeLastModified = iuc.getLastModified();
                 }
 
                 if (includeLastModified != include.getValue().longValue()) {
@@ -531,6 +521,13 @@ public abstract class Compiler {
                     log.debug("Problem accessing resource. Treat as outdated.",
                             e);
                 return true;
+            } finally {
+                if (iuc != null) {
+                    try {
+                        iuc.getInputStream().close();
+                    } catch (IOException e) {
+                    }
+                }
             }
         }
 
@@ -539,14 +536,14 @@ public abstract class Compiler {
     }
 
     /**
-     * @return the error dispatcher.
+     * Gets the error dispatcher.
      */
     public ErrorDispatcher getErrorDispatcher() {
         return errDispatcher;
     }
 
     /**
-     * @return the info about the page under compilation
+     * Gets the info about the page under compilation
      */
     public PageInfo getPageInfo() {
         return pageInfo;

@@ -23,14 +23,12 @@ import java.util.Map.Entry;
 
 import javax.websocket.HandshakeResponse;
 
-import org.apache.tomcat.util.collections.CaseInsensitiveKeyMap;
-
 /**
  * Represents the response to a WebSocket handshake.
  */
 public class WsHandshakeResponse implements HandshakeResponse {
 
-    private final Map<String,List<String>> headers = new CaseInsensitiveKeyMap<>();
+    private final Map<String,List<String>> headers = new CaseInsensitiveKeyMap<List<String>>();
 
 
     public WsHandshakeResponse() {
@@ -42,7 +40,7 @@ public class WsHandshakeResponse implements HandshakeResponse {
             if (this.headers.containsKey(entry.getKey())) {
                 this.headers.get(entry.getKey()).addAll(entry.getValue());
             } else {
-                List<String> values = new ArrayList<>(entry.getValue());
+                List<String> values = new ArrayList<String>(entry.getValue());
                 this.headers.put(entry.getKey(), values);
             }
         }

@@ -18,6 +18,11 @@ package org.apache.tomcat.jdbc.pool;
 
 import java.util.Properties;
 
+/**
+ *
+ * @author fhanik
+ *
+ */
 public class PoolUtilities {
 
     public static final String PROP_USER = "user";

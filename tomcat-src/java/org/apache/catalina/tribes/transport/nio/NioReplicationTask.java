@@ -37,9 +37,6 @@ import org.apache.catalina.tribes.io.ObjectReader;
 import org.apache.catalina.tribes.transport.AbstractRxTask;
 import org.apache.catalina.tribes.transport.Constants;
 import org.apache.catalina.tribes.util.Logs;
-import org.apache.catalina.tribes.util.StringManager;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 
 /**
  * A worker thread class which can drain channels and echo-back the input. Each
@@ -50,18 +47,19 @@ import org.apache.juli.logging.LogFactory;
  * serviceChannel() method stores the key reference in the thread object then
  * calls notify() to wake it up. When the channel has been drained, the worker
  * thread returns itself to its parent pool.
+ *
+ * @author Filip Hanik
  */
 public class NioReplicationTask extends AbstractRxTask {
 
-    private static final Log log = LogFactory.getLog(NioReplicationTask.class);
-    protected static final StringManager sm = StringManager.getManager(NioReplicationTask.class);
+    private static final org.apache.juli.logging.Log log = org.apache.juli.logging.LogFactory.getLog( NioReplicationTask.class );
 
     private ByteBuffer buffer = null;
     private SelectionKey key;
     private int rxBufSize;
-    private final NioReceiver receiver;
-
-    public NioReplicationTask (ListenCallback callback, NioReceiver receiver) {
+    private NioReceiver receiver;
+    public NioReplicationTask (ListenCallback callback, NioReceiver receiver)
+    {
         super(callback);
         this.receiver = receiver;
     }
@@ -108,12 +106,14 @@ public class NioReplicationTask extends AbstractRxTask {
             } else if ( e instanceof IOException ) {
                 //dont spew out stack traces for IO exceptions unless debug is enabled.
                 if (log.isDebugEnabled()) log.debug ("IOException in replication worker, unable to drain channel. Probable cause: Keep alive socket closed["+e.getMessage()+"].", e);
-                else log.warn (sm.getString("nioReplicationTask.unable.drainChannel.ioe", e.getMessage()));
+                else log.warn ("IOException in replication worker, unable to drain channel. Probable cause: Keep alive socket closed["+e.getMessage()+"].");
             } else if ( log.isErrorEnabled() ) {
                 //this is a real error, log it.
-                log.error(sm.getString("nioReplicationTask.exception.drainChannel"),e);
+                log.error("Exception caught in TcpReplicationThread.drainChannel.",e);
             }
             cancelKey(key);
+        } finally {
+
         }
         key = null;
         // done, ready for more, return to pool
@@ -130,7 +130,6 @@ public class NioReplicationTask extends AbstractRxTask {
      * updated to remove OP_READ.  This will cause the selector
      * to ignore read-readiness for this channel while the
      * worker thread is servicing it.
-     * @param key The key to process
      */
     public synchronized void serviceChannel (SelectionKey key) {
         if ( log.isTraceEnabled() ) log.trace("About to service key:"+key);
@@ -148,11 +147,9 @@ public class NioReplicationTask extends AbstractRxTask {
      * interest in OP_READ.  When this method completes it
      * re-enables OP_READ and calls wakeup() on the selector
      * so the selector will resume watching this channel.
-     * @param key The key to process
-     * @param reader The reader
-     * @throws Exception IO error
      */
     protected void drainChannel (final SelectionKey key, ObjectReader reader) throws Exception {
+        reader.setLastAccess(System.currentTimeMillis());
         reader.access();
         ReadableByteChannel channel = (ReadableByteChannel) key.channel();
         int count=-1;
@@ -218,10 +215,10 @@ public class NioReplicationTask extends AbstractRxTask {
                  */
                 if (ChannelData.sendAckSync(msgs[i].getOptions())) sendAck(key,(WritableByteChannel)channel,Constants.ACK_COMMAND,saddr);
             }catch ( RemoteProcessException e ) {
-                if ( log.isDebugEnabled() ) log.error(sm.getString("nioReplicationTask.process.clusterMsg.failed"),e);
+                if ( log.isDebugEnabled() ) log.error("Processing of cluster message failed.",e);
                 if (ChannelData.sendAckSync(msgs[i].getOptions())) sendAck(key,(WritableByteChannel)channel,Constants.FAIL_ACK_COMMAND,saddr);
             }catch ( Exception e ) {
-                log.error(sm.getString("nioReplicationTask.process.clusterMsg.failed"),e);
+                log.error("Processing of cluster message failed.",e);
                 if (ChannelData.sendAckSync(msgs[i].getOptions())) sendAck(key,(WritableByteChannel)channel,Constants.FAIL_ACK_COMMAND,saddr);
             }
             if ( getUseBufferPool() ) {
@@ -266,7 +263,7 @@ public class NioReplicationTask extends AbstractRxTask {
                         log.trace("CKX Cancelling key:"+key);
 
                 } catch (Exception x) {
-                    log.error(sm.getString("nioReplicationTask.error.register.key", key),x);
+                    log.error("Error registering key for read:"+key,x);
                 }
             }
         };
@@ -296,12 +293,10 @@ public class NioReplicationTask extends AbstractRxTask {
 
 
     /**
-     * Send a reply-acknowledgement (6,2,3), sends it doing a busy write, the ACK is so small
-     * that it should always go to the buffer.
-     * @param key The key to use
-     * @param channel The channel
-     * @param command The command to write
-     * @param udpaddr Target address
+     * send a reply-acknowledgement (6,2,3), sends it doing a busy write, the ACK is so small
+     * that it should always go to the buffer
+     * @param key
+     * @param channel
      */
     protected void sendAck(SelectionKey key, WritableByteChannel channel, byte[] command, SocketAddress udpaddr) {
         try {
@@ -327,7 +322,7 @@ public class NioReplicationTask extends AbstractRxTask {
                           ((DatagramChannel)channel).socket().getInetAddress()));
             }
         } catch ( java.io.IOException x ) {
-            log.warn(sm.getString("nioReplicationTask.unable.ack", x.getMessage()));
+            log.warn("Unable to send ACK back through channel, channel disconnected?: "+x.getMessage());
         }
     }
 

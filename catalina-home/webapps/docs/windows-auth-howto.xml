@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -39,14 +39,14 @@ the user being authenticated are part of the same domain. For the user to be
 authenticated automatically, the client machine used by the user must also be
 part of the domain.</p>
 <p>There are several options for implementing integrated Windows authentication
-with Apache Tomcat. They are:</p>
+with Apache Tomcat. They are:
 <ul>
 <li>Built-in Tomcat support.</li>
 <li>Use a third party library such as Waffle.</li>
 <li>Use a reverse proxy that supports Windows authentication to perform the
 authentication step such as IIS or httpd.</li>
 </ul>
-<p>The configuration of each of these options is discussed in the following
+The configuration of each of these options is discussed in the following
 sections.</p>
 </section>
 
@@ -132,7 +132,7 @@ policy had to be relaxed. This is not recommended for production environments.
   <code>$CATALINA_BASE/conf/krb5.ini</code>. The file used in this how-to
   contained:<source>[libdefaults]
 default_realm = DEV.LOCAL
-default_keytab_name = FILE:c:\apache-tomcat-<version-major-minor/>.x\conf\tomcat.keytab
+default_keytab_name = FILE:c:\apache-tomcat-7.0.x\conf\tomcat.keytab
 default_tkt_enctypes = rc4-hmac,aes256-cts-hmac-sha1-96,aes128-cts-hmac-sha1-96
 default_tgs_enctypes = rc4-hmac,aes256-cts-hmac-sha1-96,aes128-cts-hmac-sha1-96
 forwardable=true
@@ -154,7 +154,7 @@ dev.local= DEV.LOCAL
     doNotPrompt=true
     principal="HTTP/win-tc01.dev.local@DEV.LOCAL"
     useKeyTab=true
-    keyTab="c:/apache-tomcat-<version-major-minor/>.x/conf/tomcat.keytab"
+    keyTab="c:/apache-tomcat-7.0.x/conf/tomcat.keytab"
     storeKey=true;
 };
 
@@ -163,7 +163,7 @@ com.sun.security.jgss.krb5.accept {
     doNotPrompt=true
     principal="HTTP/win-tc01.dev.local@DEV.LOCAL"
     useKeyTab=true
-    keyTab="c:/apache-tomcat-<version-major-minor/>.x/conf/tomcat.keytab"
+    keyTab="c:/apache-tomcat-7.0.x/conf/tomcat.keytab"
     storeKey=true;
 };</source>
   The location of this file can be changed by setting the
@@ -188,8 +188,8 @@ com.sun.security.jgss.krb5.accept {
   <li>Ubuntu Server 12.04.3 LTS 64-bit</li>
   <li>Tomcat 8.0.x (r1546570)</li>
   </ul>
-  <p>It should work with any Tomcat 8 release although it is recommended that
-  the latest stable release is used.</p>
+  <p>It should work with any Tomcat 7 release from 7.0.12 onwards although it is
+  recommended that the latest stable release is used.</p>
   <p>The configuration is the same as for Windows but with the following
   changes:</p>
   <ul>
@@ -228,10 +228,8 @@ com.sun.security.jgss.krb5.accept {
       IIS and Kerberos</a></li>
   <li><a href="http://spnego.sourceforge.net/index.html">
       SPNEGO project at SourceForge</a></li>
-  <li><a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/index.html">
-      Oracle Java GSS-API tutorial (Java 7)</a></li>
-  <li><a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/Troubleshooting.html">
-      Oracle Java GSS-API tutorial - Troubleshooting (Java 7)</a></li>
+  <li><a href="http://docs.oracle.com/javase/1.5.0/docs/guide/security/jgss/tutorials/index.html">
+      Oracle JGSS tutorial</a></li>
   <li><a href="https://cwiki.apache.org/confluence/display/GMOxDOC21/Using+SPNEGO+in+Geronimo#UsingSPNEGOinGeronimo-SettinguptheDomainControllerMachine">
       Geronimo configuration for Windows authentication</a></li>
   <li><a href="http://blogs.msdn.com/b/openspecification/archive/2010/11/17/encryption-type-selection-in-kerberos-exchanges.aspx">

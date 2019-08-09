@@ -19,7 +19,7 @@ package sessions;
 import java.util.Vector;
 
 public class DummyCart {
-    final Vector<String> v = new Vector<>();
+    Vector<String> v = new Vector<String>();
     String submit = null;
     String item = null;
 

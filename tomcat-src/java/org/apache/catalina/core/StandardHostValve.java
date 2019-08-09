@@ -14,9 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.core;
 
+
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
@@ -27,15 +32,18 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
 import org.apache.catalina.Wrapper;
+import org.apache.catalina.comet.CometEvent;
 import org.apache.catalina.connector.ClientAbortException;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import org.apache.catalina.deploy.ErrorPage;
 import org.apache.catalina.valves.ValveBase;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
 import org.apache.tomcat.util.res.StringManager;
+import org.apache.tomcat.util.security.PrivilegedSetTccl;
+
 
 /**
  * Valve that implements the default basic behavior for the
@@ -47,15 +55,10 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  */
+
 final class StandardHostValve extends ValveBase {
 
     private static final Log log = LogFactory.getLog(StandardHostValve.class);
-
-    // Saves a call to getClassLoader() on very request. Under high load these
-    // calls took just long enough to appear as a hot spot (although a very
-    // minor one) in a profiler.
-    private static final ClassLoader MY_CLASSLOADER =
-            StandardHostValve.class.getClassLoader();
 
     static final boolean STRICT_SERVLET_COMPLIANCE;
 
@@ -78,8 +81,15 @@ final class StandardHostValve extends ValveBase {
         super(true);
     }
 
-
     // ----------------------------------------------------- Instance Variables
+
+
+    /**
+     * The descriptive information related to this implementation.
+     */
+    private static final String info =
+        "org.apache.catalina.core.StandardHostValve/1.0";
+
 
     /**
      * The string manager for this package.
@@ -88,7 +98,22 @@ final class StandardHostValve extends ValveBase {
         StringManager.getManager(Constants.Package);
 
 
+    // ------------------------------------------------------------- Properties
+
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
+
+
     // --------------------------------------------------------- Public Methods
+
 
     /**
      * Select the appropriate child Context to process this request,
@@ -108,33 +133,46 @@ final class StandardHostValve extends ValveBase {
         // Select the Context to be used for this Request
         Context context = request.getContext();
         if (context == null) {
+            response.sendError
+                (HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                 sm.getString("standardHost.noContext"));
             return;
         }
 
+        // Bind the context CL to the current thread
+        if( context.getLoader() != null ) {
+            // Not started - it should check for availability first
+            // This should eventually move to Engine, it's generic.
+            if (Globals.IS_SECURITY_ENABLED) {
+                PrivilegedAction<Void> pa = new PrivilegedSetTccl(
+                        context.getLoader().getClassLoader());
+                AccessController.doPrivileged(pa);
+            } else {
+                Thread.currentThread().setContextClassLoader
+                        (context.getLoader().getClassLoader());
+            }
+        }
         if (request.isAsyncSupported()) {
             request.setAsyncSupported(context.getPipeline().isAsyncSupported());
         }
 
         boolean asyncAtStart = request.isAsync();
+        boolean asyncDispatching = request.isAsyncDispatching();
+        if (asyncAtStart || context.fireRequestInitEvent(request.getRequest())) {
 
-        try {
-            context.bind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
-
-            if (!asyncAtStart && !context.fireRequestInitEvent(request.getRequest())) {
-                // Don't fire listeners during async processing (the listener
-                // fired for the request that called startAsync()).
-                // If a request init listener throws an exception, the request
-                // is aborted.
-                return;
-            }
-
-            // Ask this Context to process this request. Requests that are
-            // already in error must have been routed here to check for
-            // application defined error pages so DO NOT forward them to the the
-            // application for processing.
+            // Ask this Context to process this request. Requests that are in
+            // async mode and are not being dispatched to this resource must be
+            // in error and have been routed here to check for application
+            // defined error pages.
             try {
-                if (!response.isErrorReportRequired()) {
+                if (!asyncAtStart || asyncDispatching) {
                     context.getPipeline().getFirst().invoke(request, response);
+                } else {
+                    // Make sure this request/response is here because an error
+                    // report is required.
+                    if (!response.isErrorReportRequired()) {
+                        throw new IllegalStateException(sm.getString("standardHost.asyncStateError"));
+                    }
                 }
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
@@ -172,15 +210,77 @@ final class StandardHostValve extends ValveBase {
             if (!request.isAsync() && !asyncAtStart) {
                 context.fireRequestDestroyEvent(request.getRequest());
             }
-        } finally {
-            // Access a session (if present) to update last accessed time, based
-            // on a strict interpretation of the specification
-            if (ACCESS_SESSION) {
-                request.getSession(false);
-            }
-
-            context.unbind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
         }
+
+        // Access a session (if present) to update last accessed time, based on a
+        // strict interpretation of the specification
+        if (ACCESS_SESSION) {
+            request.getSession(false);
+        }
+
+        // Restore the context classloader
+        if (Globals.IS_SECURITY_ENABLED) {
+            PrivilegedAction<Void> pa = new PrivilegedSetTccl(
+                    StandardHostValve.class.getClassLoader());
+            AccessController.doPrivileged(pa);
+        } else {
+            Thread.currentThread().setContextClassLoader
+                    (StandardHostValve.class.getClassLoader());
+        }
+    }
+
+
+    /**
+     * Process Comet event.
+     *
+     * @param request Request to be processed
+     * @param response Response to be produced
+     * @param event the event
+     *
+     * @exception IOException if an input/output error occurred
+     * @exception ServletException if a servlet error occurred
+     */
+    @Override
+    public final void event(Request request, Response response, CometEvent event)
+        throws IOException, ServletException {
+
+        // Select the Context to be used for this Request
+        Context context = request.getContext();
+
+        // Bind the context CL to the current thread
+        if( context.getLoader() != null ) {
+            // Not started - it should check for availability first
+            // This should eventually move to Engine, it's generic.
+            Thread.currentThread().setContextClassLoader
+                    (context.getLoader().getClassLoader());
+        }
+
+        // Ask this Context to process this request
+        context.getPipeline().getFirst().event(request, response, event);
+
+
+        // Error page processing
+        response.setSuspended(false);
+
+        Throwable t = (Throwable) request.getAttribute(
+                RequestDispatcher.ERROR_EXCEPTION);
+
+        if (t != null) {
+            throwable(request, response, t);
+        } else {
+            status(request, response);
+        }
+
+        // Access a session (if present) to update last accessed time, based on a
+        // strict interpretation of the specification
+        if (ACCESS_SESSION) {
+            request.getSession(false);
+        }
+
+        // Restore the context classloader
+        Thread.currentThread().setContextClassLoader
+            (StandardHostValve.class.getClassLoader());
+
     }
 
 
@@ -201,18 +301,16 @@ final class StandardHostValve extends ValveBase {
 
         // Handle a custom error page for this status code
         Context context = request.getContext();
-        if (context == null) {
+        if (context == null)
             return;
-        }
 
         /* Only look for error pages when isError() is set.
          * isError() is set when response.sendError() is invoked. This
          * allows custom error pages without relying on default from
          * web.xml.
          */
-        if (!response.isError()) {
+        if (!response.isError())
             return;
-        }
 
         ErrorPage errorPage = context.findErrorPage(statusCode);
         if (errorPage == null) {
@@ -225,9 +323,8 @@ final class StandardHostValve extends ValveBase {
                               Integer.valueOf(statusCode));
 
             String message = response.getMessage();
-            if (message == null) {
+            if (message == null)
                 message = "";
-            }
             request.setAttribute(RequestDispatcher.ERROR_MESSAGE, message);
             request.setAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR,
                     errorPage.getLocation());
@@ -236,10 +333,9 @@ final class StandardHostValve extends ValveBase {
 
 
             Wrapper wrapper = request.getWrapper();
-            if (wrapper != null) {
+            if (wrapper != null)
                 request.setAttribute(RequestDispatcher.ERROR_SERVLET_NAME,
                                   wrapper.getName());
-            }
             request.setAttribute(RequestDispatcher.ERROR_REQUEST_URI,
                                  request.getRequestURI());
             if (custom(request, response, errorPage)) {
@@ -270,9 +366,8 @@ final class StandardHostValve extends ValveBase {
     protected void throwable(Request request, Response response,
                              Throwable throwable) {
         Context context = request.getContext();
-        if (context == null) {
+        if (context == null)
             return;
-        }
 
         Throwable realError = throwable;
 
@@ -293,9 +388,9 @@ final class StandardHostValve extends ValveBase {
             return;
         }
 
-        ErrorPage errorPage = context.findErrorPage(throwable);
+        ErrorPage errorPage = findErrorPage(context, throwable);
         if ((errorPage == null) && (realError != throwable)) {
-            errorPage = context.findErrorPage(realError);
+            errorPage = findErrorPage(context, realError);
         }
 
         if (errorPage != null) {
@@ -312,10 +407,9 @@ final class StandardHostValve extends ValveBase {
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION,
                                   realError);
                 Wrapper wrapper = request.getWrapper();
-                if (wrapper != null) {
+                if (wrapper != null)
                     request.setAttribute(RequestDispatcher.ERROR_SERVLET_NAME,
                                       wrapper.getName());
-                }
                 request.setAttribute(RequestDispatcher.ERROR_REQUEST_URI,
                                      request.getRequestURI());
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION_TYPE,
@@ -357,9 +451,8 @@ final class StandardHostValve extends ValveBase {
     private boolean custom(Request request, Response response,
                              ErrorPage errorPage) {
 
-        if (container.getLogger().isDebugEnabled()) {
+        if (container.getLogger().isDebugEnabled())
             container.getLogger().debug("Processing " + errorPage);
-        }
 
         try {
             // Forward control to the specified location
@@ -390,13 +483,44 @@ final class StandardHostValve extends ValveBase {
             }
 
             // Indicate that we have successfully processed this custom page
-            return true;
+            return (true);
 
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);
             // Report our failure to process this custom page
             container.getLogger().error("Exception Processing " + errorPage, t);
-            return false;
+            return (false);
+
         }
+    }
+
+
+    /**
+     * Find and return the ErrorPage instance for the specified exception's
+     * class, or an ErrorPage instance for the closest superclass for which
+     * there is such a definition.  If no associated ErrorPage instance is
+     * found, return <code>null</code>.
+     *
+     * @param context The Context in which to search
+     * @param exception The exception for which to find an ErrorPage
+     */
+    private static ErrorPage findErrorPage
+        (Context context, Throwable exception) {
+
+        if (exception == null)
+            return (null);
+        Class<?> clazz = exception.getClass();
+        String name = clazz.getName();
+        while (!Object.class.equals(clazz)) {
+            ErrorPage errorPage = context.findErrorPage(name);
+            if (errorPage != null)
+                return (errorPage);
+            clazz = clazz.getSuperclass();
+            if (clazz == null)
+                break;
+            name = clazz.getName();
+        }
+        return (null);
+
     }
 }

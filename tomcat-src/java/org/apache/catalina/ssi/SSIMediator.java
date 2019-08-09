@@ -17,7 +17,6 @@
 package org.apache.catalina.ssi;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -28,7 +27,7 @@ import java.util.TimeZone;
 
 import org.apache.catalina.util.Strftime;
 import org.apache.catalina.util.URLEncoder;
-import org.apache.tomcat.util.security.Escape;
+import org.apache.tomcat.util.http.HttpMessages;
 
 /**
  * Allows the different SSICommand implementations to share data/talk to each
@@ -52,17 +51,19 @@ public class SSIMediator {
     protected String configErrMsg = DEFAULT_CONFIG_ERR_MSG;
     protected String configTimeFmt = DEFAULT_CONFIG_TIME_FMT;
     protected String configSizeFmt = DEFAULT_CONFIG_SIZE_FMT;
-    protected final String className = getClass().getName();
-    protected final SSIExternalResolver ssiExternalResolver;
-    protected final long lastModifiedDate;
+    protected String className = getClass().getName();
+    protected SSIExternalResolver ssiExternalResolver;
+    protected long lastModifiedDate;
+    protected int debug;
     protected Strftime strftime;
-    protected final SSIConditionalState conditionalState = new SSIConditionalState();
+    protected SSIConditionalState conditionalState = new SSIConditionalState();
 
 
     public SSIMediator(SSIExternalResolver ssiExternalResolver,
-            long lastModifiedDate) {
+            long lastModifiedDate, int debug) {
         this.ssiExternalResolver = ssiExternalResolver;
         this.lastModifiedDate = lastModifiedDate;
+        this.debug = debug;
         setConfigTimeFmt(DEFAULT_CONFIG_TIME_FMT, true);
     }
 
@@ -113,7 +114,7 @@ public class SSIMediator {
 
 
     public Collection<String> getVariableNames() {
-        Set<String> variableNames = new HashSet<>();
+        Set<String> variableNames = new HashSet<String>();
         //These built-in variables are supplied by the mediator ( if not
         // over-written by
         // the user ) and always exist
@@ -190,8 +191,6 @@ public class SSIMediator {
     /**
      * Applies variable substitution to the specified String and returns the
      * new resolved string.
-     * @param val The value which should be checked
-     * @return the value after variable substitution
      */
     public String substituteVariables(String val) {
         // If it has no references or HTML entities then no work
@@ -285,11 +284,11 @@ public class SSIMediator {
     protected String encode(String value, String encoding) {
         String retVal = null;
         if (encoding.equalsIgnoreCase(ENCODING_URL)) {
-            retVal = URLEncoder.DEFAULT.encode(value, StandardCharsets.UTF_8);
+            retVal = URLEncoder.DEFAULT.encode(value, "UTF-8");
         } else if (encoding.equalsIgnoreCase(ENCODING_NONE)) {
             retVal = value;
         } else if (encoding.equalsIgnoreCase(ENCODING_ENTITY)) {
-            retVal = Escape.htmlElementContent(value);
+            retVal = HttpMessages.filter(value);
         } else {
             //This shouldn't be possible
             throw new IllegalArgumentException("Unknown encoding: " + encoding);

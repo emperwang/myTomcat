@@ -31,7 +31,6 @@ import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.tipis.AbstractReplicatedMap.MapOwner;
 import org.apache.catalina.tribes.tipis.ReplicatedMap;
 import org.apache.tomcat.util.ExceptionUtils;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * A <strong>Valve</strong> that supports a "single sign on" user experience on
@@ -54,11 +53,29 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public class ClusterSingleSignOn extends SingleSignOn implements ClusterValve, MapOwner {
 
-    private static final StringManager sm = StringManager.getManager(ClusterSingleSignOn.class);
+    /**
+     * Descriptive information about this Valve implementation.
+     */
+    protected static final String info =
+        "org.apache.catalina.ha.authenticator.ClusterSingleSignOn";
+
 
     // -------------------------------------------------------------- Properties
 
     private CatalinaCluster cluster = null;
+
+
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
+
     @Override
     public CatalinaCluster getCluster() { return cluster; }
     @Override
@@ -134,7 +151,7 @@ public class ClusterSingleSignOn extends SingleSignOn implements ClusterValve, M
     // -------------------------------------------------------- MapOwner Methods
 
     @Override
-    public void objectMadePrimary(Object key, Object value) {
+    public void objectMadePrimay(Object key, Object value) {
         // NO-OP
     }
 
@@ -162,12 +179,14 @@ public class ClusterSingleSignOn extends SingleSignOn implements ClusterValve, M
                 }
             }
             if (cluster == null) {
-                throw new LifecycleException(sm.getString("clusterSingleSignOn.nocluster"));
+                throw new LifecycleException(
+                        "There is no Cluster for ClusterSingleSignOn");
             }
 
             ClassLoader[] cls = new ClassLoader[] { this.getClass().getClassLoader() };
 
-            ReplicatedMap<String,SingleSignOnEntry> cache = new ReplicatedMap<>(
+            ReplicatedMap<String,SingleSignOnEntry> cache =
+                    new ReplicatedMap<String,SingleSignOnEntry>(
                     this, cluster.getChannel(), rpcTimeout, cluster.getClusterName() + "-SSO-cache",
                     cls, terminateOnStartFailure);
             cache.setChannelSendOptions(mapSendOptions);
@@ -175,7 +194,8 @@ public class ClusterSingleSignOn extends SingleSignOn implements ClusterValve, M
             this.cache = cache;
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);
-            throw new LifecycleException(sm.getString("clusterSingleSignOn.clusterLoad.fail"), t);
+            throw new LifecycleException(
+                    "ClusterSingleSignOn exception during clusterLoad " + t);
         }
 
         super.startInternal();

@@ -16,7 +16,6 @@
  */
 package org.apache.jasper.runtime;
 
-import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
@@ -30,6 +29,8 @@ import javax.servlet.jsp.JspFactory;
 import javax.servlet.jsp.PageContext;
 
 import org.apache.jasper.Constants;
+import org.apache.juli.logging.Log;
+import org.apache.juli.logging.LogFactory;
 
 /**
  * Implementation of JspFactory.
@@ -38,13 +39,16 @@ import org.apache.jasper.Constants;
  */
 public class JspFactoryImpl extends JspFactory {
 
-    private static final String SPEC_VERSION = "2.3";
+    // Logger
+    private final Log log = LogFactory.getLog(JspFactoryImpl.class); // must not be static
+
+    private static final String SPEC_VERSION = "2.2";
     private static final boolean USE_POOL =
         Boolean.parseBoolean(System.getProperty("org.apache.jasper.runtime.JspFactoryImpl.USE_POOL", "true"));
     private static final int POOL_SIZE =
         Integer.parseInt(System.getProperty("org.apache.jasper.runtime.JspFactoryImpl.POOL_SIZE", "8"));
 
-    private final ThreadLocal<PageContextPool> localPool = new ThreadLocal<>();
+    private ThreadLocal<PageContextPool> localPool = new ThreadLocal<PageContextPool>();
 
     @Override
     public PageContext getPageContext(Servlet servlet, ServletRequest request,
@@ -89,31 +93,32 @@ public class JspFactoryImpl extends JspFactory {
     private PageContext internalGetPageContext(Servlet servlet, ServletRequest request,
             ServletResponse response, String errorPageURL, boolean needsSession,
             int bufferSize, boolean autoflush) {
-
-        PageContext pc;
-        if (USE_POOL) {
-            PageContextPool pool = localPool.get();
-            if (pool == null) {
-                pool = new PageContextPool();
-                localPool.set(pool);
-            }
-            pc = pool.get();
-            if (pc == null) {
+        try {
+            PageContext pc;
+            if (USE_POOL) {
+                PageContextPool pool = localPool.get();
+                if (pool == null) {
+                    pool = new PageContextPool();
+                    localPool.set(pool);
+                }
+                pc = pool.get();
+                if (pc == null) {
+                    pc = new PageContextImpl();
+                }
+            } else {
                 pc = new PageContextImpl();
             }
-        } else {
-            pc = new PageContextImpl();
-        }
-
-        try {
             pc.initialize(servlet, request, response, errorPageURL,
                     needsSession, bufferSize, autoflush);
-        } catch (IOException ioe) {
-            // Implementation never throws IOE but can't change the signature
-            // since it is part of the JSP API
+            return pc;
+        } catch (Throwable ex) {
+            ExceptionUtils.handleThrowable(ex);
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            log.fatal("Exception initializing page context", ex);
+            return null;
         }
-
-        return pc;
     }
 
     private void internalReleasePageContext(PageContext pc) {
@@ -174,9 +179,9 @@ public class JspFactoryImpl extends JspFactory {
         }
     }
 
-    private static final class PageContextPool  {
+    protected static final class PageContextPool  {
 
-        private final PageContext[] pool;
+        private PageContext[] pool;
 
         private int current = -1;
 

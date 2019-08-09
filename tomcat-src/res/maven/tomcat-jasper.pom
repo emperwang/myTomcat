@@ -55,9 +55,9 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.jdt</groupId>
+      <groupId>org.eclipse.jdt.core.compiler</groupId>
       <artifactId>ecj</artifactId>
-      <version>3.12.3</version>
+      <version>4.4.2</version>
     </dependency>
     <dependency>
       <groupId>org.apache.tomcat</groupId>
@@ -73,7 +73,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.tomcat</groupId>
-      <artifactId>tomcat-util-scan</artifactId>
+      <artifactId>tomcat-util</artifactId>
       <version>@MAVEN.DEPLOY.VERSION@</version>
       <scope>compile</scope>
     </dependency>

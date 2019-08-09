@@ -57,26 +57,12 @@ public abstract class MethodExpression extends Expression {
     public abstract Object invoke(ELContext context, Object[] params);
 
     /**
-     * @return This default implementation always returns <code>false</code>
-     * @since EL 3.0
-     */
-    public boolean isParametersProvided() {
-        // Expected to be over-ridden by implementation
-        return false;
-    }
-
-    /**
      * @since EL 2.2
      *
      * Note: The spelling mistake is deliberate.
      * isParmetersProvided()  - Specification definition
      * isParametersProvided() - Corrected spelling
-     *
-     * @return Always <code>false</code>
-     *
-     * @deprecated  Use {@link #isParametersProvided()}
      */
-    @Deprecated
     public boolean isParmetersProvided() {
         // Expected to be over-ridden by implementation
         return false;

@@ -24,7 +24,7 @@ import javax.websocket.Extension;
 public class WsExtension implements Extension {
 
     private final String name;
-    private final List<Parameter> parameters = new ArrayList<>();
+    private final List<Parameter> parameters = new ArrayList<Parameter>();
 
     WsExtension(String name) {
         this.name = name;

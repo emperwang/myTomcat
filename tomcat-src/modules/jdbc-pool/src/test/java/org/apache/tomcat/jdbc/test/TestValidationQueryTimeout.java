@@ -19,9 +19,9 @@ package org.apache.tomcat.jdbc.test;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.SQLTimeoutException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -119,6 +119,9 @@ public class TestValidationQueryTimeout extends DefaultTestCase {
     @Test(expected=SQLException.class)
     public void testValidationQueryTimeoutOnConnection() throws Exception {
         // use our mock driver
+        this.datasource.setDriverClassName("org.h2.Driver");
+        this.datasource.setUrl("jdbc:h2:~/.h2/test;QUERY_TIMEOUT=0;DB_CLOSE_ON_EXIT=FALSE");
+
         // Required to trigger validation query's execution
         this.datasource.setTestOnConnect(true);
         this.datasource.setValidationInterval(-1);
@@ -130,7 +133,7 @@ public class TestValidationQueryTimeout extends DefaultTestCase {
 
     @Test(expected=SQLException.class)
     public void testValidationInvalidOnConnection() throws Exception {
-        // use a real driver cause we have an invalid query to validate
+        // use our mock driver
         this.datasource.setDriverClassName("org.h2.Driver");
         this.datasource.setUrl("jdbc:h2:~/.h2/test;QUERY_TIMEOUT=0;DB_CLOSE_ON_EXIT=FALSE");
 
@@ -148,6 +151,8 @@ public class TestValidationQueryTimeout extends DefaultTestCase {
     @Test
     public void testLongValidationQueryTime() throws Exception {
         // use our mock driver
+        this.datasource.setDriverClassName("org.h2.Driver");
+        this.datasource.setUrl("jdbc:h2:~/.h2/test;QUERY_TIMEOUT=0;DB_CLOSE_ON_EXIT=FALSE");
         Connection con = this.datasource.getConnection();
         Statement stmt = null;
         long start = 0, end = 0;
@@ -160,31 +165,38 @@ public class TestValidationQueryTimeout extends DefaultTestCase {
             //  this is a requirement for other tests to run properly
             start = System.currentTimeMillis();
             stmt.execute(longQuery);
-        } catch (SQLTimeoutException ex) {
-
-        } catch (SQLException x) {
-            Assert.fail("We should have got a timeout exception.");
-        } finally {
+        } catch (SQLException ex) {}
+        finally {
             end = System.currentTimeMillis();
 
             if (stmt != null) { stmt.close(); }
             if (con != null) { con.close(); }
 
             Assert.assertTrue(start != 0 && end != 0);
-            //we're faking it
-            //Assert.assertTrue((end - start) > 1000);
+            Assert.assertTrue((end - start) > 1000);
         }
     }
 
-    @Test(expected = SQLException.class)
+    @Test
     public void testValidationQueryTimeoutOnBorrow() throws Exception {
+        // use our mock driver
+        this.datasource.setDriverClassName("org.h2.Driver");
+        this.datasource.setUrl("jdbc:h2:~/.h2/test;QUERY_TIMEOUT=0;DB_CLOSE_ON_EXIT=FALSE");
+
         // Required to trigger validation query's execution
         this.datasource.setTestOnBorrow(true);
         this.datasource.setValidationInterval(-1);
         this.datasource.setValidationQuery(longQuery);
         this.datasource.setValidationQueryTimeout(1);
-        // assert that even though the validation query we don't get a connection
-        this.datasource.getConnection();
+
+        // assert that even though the validation query times out, we still get a connection
+        Connection con = this.datasource.getConnection();
+        Assert.assertNotNull(con);
+        Statement st = con.createStatement();
+        ResultSet rs = st.executeQuery("SELECT 1");
+        rs.close();
+        st.close();
+        con.close();
     }
 
     /**
@@ -226,7 +238,10 @@ public class TestValidationQueryTimeout extends DefaultTestCase {
             return false;
         }
 
-        @Override
+        /**
+         * @return <code>null</code>
+         * @throws SQLFeatureNotSupportedException
+         */
         public Logger getParentLogger() throws SQLFeatureNotSupportedException {
             return null;
         }
@@ -247,16 +262,8 @@ public class TestValidationQueryTimeout extends DefaultTestCase {
         @Override
         public void setQueryTimeout(int seconds) throws SQLException {
             super.setQueryTimeout(seconds);
+            Assert.assertEquals(TIMEOUT, seconds);
             isTimeoutSet = true;
-        }
-
-        @Override
-        public boolean execute(String sql) throws SQLException {
-            if (longQuery.equals(sql)) {
-                throw new SQLTimeoutException();
-            } else {
-                return super.execute(sql);
-            }
         }
     }
 }

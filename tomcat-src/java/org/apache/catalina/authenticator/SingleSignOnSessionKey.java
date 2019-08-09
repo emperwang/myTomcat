@@ -38,7 +38,7 @@ public class SingleSignOnSessionKey implements Serializable {
 
     public SingleSignOnSessionKey(Session session) {
         this.sessionId = session.getId();
-        Context context = session.getManager().getContext();
+        Context context = (Context) session.getManager().getContainer();
         this.contextName = context.getName();
         this.hostName = context.getParent().getName();
     }

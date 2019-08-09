@@ -33,6 +33,7 @@ import java.util.Map;
  * (for example, HTTP data is provided by
  * {@link javax.servlet.http.HttpServletRequest}.
  *
+ * @author Various
  * @see javax.servlet.http.HttpServletRequest
  */
 public interface ServletRequest {
@@ -50,11 +51,9 @@ public interface ServletRequest {
      * This allows information to be embedded into a request before a
      * {@link RequestDispatcher} call.
      * <p>
-     * Attribute names should follow the same conventions as package names.
-     * Names beginning with <code>java.*</code> and <code>javax.*</code> are
-     * reserved for use by the Servlet specification. Names beginning with
-     * <code>sun.*</code>, <code>com.sun.*</code>, <code>oracle.*</code> and
-     * <code>com.oracle.*</code>) are reserved for use by Oracle Corporation.
+     * Attribute names should follow the same conventions as package names. This
+     * specification reserves names matching <code>java.*</code>,
+     * <code>javax.*</code>, and <code>sun.*</code>.
      *
      * @param name
      *            a <code>String</code> specifying the name of the attribute
@@ -105,20 +104,9 @@ public interface ServletRequest {
      * same as the value of the CGI variable CONTENT_LENGTH.
      *
      * @return an integer containing the length of the request body or -1 if the
-     *         length is not known or is greater than {@link Integer#MAX_VALUE}
+     *         length is not known
      */
     public int getContentLength();
-
-    /**
-     * Returns the length, in bytes, of the request body and made available by
-     * the input stream, or -1 if the length is not known. For HTTP servlets,
-     * same as the value of the CGI variable CONTENT_LENGTH.
-     *
-     * @return a long integer containing the length of the request body or -1 if
-     *         the length is not known
-     * @since Servlet 3.1
-     */
-    public long getContentLengthLong();
 
     /**
      * Returns the MIME type of the body of the request, or <code>null</code> if
@@ -300,11 +288,8 @@ public interface ServletRequest {
      * {@link RequestDispatcher}.
      * <p>
      * Attribute names should follow the same conventions as package names.
-     * Names beginning with <code>java.*</code> and <code>javax.*</code> are
-     * reserved for use by the Servlet specification. Names beginning with
-     * <code>sun.*</code>, <code>com.sun.*</code>, <code>oracle.*</code> and
-     * <code>com.oracle.*</code>) are reserved for use by Oracle Corporation.
-     * <br>
+     * Names beginning with <code>java.*</code>, <code>javax.*</code>, and
+     * <code>com.sun.*</code>, are reserved for use by Sun Microsystems. <br>
      * If the object passed in is null, the effect is the same as calling
      * {@link #removeAttribute}. <br>
      * It is warned that when the request is dispatched from the servlet resides
@@ -325,10 +310,8 @@ public interface ServletRequest {
      * handled.
      * <p>
      * Attribute names should follow the same conventions as package names.
-     * Names beginning with <code>java.*</code> and <code>javax.*</code> are
-     * reserved for use by the Servlet specification. Names beginning with
-     * <code>sun.*</code>, <code>com.sun.*</code>, <code>oracle.*</code> and
-     * <code>com.oracle.*</code>) are reserved for use by Oracle Corporation.
+     * Names beginning with <code>java.*</code>, <code>javax.*</code>, and
+     * <code>com.sun.*</code>, are reserved for use by Sun Microsystems.
      *
      * @param name
      *            a <code>String</code> specifying the name of the attribute to
@@ -411,7 +394,7 @@ public interface ServletRequest {
      * proxy that sent the request.
      *
      * @return an integer specifying the port number
-     * @since Servlet 2.4
+     * @since 2.4
      */
     public int getRemotePort();
 
@@ -421,7 +404,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the host name of the IP on which
      *         the request was received.
-     * @since Servlet 2.4
+     * @since 2.4
      */
     public String getLocalName();
 
@@ -431,7 +414,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the IP address on which the
      *         request was received.
-     * @since Servlet 2.4
+     * @since 2.4
      */
     public String getLocalAddr();
 
@@ -440,7 +423,7 @@ public interface ServletRequest {
      * the request was received.
      *
      * @return an integer specifying the port number
-     * @since Servlet 2.4
+     * @since 2.4
      */
     public int getLocalPort();
 
@@ -455,7 +438,7 @@ public interface ServletRequest {
      * @throws IllegalStateException If async is not supported for this request
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
      */
-    public AsyncContext startAsync() throws IllegalStateException;
+    public AsyncContext startAsync();
 
     /**
      * @param servletRequest    The ServletRequest with which to initialise the
@@ -467,7 +450,7 @@ public interface ServletRequest {
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
      */
     public AsyncContext startAsync(ServletRequest servletRequest,
-            ServletResponse servletResponse) throws IllegalStateException;
+            ServletResponse servletResponse);
 
     /**
      * @return TODO

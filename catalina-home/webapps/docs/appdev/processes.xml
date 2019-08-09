@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -66,7 +66,7 @@ once (no matter how many web applications you plan to develop).</p>
     logged in, and have the security role <code>manager-script</code> assigned
     to him or her.  How such users are defined depends on which Realm you have
     configured in Tomcat's <code>conf/server.xml</code> file -- see the
-    <a href="../realm-howto.html">Realm Configuration How-To</a> for more
+    <a href="../realm-howto.html">Realm Configuration HOW-TO</a> for more
     information.  You may define any number of users (with any username
     and password that you like) with the <code>manager-script</code> role.
     </p></li>
@@ -129,8 +129,8 @@ You might end up with something like this:</p>
 <source><![CDATA[# Context path to install this application on
 app.path=/hello
 
-# Tomcat installation directory
-catalina.home=/usr/local/apache-tomcat-<version-major-minor/>
+# Tomcat 7 installation directory
+catalina.home=/usr/local/apache-tomcat-7.0
 
 # Manager webapp username and password
 manager.username=myusername

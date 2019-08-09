@@ -96,7 +96,7 @@ public class ELParser {
      *
      * @return An ELNode.Nodes representing the EL expression
      *
-     * Note: This cannot be refactored to use the standard EL implementation as
+     * Note: This can not be refactored to use the standard EL implementation as
      *       the EL API does not provide the level of access required to the
      *       parsed expression.
      */
@@ -106,17 +106,11 @@ public class ELParser {
         ELexpr = new ELNode.Nodes();
         curToken = null;
         prevToken = null;
-        int openBraces = 0;
         while (hasNext()) {
             curToken = nextToken();
             if (curToken instanceof Char) {
                 if (curToken.toChar() == '}') {
-                    openBraces--;
-                    if (openBraces < 0) {
-                        break;
-                    }
-                } else if (curToken.toChar() == '{') {
-                    openBraces++;
+                    break;
                 }
                 buf.append(curToken.toString());
             } else {
@@ -186,7 +180,7 @@ public class ELParser {
         int i = 0;
         int j = reservedWords.length;
         while (i < j) {
-            int k = (i + j) >>> 1;
+            int k = (i + j) / 2;
             int result = reservedWords[k].compareTo(id);
             if (result == 0) {
                 return true;
@@ -202,7 +196,7 @@ public class ELParser {
 
     /**
      * Skip until an EL expression ('${' || '#{') is reached, allowing escape
-     * sequences '\$' and '\#'.
+     * sequences '\${' and '\#{'.
      *
      * @return The text string up to the EL expression
      */

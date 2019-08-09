@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.jasper.compiler;
 
-import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.Vector;
 
@@ -33,11 +32,9 @@ import javax.servlet.jsp.tagext.TagLibraryInfo;
 import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
-import org.apache.tomcat.util.descriptor.tld.ImplicitTldRuleSet;
-import org.apache.tomcat.util.descriptor.tld.TaglibXml;
-import org.apache.tomcat.util.descriptor.tld.TldParser;
-import org.apache.tomcat.util.descriptor.tld.TldResourcePath;
-import org.xml.sax.SAXException;
+import org.apache.jasper.runtime.ExceptionUtils;
+import org.apache.jasper.xmlparser.ParserUtils;
+import org.apache.jasper.xmlparser.TreeNode;
 
 /**
  * Class responsible for generating an implicit tag library containing tag
@@ -57,13 +54,15 @@ class ImplicitTagLibraryInfo extends TagLibraryInfo {
     private static final String IMPLICIT_TLD = "implicit.tld";
 
     // Maps tag names to tag file paths
-    private final Hashtable<String,String> tagFileMap;
+    private Hashtable<String,String> tagFileMap;
 
-    private final ParserController pc;
-    private final PageInfo pi;
-    private final Vector<TagFileInfo> vec;
+    private ParserController pc;
+    private PageInfo pi;
+    private Vector<TagFileInfo> vec;
 
-
+    /**
+     * Constructor.
+     */
     public ImplicitTagLibraryInfo(JspCompilationContext ctxt,
             ParserController pc,
             PageInfo pi,
@@ -73,8 +72,8 @@ class ImplicitTagLibraryInfo extends TagLibraryInfo {
         super(prefix, null);
         this.pc = pc;
         this.pi = pi;
-        this.tagFileMap = new Hashtable<>();
-        this.vec = new Vector<>();
+        this.tagFileMap = new Hashtable<String,String>();
+        this.vec = new Vector<TagFileInfo>();
 
         // Implicit tag libraries have no functions:
         this.functions = new FunctionInfo[0];
@@ -99,7 +98,9 @@ class ImplicitTagLibraryInfo extends TagLibraryInfo {
         // Populate mapping of tag names to tag file paths
         Set<String> dirList = ctxt.getResourcePaths(tagdir);
         if (dirList != null) {
-            for (String path : dirList) {
+            Iterator<String> it = dirList.iterator();
+            while (it.hasNext()) {
+                String path = it.next();
                 if (path.endsWith(TAG_FILE_SUFFIX)
                         || path.endsWith(TAGX_FILE_SUFFIX)) {
                     /*
@@ -114,44 +115,74 @@ class ImplicitTagLibraryInfo extends TagLibraryInfo {
                             tagName.lastIndexOf(suffix));
                     tagFileMap.put(tagName, path);
                 } else if (path.endsWith(IMPLICIT_TLD)) {
-                    TaglibXml taglibXml;
+                    InputStream in = null;
                     try {
-                        URL url = ctxt.getResource(path);
-                        TldResourcePath resourcePath = new TldResourcePath(url, path);
-                        ServletContext servletContext = ctxt.getServletContext();
-                        boolean validate = Boolean.parseBoolean(
-                                servletContext.getInitParameter(
-                                        Constants.XML_VALIDATION_TLD_INIT_PARAM));
-                        String blockExternalString = servletContext.getInitParameter(
-                                Constants.XML_BLOCK_EXTERNAL_INIT_PARAM);
-                        boolean blockExternal;
-                        if (blockExternalString == null) {
-                            blockExternal = true;
-                        } else {
-                            blockExternal = Boolean.parseBoolean(blockExternalString);
-                        }
-                        TldParser parser = new TldParser(true, validate,
-                                new ImplicitTldRuleSet(), blockExternal);
-                        taglibXml = parser.parse(resourcePath);
-                    } catch (IOException | SAXException e) {
-                        err.jspError(e);
-                        // unreached
-                        throw new JasperException(e);
-                    }
-                    this.tlibversion = taglibXml.getTlibVersion();
-                    this.jspversion = taglibXml.getJspVersion();
-                    try {
-                        double version = Double.parseDouble(this.jspversion);
-                        if (version < 2.0) {
-                            err.jspError("jsp.error.invalid.implicit.version", path);
-                        }
-                    } catch (NumberFormatException e) {
-                        err.jspError("jsp.error.invalid.implicit.version", path);
-                    }
+                        in = ctxt.getResourceAsStream(path);
+                        if (in != null) {
 
-                    // Add implicit TLD to dependency list
-                    if (pi != null) {
-                        pi.addDependant(path, ctxt.getLastModified(path));
+                            // Add implicit TLD to dependency list
+                            if (pi != null) {
+                                pi.addDependant(path, ctxt.getLastModified(path));
+                            }
+
+                            ServletContext servletContext = ctxt.getServletContext();
+                            boolean validate = Boolean.parseBoolean(
+                                    servletContext.getInitParameter(
+                                            Constants.XML_VALIDATION_TLD_INIT_PARAM));
+                            String blockExternalString =
+                                    servletContext.getInitParameter(
+                                            Constants.XML_BLOCK_EXTERNAL_INIT_PARAM);
+                            boolean blockExternal;
+                            if (blockExternalString == null) {
+                                blockExternal = true;
+                            } else {
+                                blockExternal = Boolean.parseBoolean(blockExternalString);
+                            }
+
+                            ParserUtils pu = new ParserUtils(validate, blockExternal);
+                            TreeNode tld = pu.parseXMLDocument(uri, in);
+
+                            if (tld.findAttribute("version") != null) {
+                                this.jspversion = tld.findAttribute("version");
+                            }
+
+                            // Process each child element of our <taglib> element
+                            Iterator<TreeNode> list = tld.findChildren();
+
+                            while (list.hasNext()) {
+                                TreeNode element = list.next();
+                                String tname = element.getName();
+
+                                if ("tlibversion".equals(tname) // JSP 1.1
+                                        || "tlib-version".equals(tname)) { // JSP 1.2
+                                    this.tlibversion = element.getBody();
+                                } else if ("jspversion".equals(tname)
+                                        || "jsp-version".equals(tname)) {
+                                    this.jspversion = element.getBody();
+                                } else if ("shortname".equals(tname) || "short-name".equals(tname)) {
+                                    // Ignore
+                                } else {
+                                    // All other elements are invalid
+                                    err.jspError("jsp.error.invalid.implicit", path);
+                                }
+                            }
+                            try {
+                                double version = Double.parseDouble(this.jspversion);
+                                if (version < 2.0) {
+                                    err.jspError("jsp.error.invalid.implicit.version", path);
+                                }
+                            } catch (NumberFormatException e) {
+                                err.jspError("jsp.error.invalid.implicit.version", path);
+                            }
+                        }
+                    } finally {
+                        if (in != null) {
+                            try {
+                                in.close();
+                            } catch (Throwable t) {
+                                ExceptionUtils.handleThrowable(t);
+                            }
+                        }
                     }
                 }
             }
@@ -181,7 +212,7 @@ class ImplicitTagLibraryInfo extends TagLibraryInfo {
                 tagInfo = TagFileProcessor.parseTagFileDirectives(pc,
                         shortName,
                         path,
-                        null,
+                        pc.getJspCompilationContext().getTagFileJarResource(path),
                         this);
             } catch (JasperException je) {
                 throw new RuntimeException(je.toString(), je);

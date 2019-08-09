@@ -19,6 +19,7 @@ package org.apache.catalina.tribes;
 /**
  * Can be implemented by the ChannelListener and Membership listeners to receive heartbeat
  * notifications from the Channel
+ * @author Filip Hanik
  * @version 1.0
  * @see Channel
  * @see Channel#heartbeat()

@@ -393,7 +393,7 @@ public class TestUtil {
 
     private void doTestParseExtensionHeaderSimple(String header) {
         // Simple test
-        List<Extension> result = new ArrayList<>();
+        List<Extension> result = new ArrayList<Extension>();
         Util.parseExtensionHeader(result, header);
 
         Assert.assertEquals(1, result.size());
@@ -424,7 +424,7 @@ public class TestUtil {
 
     private void doTestParseExtensionHeaderMultiple(String header) {
         // Simple test
-        List<Extension> result = new ArrayList<>();
+        List<Extension> result = new ArrayList<Extension>();
         Util.parseExtensionHeader(result, header);
 
         Assert.assertEquals(3, result.size());

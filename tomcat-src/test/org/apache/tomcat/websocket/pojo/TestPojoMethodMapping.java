@@ -59,7 +59,7 @@ public class TestPojoMethodMapping extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(ServerConfigListener.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         WebSocketContainer wsContainer =
                 ContainerProvider.getWebSocketContainer();
@@ -102,7 +102,7 @@ public class TestPojoMethodMapping extends TomcatBaseTest {
             configurator=SingletonConfigurator.class)
     public static final class Server {
 
-        private final List<String> errors = new ArrayList<>();
+        private final List<String> errors = new ArrayList<String>();
         private volatile boolean closed;
 
         @OnOpen

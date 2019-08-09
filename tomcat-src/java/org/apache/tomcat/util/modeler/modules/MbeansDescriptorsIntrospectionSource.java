@@ -41,18 +41,25 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
 {
     private static final Log log = LogFactory.getLog(MbeansDescriptorsIntrospectionSource.class);
 
-    private Registry registry;
-    private String type;
-    private final List<ObjectName> mbeans = new ArrayList<>();
+    Registry registry;
+    String type;
+    List<ObjectName> mbeans = new ArrayList<ObjectName>();
 
     public void setRegistry(Registry reg) {
         this.registry=reg;
     }
 
     /**
-     * Used if a single component is loaded
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x
+     */
+    @Deprecated
+    public void setLocation( String loc ) {
+        this.location=loc;
+    }
+
+    /** Used if a single component is loaded
      *
-     * @param type The type
+     * @param type
      */
     public void setType( String type ) {
        this.type=type;
@@ -91,14 +98,18 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
 
     // ------------ Implementation for non-declared introspection classes
 
-    private static final Hashtable<String,String> specialMethods =
-            new Hashtable<>();
+    static Hashtable<String,String> specialMethods =
+        new Hashtable<String,String>();
     static {
         specialMethods.put( "preDeregister", "");
         specialMethods.put( "postDeregister", "");
     }
 
-    private static final Class<?>[] supportedTypes  = new Class[] {
+    private static String strArray[]=new String[0];
+    private static ObjectName objNameArray[]=new ObjectName[0];
+    // createMBean == registerClass + registerMBean
+
+    private static Class<?>[] supportedTypes  = new Class[] {
         Boolean.class,
         Boolean.TYPE,
         Byte.class,
@@ -116,11 +127,11 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
         Double.class,
         Double.TYPE,
         String.class,
-        String[].class,
+        strArray.getClass(),
         BigDecimal.class,
         BigInteger.class,
         ObjectName.class,
-        Object[].class,
+        objNameArray.getClass(),
         java.io.File.class,
     };
 
@@ -150,7 +161,7 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
      * @param javaType The class to check
      * @return boolean True if the class is compatible.
      */
-    private boolean isBeanCompatible(Class<?> javaType) {
+    protected boolean isBeanCompatible(Class<?> javaType) {
         // Must be a non-primitive and non array
         if (javaType.isArray() || javaType.isPrimitive()) {
             return false;
@@ -287,13 +298,13 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
 
         Method methods[]=null;
 
-        Hashtable<String,Method> attMap = new Hashtable<>();
+        Hashtable<String,Method> attMap = new Hashtable<String,Method>();
         // key: attribute val: getter method
-        Hashtable<String,Method> getAttMap = new Hashtable<>();
+        Hashtable<String,Method> getAttMap = new Hashtable<String,Method>();
         // key: attribute val: setter method
-        Hashtable<String,Method> setAttMap = new Hashtable<>();
+        Hashtable<String,Method> setAttMap = new Hashtable<String,Method>();
         // key: operation val: invoke method
-        Hashtable<String,Method> invokeAttMap = new Hashtable<>();
+        Hashtable<String,Method> invokeAttMap = new Hashtable<String,Method>();
 
         methods = realClass.getMethods();
 
@@ -355,6 +366,28 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
                 }
             }
 
+            /*Constructor[] constructors = realClass.getConstructors();
+            for(int i=0;i<constructors.length;i++) {
+                ConstructorInfo info = new ConstructorInfo();
+                String className = realClass.getName();
+                int nIndex = -1;
+                if((nIndex = className.lastIndexOf('.'))!=-1) {
+                    className = className.substring(nIndex+1);
+                }
+                info.setName(className);
+                info.setDescription(constructors[i].getName());
+                Class classes[] = constructors[i].getParameterTypes();
+                for(int j=0;j<classes.length;j++) {
+                    ParameterInfo pi = new ParameterInfo();
+                    pi.setType(classes[j].getName());
+                    pi.setName("param" + j);
+                    pi.setDescription("Introspected parameter param" + j);
+                    info.addParameter(pi);
+                }
+                mbean.addConstructor(info);
+            }
+            */
+
             if( log.isDebugEnabled())
                 log.debug("Setting name: " + type );
             mbean.setName( type );
@@ -386,3 +419,4 @@ public class MbeansDescriptorsIntrospectionSource extends ModelerSource
 
 }
 
+// End of class: MbeanDescriptorsIntrospectionSource

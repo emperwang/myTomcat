@@ -65,11 +65,19 @@ public final class MimeUtility {
     /**
      * Mappings between MIME and Java charset.
      */
-    private static final Map<String, String> MIME2JAVA = new HashMap<>();
+    private static final Map<String,String> MIME2JAVA =
+            new HashMap<String,String>();
 
     static {
+        MIME2JAVA.put("iso-2022-cn", "ISO2022CN");
+        MIME2JAVA.put("iso-2022-kr", "ISO2022KR");
+        MIME2JAVA.put("utf-8", "UTF8");
+        MIME2JAVA.put("utf8", "UTF8");
         MIME2JAVA.put("ja_jp.iso2022-7", "ISO2022JP");
         MIME2JAVA.put("ja_jp.eucjp", "EUCJIS");
+        MIME2JAVA.put("euc-kr", "KSC5601");
+        MIME2JAVA.put("euckr", "KSC5601");
+        MIME2JAVA.put("us-ascii", "ISO-8859-1");
         MIME2JAVA.put("x-us-ascii", "ISO-8859-1");
     }
 
@@ -94,7 +102,7 @@ public final class MimeUtility {
     public static String decodeText(String text) throws UnsupportedEncodingException {
         // if the text contains any encoded tokens, those tokens will be marked with "=?".  If the
         // source string doesn't contain that sequent, no decoding is required.
-        if (!text.contains(ENCODED_TOKEN_MARKER)) {
+        if (text.indexOf(ENCODED_TOKEN_MARKER) < 0) {
             return text;
         }
 

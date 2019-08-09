@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -26,6 +26,15 @@
     <!-- component and attach it to Catalina's component tree.  The return  -->
     <!-- value is the object name of the corresponding MBean for the new    -->
     <!-- component.                                                         -->
+
+    <operation   name="createAccessLoggerValve"
+          description="Create a new AccessLoggerValve"
+               impact="ACTION"
+           returnType="java.lang.String">
+      <parameter name="parent"
+          description="MBean Name of the associated parent component"
+                 type="java.lang.String"/>
+    </operation>
 
     <operation   name="createAjpConnector"
           description="Create a new AjpConnector"
@@ -138,6 +147,33 @@
                  type="java.lang.String"/>
       <parameter name="resourceName"
           description="Global JNDI resource name of the associated"
+                 type="java.lang.String"/>
+    </operation>
+
+    <operation   name="createRemoteAddrValve"
+          description="Create a new Remote Address Filter Valve"
+               impact="ACTION"
+           returnType="java.lang.String">
+      <parameter name="parent"
+          description="MBean Name of the associated parent component"
+                 type="java.lang.String"/>
+    </operation>
+
+    <operation   name="createRemoteHostValve"
+          description="Create a new Remote Host Filter Valve"
+               impact="ACTION"
+           returnType="java.lang.String">
+      <parameter name="parent"
+          description="MBean Name of the associated parent component"
+                 type="java.lang.String"/>
+    </operation>
+
+    <operation   name="createSingleSignOn"
+          description="Create a new Single Sign On Valve"
+               impact="ACTION"
+           returnType="java.lang.String">
+      <parameter name="parent"
+          description="MBean Name of the associated parent component"
                  type="java.lang.String"/>
     </operation>
 

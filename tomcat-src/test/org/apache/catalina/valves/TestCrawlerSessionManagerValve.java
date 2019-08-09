@@ -48,7 +48,7 @@ public class TestCrawlerSessionManagerValve {
 
     static {
         TEST_MANAGER = new StandardManager();
-        TEST_MANAGER.setContext(new StandardContext());
+        TEST_MANAGER.setContainer(new StandardContext());
     }
 
 
@@ -164,7 +164,8 @@ public class TestCrawlerSessionManagerValve {
         if (isBot) {
             setter.andReturn(session);
         }
-        EasyMock.expect(request.getHeaders("user-agent")).andReturn(Collections.enumeration(Arrays.asList(userAgent)));
+        EasyMock.expect(request.getHeaders("user-agent"))
+                .andReturn(Collections.enumeration(Arrays.asList(userAgent)));
         return request;
     }
 

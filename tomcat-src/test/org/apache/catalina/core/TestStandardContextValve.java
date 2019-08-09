@@ -30,10 +30,10 @@ import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Response;
+import org.apache.catalina.deploy.ErrorPage;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
 
 public class TestStandardContextValve extends TomcatBaseTest {
 
@@ -50,7 +50,7 @@ public class TestStandardContextValve extends TomcatBaseTest {
 
         //Add the error page
         Tomcat.addServlet(ctx, "errorPage", new Bug51653ErrorPage(trace));
-        ctx.addServletMappingDecoded("/error", "errorPage");
+        ctx.addServletMapping("/error", "errorPage");
         // And the handling for 404 responses
         ErrorPage errorPage = new ErrorPage();
         errorPage.setErrorCode(Response.SC_NOT_FOUND);
@@ -96,11 +96,11 @@ public class TestStandardContextValve extends TomcatBaseTest {
 
         // Add the page that generates the error
         Tomcat.addServlet(ctx, "test", new Bug51653ErrorTrigger());
-        ctx.addServletMappingDecoded("/test", "test");
+        ctx.addServletMapping("/test", "test");
 
         // Add the error page
         Tomcat.addServlet(ctx, "errorPage", new Bug51653ErrorPage(trace));
-        ctx.addServletMappingDecoded("/error", "errorPage");
+        ctx.addServletMapping("/error", "errorPage");
         // And the handling for 404 responses
         ErrorPage errorPage = new ErrorPage();
         errorPage.setErrorCode(Response.SC_NOT_FOUND);

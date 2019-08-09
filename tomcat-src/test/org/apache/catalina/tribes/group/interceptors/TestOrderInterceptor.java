@@ -79,7 +79,7 @@ public class TestOrderInterceptor {
         TesterUtil.addRandomDomain(channels);
         for ( int i=0; i<channelCount; i++ ) threads[i].start();
         for ( int i=0; i<channelCount; i++ ) threads[i].join();
-        Thread.sleep(1500);
+        Thread.sleep(1000);
     }
 
     @Test
@@ -99,7 +99,7 @@ public class TestOrderInterceptor {
     public void testOrder2() throws Exception {
         final Member[] dest = channels[0].getMembers();
         final AtomicInteger value = new AtomicInteger(0);
-        final Queue<Exception> exceptionQueue = new ConcurrentLinkedQueue<>();
+        final Queue<Exception> exceptionQueue = new ConcurrentLinkedQueue<Exception>();
         Runnable run = new Runnable() {
             @Override
             public void run() {

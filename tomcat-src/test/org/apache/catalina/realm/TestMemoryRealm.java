@@ -29,7 +29,6 @@ public class TestMemoryRealm {
     @Test
     public void testBug56246() {
         MemoryRealm memoryRealm = new MemoryRealm();
-        memoryRealm.setCredentialHandler(new MessageDigestCredentialHandler());
 
         Principal p = memoryRealm.authenticate("foo", "bar");
 

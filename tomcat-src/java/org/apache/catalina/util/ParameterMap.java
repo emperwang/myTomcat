@@ -32,10 +32,10 @@ import org.apache.tomcat.util.res.StringManager;
  * to clone them in order to avoid modifications.  When first created, a
  * <code>ParmaeterMap</code> instance is not locked.
  *
- * @param <K> The type of Key
- * @param <V> The type of Value
- *
  * @author Craig R. McClanahan
+ *
+ * @param <K> Key type
+ * @param <V> Value type
  */
 public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
 
@@ -51,7 +51,7 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
      * load factor.
      */
     public ParameterMap() {
-        delegatedMap = new LinkedHashMap<>();
+        delegatedMap = new LinkedHashMap<K, V>();
         unmodifiableDelegatedMap = Collections.unmodifiableMap(delegatedMap);
     }
 
@@ -63,7 +63,7 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
      * @param initialCapacity The initial capacity of this map
      */
     public ParameterMap(int initialCapacity) {
-        delegatedMap = new LinkedHashMap<>(initialCapacity);
+        delegatedMap = new LinkedHashMap<K, V>(initialCapacity);
         unmodifiableDelegatedMap = Collections.unmodifiableMap(delegatedMap);
     }
 
@@ -76,7 +76,7 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
      * @param loadFactor The load factor of this map
      */
     public ParameterMap(int initialCapacity, float loadFactor) {
-        delegatedMap = new LinkedHashMap<>(initialCapacity, loadFactor);
+        delegatedMap = new LinkedHashMap<K, V>(initialCapacity, loadFactor);
         unmodifiableDelegatedMap = Collections.unmodifiableMap(delegatedMap);
     }
 
@@ -87,7 +87,7 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
      * @param map Map whose contents are duplicated in the new map
      */
     public ParameterMap(Map<K,V> map) {
-        delegatedMap = new LinkedHashMap<>(map);
+        delegatedMap = new LinkedHashMap<K, V>(map);
         unmodifiableDelegatedMap = Collections.unmodifiableMap(delegatedMap);
     }
 
@@ -99,7 +99,9 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
 
 
     /**
-     * @return the locked state of this parameter map.
+     * Get the locked state of this parameter map.
+     *
+     * @return {@code true} if the Map is locked, otherwise {@code false}
      */
     public boolean isLocked() {
         return locked;

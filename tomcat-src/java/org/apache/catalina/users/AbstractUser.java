@@ -64,7 +64,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public String getFullName() {
-        return this.fullName;
+
+        return (this.fullName);
+
     }
 
 
@@ -75,7 +77,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public void setFullName(String fullName) {
+
         this.fullName = fullName;
+
     }
 
 
@@ -93,7 +97,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public String getPassword() {
-        return this.password;
+
+        return (this.password);
+
     }
 
 
@@ -106,7 +112,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public void setPassword(String password) {
+
         this.password = password;
+
     }
 
 
@@ -123,7 +131,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public String getUsername() {
-        return this.username;
+
+        return (this.username);
+
     }
 
 
@@ -135,7 +145,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public void setUsername(String username) {
+
         this.username = username;
+
     }
 
 
@@ -220,7 +232,9 @@ public abstract class AbstractUser implements User {
      */
     @Override
     public String getName() {
-        return getUsername();
+
+        return (getUsername());
+
     }
 
 

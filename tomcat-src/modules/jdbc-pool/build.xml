@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
  Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -118,7 +118,7 @@
           style="${basedir}/doc/package.xsl"
           excludes="build.xml"
           includes="jdbc-pool.xml">
-      <param name="relative-path" expression="https://tomcat.apache.org/tomcat-8.5-doc"/>
+      <param name="relative-path" expression="https://tomcat.apache.org/tomcat-7.0-doc"/>
       <param name="apache-logo" expression="/images/asf-logo.svg"/>
     </xslt>
     <move tofile="${basedir}/src/main/java/org/apache/tomcat/jdbc/pool/package.html"
@@ -126,13 +126,11 @@
     <javadoc
         destdir="${tomcat.api}"
         bottom="Copyright &amp;#169; 2000-${year} Apache Software Foundation. All Rights Reserved."
-        encoding="UTF-8"
-        docencoding="UTF-8"
-        charset="UTF-8"
+        encoding="ISO-8859-1"
         additionalparam="-breakiterator -notimestamp"
         verbose="false">
       <classpath refid="tomcat.jdbc.classpath"/>
-      <link href="http://docs.oracle.com/javase/7/docs/api/"/>
+      <link href="http://docs.oracle.com/javase/6/docs/api/"/>
       <sourcepath location="${basedir}/src/main/java"/>
     </javadoc>
     <!-- connection pool API  file-->
@@ -150,7 +148,7 @@
            deprecation="${compile.deprecation}"
            source="${compile.source}"
            target="${compile.target}"
-           release="${compile.release}"
+           optimize="${compile.optimize}"
            encoding="ISO-8859-1"
            includeantruntime="false">
       <classpath refid="tomcat.jdbc.classpath"/>
@@ -187,7 +185,7 @@
            deprecation="${compile.deprecation}"
            source="${compile.source}"
            target="${compile.target}"
-           release="${compile.release}"
+           optimize="${compile.optimize}"
            encoding="ISO-8859-1"
            includeantruntime="false">
       <classpath refid="tomcat.jdbc.classpath"/>
@@ -242,7 +240,7 @@
           style="${tomcat.xsl.dest}"
           excludes="build.xml project.xml"
           includes="*.xml">
-      <param name="relative-path" expression="https://tomcat.apache.org/tomcat-8.5-doc"/>
+      <param name="relative-path" expression="https://tomcat.apache.org/tomcat-7.0-doc"/>
       <param name="apache-logo" expression="/images/asf-logo.svg"/>
     </xslt>
   </target>
@@ -399,10 +397,10 @@
       <param name="destdir" value="${base.path}"/>
     </antcall>
      -->
-    <antcall target="downloadfile">
+    <antcall target="downloadzip">
       <param name="sourcefile" value="${h2.loc}"/>
       <param name="destfile" value="${h2.jar}"/>
-      <param name="destdir" value="${h2.home}"/>
+      <param name="destdir" value="${base.path}"/>
     </antcall>
     <antcall target="downloadfile">
       <param name="sourcefile" value="${junit.loc}"/>
@@ -426,10 +424,10 @@
       <param name="destdir" value="${base.path}"/>
     </antcall>
      -->
-    <antcall target="downloadfile">
+    <antcall target="downloadzip">
       <param name="sourcefile" value="${h2.loc}"/>
       <param name="destfile" value="${h2.jar}"/>
-      <param name="destdir" value="${h2.home}"/>
+      <param name="destdir" value="${base.path}"/>
     </antcall>
     <antcall target="downloadfile">
       <param name="sourcefile" value="${junit.loc}"/>

@@ -119,16 +119,13 @@ public class StatementDecoratorInterceptor extends AbstractCreateStatementInterc
      * @param sql           The sql of of the statement
      *
      * @return  A new proxy for the Statement
-     * @throws InstantiationException Couldn't instantiate object
-     * @throws IllegalAccessException Inaccessible constructor
-     * @throws InvocationTargetException Exception thrown from constructor
      */
     protected Object createDecorator(Object proxy, Method method, Object[] args,
                                      Object statement, Constructor<?> constructor, String sql)
     throws InstantiationException, IllegalAccessException, InvocationTargetException {
         Object result = null;
         StatementProxy<Statement> statementProxy =
-                new StatementProxy<>((Statement)statement,sql);
+                new StatementProxy<Statement>((Statement)statement,sql);
         result = constructor.newInstance(new Object[] { statementProxy });
         statementProxy.setActualProxy(result);
         statementProxy.setConnection(proxy);
@@ -149,7 +146,10 @@ public class StatementDecoratorInterceptor extends AbstractCreateStatementInterc
     }
 
     /**
-     * Class to measure query execute time.
+     * Class to measure query execute time
+     *
+     * @author fhanik
+     *
      */
     protected class StatementProxy<T extends java.sql.Statement> implements InvocationHandler {
 

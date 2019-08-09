@@ -108,7 +108,7 @@ public class CallMethodRule extends Rule {
                 this.paramTypes[i] = String.class;
             }
         }
-        this.paramClassNames = null;
+
     }
 
     /**
@@ -123,6 +123,112 @@ public class CallMethodRule extends Rule {
 
     }
 
+
+    /**
+     * Construct a "call method" rule with the specified method name.
+     * The method should accept no parameters.
+     *
+     * @param targetOffset location of the target object. Positive numbers are
+     * relative to the top of the digester object stack. Negative numbers
+     * are relative to the bottom of the stack. Zero implies the top
+     * object on the stack.
+     * @param methodName Method name of the parent method to call
+     */
+    public CallMethodRule(int targetOffset, String methodName) {
+
+        this(targetOffset, methodName, 0, (Class[]) null);
+
+    }
+
+
+    /**
+     * Construct a "call method" rule with the specified method name and
+     * parameter types. If <code>paramCount</code> is set to zero the rule
+     * will use the body of this element as the single argument of the
+     * method, unless <code>paramTypes</code> is null or empty, in this
+     * case the rule will call the specified method with no arguments.
+     *
+     * @param methodName Method name of the parent method to call
+     * @param paramCount The number of parameters to collect, or
+     *  zero for a single argument from the body of this element
+     * @param paramTypes The Java class names of the arguments
+     *  (if you wish to use a primitive type, specify the corresponding
+     *  Java wrapper class instead, such as <code>java.lang.Boolean</code>
+     *  for a <code>boolean</code> parameter)
+     */
+    public CallMethodRule(
+                            String methodName,
+                            int paramCount,
+                            String paramTypes[]) {
+        this(0, methodName, paramCount, paramTypes);
+    }
+
+    /**
+     * Construct a "call method" rule with the specified method name and
+     * parameter types. If <code>paramCount</code> is set to zero the rule
+     * will use the body of this element as the single argument of the
+     * method, unless <code>paramTypes</code> is null or empty, in this
+     * case the rule will call the specified method with no arguments.
+     *
+     * @param targetOffset location of the target object. Positive numbers are
+     * relative to the top of the digester object stack. Negative numbers
+     * are relative to the bottom of the stack. Zero implies the top
+     * object on the stack.
+     * @param methodName Method name of the parent method to call
+     * @param paramCount The number of parameters to collect, or
+     *  zero for a single argument from the body of this element
+     * @param paramTypes The Java class names of the arguments
+     *  (if you wish to use a primitive type, specify the corresponding
+     *  Java wrapper class instead, such as <code>java.lang.Boolean</code>
+     *  for a <code>boolean</code> parameter)
+     */
+    public CallMethodRule(  int targetOffset,
+                            String methodName,
+                            int paramCount,
+                            String paramTypes[]) {
+
+        this.targetOffset = targetOffset;
+        this.methodName = methodName;
+        this.paramCount = paramCount;
+        if (paramTypes == null) {
+            this.paramTypes = new Class[paramCount];
+            for (int i = 0; i < this.paramTypes.length; i++) {
+                this.paramTypes[i] = "abc".getClass();
+            }
+        } else {
+            // copy the parameter class names into an array
+            // the classes will be loaded when the digester is set
+            this.paramClassNames = new String[paramTypes.length];
+            for (int i = 0; i < this.paramClassNames.length; i++) {
+                this.paramClassNames[i] = paramTypes[i];
+            }
+        }
+
+    }
+
+
+    /**
+     * Construct a "call method" rule with the specified method name and
+     * parameter types. If <code>paramCount</code> is set to zero the rule
+     * will use the body of this element as the single argument of the
+     * method, unless <code>paramTypes</code> is null or empty, in this
+     * case the rule will call the specified method with no arguments.
+     *
+     * @param methodName Method name of the parent method to call
+     * @param paramCount The number of parameters to collect, or
+     *  zero for a single argument from the body of this element
+     * @param paramTypes The Java classes that represent the
+     *  parameter types of the method arguments
+     *  (if you wish to use a primitive type, specify the corresponding
+     *  Java wrapper class instead, such as <code>java.lang.Boolean.TYPE</code>
+     *  for a <code>boolean</code> parameter)
+     */
+    public CallMethodRule(
+                            String methodName,
+                            int paramCount,
+                            Class<?> paramTypes[]) {
+        this(0, methodName, paramCount, paramTypes);
+    }
 
     /**
      * Construct a "call method" rule with the specified method name and
@@ -155,7 +261,7 @@ public class CallMethodRule extends Rule {
         if (paramTypes == null) {
             this.paramTypes = new Class[paramCount];
             for (int i = 0; i < this.paramTypes.length; i++) {
-                this.paramTypes[i] = String.class;
+                this.paramTypes[i] = "abc".getClass();
             }
         } else {
             this.paramTypes = new Class[paramTypes.length];
@@ -163,7 +269,7 @@ public class CallMethodRule extends Rule {
                 this.paramTypes[i] = paramTypes[i];
             }
         }
-        this.paramClassNames = null;
+
     }
 
 
@@ -181,12 +287,12 @@ public class CallMethodRule extends Rule {
      * top of the digester object stack. The default value of zero
      * means the target object is the one on top of the stack.
      */
-    protected final int targetOffset;
+    protected int targetOffset = 0;
 
     /**
      * The method name to call on the parent object.
      */
-    protected final String methodName;
+    protected String methodName = null;
 
 
     /**
@@ -194,7 +300,7 @@ public class CallMethodRule extends Rule {
      * If this value is zero, a single parameter will be collected from the
      * body of this element.
      */
-    protected final int paramCount;
+    protected int paramCount = 0;
 
 
     /**
@@ -205,11 +311,8 @@ public class CallMethodRule extends Rule {
     /**
      * The names of the classes of the parameters to be collected.
      * This attribute allows creation of the classes to be postponed until the digester is set.
-     *
-     * @deprecated Unused. This will be removed in Tomcat 9.
      */
-    @Deprecated
-    protected final String paramClassNames[];
+    protected String paramClassNames[] = null;
 
     /**
      * Should <code>MethodUtils.invokeExactMethod</code> be used for reflection.
@@ -221,7 +324,6 @@ public class CallMethodRule extends Rule {
     /**
      * Should <code>MethodUtils.invokeExactMethod</code>
      * be used for the reflection.
-     * @return <code>true</code> if invokeExactMethod is used
      */
     public boolean getUseExactMatch() {
         return useExactMatch;
@@ -230,7 +332,6 @@ public class CallMethodRule extends Rule {
     /**
      * Set whether <code>MethodUtils.invokeExactMethod</code>
      * should be used for the reflection.
-     * @param useExactMatch The flag value
      */
     public void setUseExactMatch(boolean useExactMatch)
     {
@@ -318,7 +419,6 @@ public class CallMethodRule extends Rule {
      * @param name the local name if the parser is namespace aware, or just
      *   the element name otherwise
      */
-    @SuppressWarnings("null") // parameters can't trigger NPE
     @Override
     public void end(String namespace, String name) throws Exception {
 
@@ -455,6 +555,7 @@ public class CallMethodRule extends Rule {
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("CallMethodRule[");
         sb.append("methodName=");
         sb.append(methodName);
@@ -471,7 +572,8 @@ public class CallMethodRule extends Rule {
         }
         sb.append("}");
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 

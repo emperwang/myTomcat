@@ -28,7 +28,7 @@ public class XADataSource extends DataSource implements javax.sql.XADataSource {
 
     /**
      * Constructs a DataSource object wrapping a connection
-     * @param poolProperties The pool configuration
+     * @param poolProperties
      */
     public XADataSource(PoolConfiguration poolProperties) {
         super(poolProperties);

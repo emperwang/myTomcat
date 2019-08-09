@@ -21,6 +21,7 @@ package org.apache.tomcat.util.modeler.modules;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.management.ObjectName;
@@ -37,11 +38,12 @@ public class MbeansDescriptorsDigesterSource extends ModelerSource
             LogFactory.getLog(MbeansDescriptorsDigesterSource.class);
     private static final Object dLock = new Object();
 
-    private Registry registry;
-    private final List<ObjectName> mbeans = new ArrayList<>();
-    private static Digester digester = null;
+    Registry registry;
+    String type;
+    List<ObjectName> mbeans = new ArrayList<ObjectName>();
+    protected static volatile Digester digester = null;
 
-    private static Digester createDigester() {
+    protected static Digester createDigester() {
 
         Digester digester = new Digester();
         digester.setNamespaceAware(false);
@@ -73,6 +75,56 @@ public class MbeansDescriptorsDigesterSource extends ModelerSource
                 "addAttribute",
             "org.apache.tomcat.util.modeler.AttributeInfo");
 
+        /*digester.addObjectCreate
+            ("mbeans-descriptors/mbean/attribute/descriptor/field",
+            "org.apache.tomcat.util.modeler.FieldInfo");
+        digester.addSetProperties
+            ("mbeans-descriptors/mbean/attribute/descriptor/field");
+        digester.addSetNext
+            ("mbeans-descriptors/mbean/attribute/descriptor/field",
+                "addField",
+            "org.apache.tomcat.util.modeler.FieldInfo");
+
+        digester.addObjectCreate
+            ("mbeans-descriptors/mbean/constructor",
+            "org.apache.tomcat.util.modeler.ConstructorInfo");
+        digester.addSetProperties
+            ("mbeans-descriptors/mbean/constructor");
+        digester.addSetNext
+            ("mbeans-descriptors/mbean/constructor",
+                "addConstructor",
+            "org.apache.tomcat.util.modeler.ConstructorInfo");
+
+        digester.addObjectCreate
+            ("mbeans-descriptors/mbean/constructor/descriptor/field",
+            "org.apache.tomcat.util.modeler.FieldInfo");
+        digester.addSetProperties
+            ("mbeans-descriptors/mbean/constructor/descriptor/field");
+        digester.addSetNext
+            ("mbeans-descriptors/mbean/constructor/descriptor/field",
+                "addField",
+            "org.apache.tomcat.util.modeler.FieldInfo");
+
+        digester.addObjectCreate
+            ("mbeans-descriptors/mbean/constructor/parameter",
+            "org.apache.tomcat.util.modeler.ParameterInfo");
+        digester.addSetProperties
+            ("mbeans-descriptors/mbean/constructor/parameter");
+        digester.addSetNext
+            ("mbeans-descriptors/mbean/constructor/parameter",
+                "addParameter",
+            "org.apache.tomcat.util.modeler.ParameterInfo");
+
+        digester.addObjectCreate
+            ("mbeans-descriptors/mbean/descriptor/field",
+            "org.apache.tomcat.util.modeler.FieldInfo");
+        digester.addSetProperties
+            ("mbeans-descriptors/mbean/descriptor/field");
+        digester.addSetNext
+            ("mbeans-descriptors/mbean/descriptor/field",
+                "addField",
+            "org.apache.tomcat.util.modeler.FieldInfo");
+        */
         digester.addObjectCreate
             ("mbeans-descriptors/mbean/notification",
             "org.apache.tomcat.util.modeler.NotificationInfo");
@@ -136,6 +188,22 @@ public class MbeansDescriptorsDigesterSource extends ModelerSource
     }
 
 
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x
+     */
+    @Deprecated
+    public void setLocation( String loc ) {
+        this.location=loc;
+    }
+
+    /** Used if a single component is loaded
+     *
+     * @param type
+     */
+    public void setType( String type ) {
+       this.type=type;
+    }
+
     public void setSource( Object source ) {
         this.source=source;
     }
@@ -144,6 +212,7 @@ public class MbeansDescriptorsDigesterSource extends ModelerSource
     public List<ObjectName> loadDescriptors( Registry registry, String type,
             Object source) throws Exception {
         setRegistry(registry);
+        setType(type);
         setSource(source);
         execute();
         return mbeans;
@@ -156,7 +225,8 @@ public class MbeansDescriptorsDigesterSource extends ModelerSource
 
         InputStream stream = (InputStream) source;
 
-        ArrayList<ManagedBean> loadedMbeans = new ArrayList<>();
+        ArrayList<ManagedBean> loadedMbeans = new ArrayList<ManagedBean>();
+
         synchronized(dLock) {
             if (digester == null) {
                 digester = createDigester();
@@ -175,8 +245,9 @@ public class MbeansDescriptorsDigesterSource extends ModelerSource
             }
 
         }
-        for (ManagedBean loadedMbean : loadedMbeans) {
-            registry.addManagedBean(loadedMbean);
+        Iterator<ManagedBean> iter = loadedMbeans.iterator();
+        while (iter.hasNext()) {
+            registry.addManagedBean(iter.next());
         }
     }
 }

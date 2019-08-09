@@ -41,17 +41,27 @@ import org.apache.jasper.Constants;
  */
 public class BodyContentImpl extends BodyContent {
 
+    private static final String LINE_SEPARATOR;
     private static final boolean LIMIT_BUFFER;
     private static final int TAG_BUFFER_SIZE;
 
     static {
         if (System.getSecurityManager() == null) {
+            LINE_SEPARATOR = System.getProperty("line.separator");
             LIMIT_BUFFER = Boolean.parseBoolean(System.getProperty(
                     "org.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER", "false"));
             TAG_BUFFER_SIZE = Integer.getInteger(
                     "org.apache.jasper.runtime.BodyContentImpl.BUFFER_SIZE",
                     Constants.DEFAULT_TAG_BUFFER_SIZE).intValue();
         } else {
+            LINE_SEPARATOR = AccessController.doPrivileged(
+                    new PrivilegedAction<String>() {
+                        @Override
+                        public String run() {
+                            return System.getProperty("line.separator");
+                        }
+                    }
+            );
             LIMIT_BUFFER = AccessController.doPrivileged(
                     new PrivilegedAction<Boolean>() {
                         @Override
@@ -75,19 +85,15 @@ public class BodyContentImpl extends BodyContent {
         }
     }
 
-
     private char[] cb;
     private int nextChar;
     private boolean closed;
 
-    /**
-     * Enclosed writer to which any output is written
-     */
+    // Enclosed writer to which any output is written
     private Writer writer;
 
     /**
      * Constructor.
-     * @param enclosingWriter The wrapped writer
      */
     public BodyContentImpl(JspWriter enclosingWriter) {
         super(enclosingWriter);
@@ -99,8 +105,6 @@ public class BodyContentImpl extends BodyContent {
 
     /**
      * Write a single character.
-     * @param c The char to write
-     * @throws IOException Error writing to wrapped writer
      */
     @Override
     public void write(int c) throws IOException {
@@ -129,7 +133,6 @@ public class BodyContentImpl extends BodyContent {
      * @param cbuf A character array
      * @param off Offset from which to start reading characters
      * @param len Number of characters to write
-     * @throws IOException Error writing to wrapped writer
      */
     @Override
     public void write(char[] cbuf, int off, int len) throws IOException {
@@ -156,8 +159,6 @@ public class BodyContentImpl extends BodyContent {
     /**
      * Write an array of characters.  This method cannot be inherited from the
      * Writer class because it must suppress I/O exceptions.
-     * @param buf Content to write
-     * @throws IOException Error writing to wrapped writer
      */
     @Override
     public void write(char[] buf) throws IOException {
@@ -174,7 +175,6 @@ public class BodyContentImpl extends BodyContent {
      * @param s String to be written
      * @param off Offset from which to start reading characters
      * @param len Number of characters to be written
-     * @throws IOException Error writing to wrapped writer
      */
     @Override
     public void write(String s, int off, int len) throws IOException {
@@ -193,8 +193,6 @@ public class BodyContentImpl extends BodyContent {
     /**
      * Write a string.  This method cannot be inherited from the Writer class
      * because it must suppress I/O exceptions.
-     * @param s String to be written
-     * @throws IOException Error writing to wrapped writer
      */
     @Override
     public void write(String s) throws IOException {
@@ -210,14 +208,14 @@ public class BodyContentImpl extends BodyContent {
      * system property <tt>line.separator</tt>, and is not necessarily a single
      * newline ('\n') character.
      *
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException If an I/O error occurs
      */
     @Override
     public void newLine() throws IOException {
         if (writer != null) {
-            writer.write(System.lineSeparator());
+            writer.write(LINE_SEPARATOR);
         } else {
-            write(System.lineSeparator());
+            write(LINE_SEPARATOR);
         }
     }
 
@@ -229,7 +227,7 @@ public class BodyContentImpl extends BodyContent {
      * #write(int)}</code> method.
      *
      * @param b The <code>boolean</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(boolean b) throws IOException {
@@ -247,7 +245,7 @@ public class BodyContentImpl extends BodyContent {
      * #write(int)}</code> method.
      *
      * @param c The <code>char</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(char c) throws IOException {
@@ -266,7 +264,7 @@ public class BodyContentImpl extends BodyContent {
      * method.
      *
      * @param i The <code>int</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(int i) throws IOException {
@@ -285,7 +283,7 @@ public class BodyContentImpl extends BodyContent {
      * <code>{@link #write(int)}</code> method.
      *
      * @param l The <code>long</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(long l) throws IOException {
@@ -304,7 +302,7 @@ public class BodyContentImpl extends BodyContent {
      * <code>{@link #write(int)}</code> method.
      *
      * @param f The <code>float</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(float f) throws IOException {
@@ -323,7 +321,7 @@ public class BodyContentImpl extends BodyContent {
      * #write(int)}</code> method.
      *
      * @param d The <code>double</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(double d) throws IOException {
@@ -343,7 +341,7 @@ public class BodyContentImpl extends BodyContent {
      * @param s The array of chars to be printed
      *
      * @throws NullPointerException If <code>s</code> is <code>null</code>
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(char[] s) throws IOException {
@@ -362,7 +360,7 @@ public class BodyContentImpl extends BodyContent {
      * <code>{@link #write(int)}</code> method.
      *
      * @param s The <code>String</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(String s) throws IOException {
@@ -382,7 +380,7 @@ public class BodyContentImpl extends BodyContent {
      * <code>{@link #write(int)}</code> method.
      *
      * @param obj The <code>Object</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void print(Object obj) throws IOException {
@@ -399,7 +397,7 @@ public class BodyContentImpl extends BodyContent {
      * <code>line.separator</code>, and is not necessarily a single newline
      * character (<code>'\n'</code>).
      *
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println() throws IOException {
@@ -411,8 +409,7 @@ public class BodyContentImpl extends BodyContent {
      * as though it invokes <code>{@link #print(boolean)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The <code>boolean</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(boolean x) throws IOException {
@@ -425,8 +422,7 @@ public class BodyContentImpl extends BodyContent {
      * though it invokes <code>{@link #print(char)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The <code>char</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(char x) throws IOException {
@@ -439,8 +435,7 @@ public class BodyContentImpl extends BodyContent {
      * though it invokes <code>{@link #print(int)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The <code>int</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(int x) throws IOException {
@@ -453,8 +448,7 @@ public class BodyContentImpl extends BodyContent {
      * as though it invokes <code>{@link #print(long)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The <code>long</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(long x) throws IOException {
@@ -467,8 +461,7 @@ public class BodyContentImpl extends BodyContent {
      * behaves as though it invokes <code>{@link #print(float)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The <code>float</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(float x) throws IOException {
@@ -481,8 +474,7 @@ public class BodyContentImpl extends BodyContent {
      * line.  This method behaves as though it invokes <code>{@link
      * #print(double)}</code> and then <code>{@link #println()}</code>.
      *
-     * @param x The <code>double</code> to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(double x) throws IOException{
@@ -495,8 +487,7 @@ public class BodyContentImpl extends BodyContent {
      * behaves as though it invokes <code>{@link #print(char[])}</code> and
      * then <code>{@link #println()}</code>.
      *
-     * @param x The <code>char</code> array to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(char x[]) throws IOException {
@@ -509,8 +500,7 @@ public class BodyContentImpl extends BodyContent {
      * though it invokes <code>{@link #print(String)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The string to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(String x) throws IOException {
@@ -523,8 +513,7 @@ public class BodyContentImpl extends BodyContent {
      * though it invokes <code>{@link #print(Object)}</code> and then
      * <code>{@link #println()}</code>.
      *
-     * @param x The object to be printed
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException
      */
     @Override
     public void println(Object x) throws IOException {
@@ -538,7 +527,7 @@ public class BodyContentImpl extends BodyContent {
      * to signal the fact that some data has already been irrevocably
      * written to the client response stream.
      *
-     * @throws IOException If there is no wrapped writer
+     * @throws IOException If an I/O error occurs
      */
     @Override
     public void clear() throws IOException {
@@ -559,7 +548,7 @@ public class BodyContentImpl extends BodyContent {
      * flushed. It merely clears the current content of the buffer and
      * returns.
      *
-     * @throws IOException Should not happen
+     * @throws IOException If an I/O error occurs
      */
     @Override
     public void clearBuffer() throws IOException {
@@ -573,7 +562,7 @@ public class BodyContentImpl extends BodyContent {
      * further write() or flush() invocations will cause an IOException to be
      * thrown.  Closing a previously-closed stream, however, has no effect.
      *
-     * @throws IOException Error writing to wrapped writer
+     * @throws IOException If an I/O error occurs
      */
     @Override
     public void close() throws IOException {
@@ -637,7 +626,6 @@ public class BodyContentImpl extends BodyContent {
      *
      * @param out The writer into which to place the contents of this body
      * evaluation
-     * @throws IOException Error writing to writer
      */
     @Override
     public void writeOut(Writer out) throws IOException {

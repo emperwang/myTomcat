@@ -21,20 +21,27 @@ import org.apache.catalina.ha.ClusterMessage;
 import org.apache.catalina.tribes.Member;
 
 public class UndeployMessage implements ClusterMessage {
-    private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 1L;
 
     private Member address;
     private long timestamp;
     private String uniqueId;
-    private final String contextName;
+    private String contextName;
+    private boolean undeploy;
+    private int resend = 0;
+    private int compress = 0;
 
+    public UndeployMessage() {} //for serialization
     public UndeployMessage(Member address,
                            long timestamp,
                            String uniqueId,
-                           String contextName) {
+                           String contextName,
+                           boolean undeploy) {
         this.address  = address;
         this.timestamp= timestamp;
+        this.undeploy = undeploy;
         this.uniqueId = uniqueId;
+        this.undeploy = undeploy;
         this.contextName = contextName;
     }
 
@@ -63,7 +70,53 @@ public class UndeployMessage implements ClusterMessage {
         return uniqueId;
     }
 
+    @Override
+    public void setUniqueId(String uniqueId) {
+        this.uniqueId = uniqueId;
+    }
+
     public String getContextName() {
         return contextName;
     }
+
+    public void setContextPath(String contextName) {
+        this.contextName = contextName;
+    }
+
+    public boolean getUndeploy() {
+        return undeploy;
+    }
+
+    public void setUndeploy(boolean undeploy) {
+        this.undeploy = undeploy;
+    }
+    /**
+     * @return Returns the compress.
+     * @since 5.5.10
+     */
+    public int getCompress() {
+        return compress;
+    }
+    /**
+     * @param compress The compress to set.
+     * @since 5.5.10
+     */
+    public void setCompress(int compress) {
+        this.compress = compress;
+    }
+    /**
+     * @return Returns the resend.
+     * @since 5.5.10
+     */
+    public int getResend() {
+        return resend;
+    }
+    /**
+     * @param resend The resend to set.
+     * @since 5.5.10
+     */
+    public void setResend(int resend) {
+        this.resend = resend;
+    }
+
 }

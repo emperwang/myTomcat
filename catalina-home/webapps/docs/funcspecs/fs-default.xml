@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -51,12 +51,12 @@
     <p>The following external specifications have provisions which
     partially define the correct behavior of the default servlet:</p>
     <ul>
-    <li><a href="https://jcp.org/aboutJava/communityprocess/final/jsr340/index.html">
-        Servlet Specification</a> (Version 3.1)</li>
+    <li><a href="http://java.sun.com/products/servlet/download.html">
+        Servlet Specification</a> (Version 2.3 PFD2)</li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc2046.txt">Multipurpose
         Internet Mail Extensions (MIME) Part Two: Media Types</a></li>
     <li><a href="https://www.rfc-editor.org/rfc/rfc2616.txt">Hypertext
-        Transfer Protocol &#x2013; HTTP/1.1</a></li>
+        Transfer Protocol -- HTTP/1.1</a></li>
     </ul>
 
   </subsection>

@@ -18,38 +18,17 @@ package org.apache.coyote.ajp;
 
 import org.apache.coyote.AbstractProtocol;
 import org.apache.coyote.Processor;
-import org.apache.coyote.UpgradeProtocol;
-import org.apache.coyote.UpgradeToken;
-import org.apache.tomcat.util.net.AbstractEndpoint;
-import org.apache.tomcat.util.net.SSLHostConfig;
-import org.apache.tomcat.util.net.SocketWrapperBase;
+import org.apache.coyote.http11.upgrade.servlet31.HttpUpgradeHandler;
+import org.apache.tomcat.util.net.SocketWrapper;
 import org.apache.tomcat.util.res.StringManager;
 
-/**
- * The is the base implementation for the AJP protocol handlers. Implementations
- * typically extend this base class rather than implement {@link
- * org.apache.coyote.ProtocolHandler}. All of the implementations that ship with
- * Tomcat are implemented this way.
- *
- * @param <S> The type of socket used by the implementation
- */
 public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
 
     /**
      * The string manager for this package.
      */
-    protected static final StringManager sm = StringManager.getManager(AbstractAjpProtocol.class);
-
-
-    public AbstractAjpProtocol(AbstractEndpoint<S> endpoint) {
-        super(endpoint);
-        setConnectionTimeout(Constants.DEFAULT_CONNECTION_TIMEOUT);
-        // AJP does not use Send File
-        getEndpoint().setUseSendfile(false);
-        ConnectionHandler<S> cHandler = new ConnectionHandler<>(this);
-        setHandler(cHandler);
-        getEndpoint().setHandler(cHandler);
-    }
+    protected static final StringManager sm =
+        StringManager.getManager(Constants.Package);
 
 
     @Override
@@ -58,37 +37,6 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
     }
 
 
-    /**
-     * {@inheritDoc}
-     *
-     * Overridden to make getter accessible to other classes in this package.
-     */
-    @Override
-    protected AbstractEndpoint<S> getEndpoint() {
-        return super.getEndpoint();
-    }
-
-
-    /**
-     * {@inheritDoc}
-     *
-     * AJP does not support protocol negotiation so this always returns null.
-     */
-    @Override
-    protected UpgradeProtocol getNegotiatedProtocol(String name) {
-        return null;
-    }
-
-
-    /**
-     * {@inheritDoc}
-     *
-     * AJP does not support protocol upgrade so this always returns null.
-     */
-    @Override
-    protected UpgradeProtocol getUpgradeProtocol(String name) {
-        return null;
-    }
 
     // ------------------------------------------------- AJP specific properties
     // ------------------------------------------ managed in the ProtocolHandler
@@ -115,7 +63,7 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
      * Should authentication be done in the native web server layer,
      * or in the Servlet container ?
      */
-    private boolean tomcatAuthentication = true;
+    protected boolean tomcatAuthentication = true;
     public boolean getTomcatAuthentication() { return tomcatAuthentication; }
     public void setTomcatAuthentication(boolean tomcatAuthentication) {
         this.tomcatAuthentication = tomcatAuthentication;
@@ -136,7 +84,7 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
     /**
      * Required secret.
      */
-    private String requiredSecret = null;
+    protected String requiredSecret = null;
     public void setRequiredSecret(String requiredSecret) {
         this.requiredSecret = requiredSecret;
     }
@@ -145,7 +93,7 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
     /**
      * AJP packet size.
      */
-    private int packetSize = Constants.MAX_PACKET_SIZE;
+    protected int packetSize = Constants.MAX_PACKET_SIZE;
     public int getPacketSize() { return packetSize; }
     public void setPacketSize(int packetSize) {
         if(packetSize < Constants.MAX_PACKET_SIZE) {
@@ -155,53 +103,37 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
         }
     }
 
+    protected abstract static class AbstractAjpConnectionHandler<S,P extends AbstractAjpProcessor<S>>
+            extends AbstractConnectionHandler<S, P> {
 
-    // --------------------------------------------- SSL is not supported in AJP
+        @Override
+        protected void initSsl(SocketWrapper<S> socket, Processor<S> processor) {
+            // NOOP for AJP
+        }
 
-    @Override
-    public void addSslHostConfig(SSLHostConfig sslHostConfig) {
-        getLog().warn(sm.getString("ajpprotocol.noSSL", sslHostConfig.getHostName()));
-    }
+        @Override
+        protected void longPoll(SocketWrapper<S> socket,
+                Processor<S> processor) {
+            // Same requirements for all AJP connectors
+            socket.setAsync(true);
+        }
 
+        /**
+         * @deprecated  Will be removed in Tomcat 8.0.x.
+         */
+        @Deprecated
+        @Override
+        protected P createUpgradeProcessor(SocketWrapper<S> socket,
+                org.apache.coyote.http11.upgrade.UpgradeInbound inbound) {
+            // TODO should fail - throw IOE
+            return null;
+        }
 
-    @Override
-    public SSLHostConfig[] findSslHostConfigs() {
-        return new SSLHostConfig[0];
-    }
-
-
-    @Override
-    public void addUpgradeProtocol(UpgradeProtocol upgradeProtocol) {
-        getLog().warn(sm.getString("ajpprotocol.noUpgrade", upgradeProtocol.getClass().getName()));
-    }
-
-
-    @Override
-    public UpgradeProtocol[] findUpgradeProtocols() {
-        return new UpgradeProtocol[0];
-    }
-
-
-    @SuppressWarnings("deprecation")
-    @Override
-    protected Processor createProcessor() {
-        AjpProcessor processor = new AjpProcessor(getPacketSize(), getEndpoint());
-        processor.setAdapter(getAdapter());
-        processor.setAjpFlush(getAjpFlush());
-        processor.setTomcatAuthentication(getTomcatAuthentication());
-        processor.setTomcatAuthorization(getTomcatAuthorization());
-        processor.setRequiredSecret(requiredSecret);
-        processor.setKeepAliveTimeout(getKeepAliveTimeout());
-        processor.setClientCertProvider(getClientCertProvider());
-        processor.setSendReasonPhrase(getSendReasonPhrase());
-        return processor;
-    }
-
-
-    @Override
-    protected Processor createUpgradeProcessor(SocketWrapperBase<?> socket,
-            UpgradeToken upgradeToken) {
-        throw new IllegalStateException(sm.getString("ajpprotocol.noUpgradeHandler",
-                upgradeToken.getHttpUpgradeHandler().getClass().getName()));
+        @Override
+        protected P createUpgradeProcessor(SocketWrapper<S> socket,
+                HttpUpgradeHandler httpUpgradeHandler) {
+            // TODO should fail - throw IOE
+            return null;
+        }
     }
 }

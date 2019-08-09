@@ -23,11 +23,12 @@ import java.io.OutputStream;
 /**
  * Byte array output stream that exposes the byte array directly
  *
+ * @author not attributable
  * @version 1.0
  */
 public class DirectByteArrayOutputStream extends OutputStream {
 
-    private final XByteBuffer buffer;
+    private XByteBuffer buffer;
 
     public DirectByteArrayOutputStream(int size) {
         buffer = new XByteBuffer(size,false);
@@ -40,6 +41,7 @@ public class DirectByteArrayOutputStream extends OutputStream {
      * @throws IOException if an I/O error occurs. In particular, an
      *   <code>IOException</code> may be thrown if the output stream has
      *   been closed.
+     * TODO Implement this java.io.OutputStream method
      */
     @Override
     public void write(int b) throws IOException {

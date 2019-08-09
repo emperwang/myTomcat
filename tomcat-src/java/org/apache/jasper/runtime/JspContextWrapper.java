@@ -23,16 +23,12 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import javax.el.ELContext;
 import javax.el.ELResolver;
-import javax.el.EvaluationListener;
 import javax.el.FunctionMapper;
-import javax.el.ImportHandler;
 import javax.el.VariableMapper;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -41,16 +37,13 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.servlet.jsp.JspApplicationContext;
 import javax.servlet.jsp.JspContext;
-import javax.servlet.jsp.JspFactory;
 import javax.servlet.jsp.JspWriter;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.el.ELException;
 import javax.servlet.jsp.el.ExpressionEvaluator;
 import javax.servlet.jsp.el.VariableResolver;
 import javax.servlet.jsp.tagext.BodyContent;
-import javax.servlet.jsp.tagext.JspTag;
 import javax.servlet.jsp.tagext.VariableInfo;
 
 import org.apache.jasper.compiler.Localizer;
@@ -67,39 +60,35 @@ import org.apache.jasper.compiler.Localizer;
  * @author Jan Luehe
  * @author Jacob Hookom
  */
-@SuppressWarnings("deprecation") // Have to support old JSP EL API
 public class JspContextWrapper extends PageContext implements VariableResolver {
 
-    private final JspTag jspTag;
-
     // Invoking JSP context
-    private final PageContext invokingJspCtxt;
+    private PageContext invokingJspCtxt;
 
-    private final transient HashMap<String, Object> pageAttributes;
+    private transient HashMap<String, Object> pageAttributes;
 
     // ArrayList of NESTED scripting variables
-    private final ArrayList<String> nestedVars;
+    private ArrayList<String> nestedVars;
 
     // ArrayList of AT_BEGIN scripting variables
-    private final ArrayList<String> atBeginVars;
+    private ArrayList<String> atBeginVars;
 
     // ArrayList of AT_END scripting variables
-    private final ArrayList<String> atEndVars;
+    private ArrayList<String> atEndVars;
 
-    private final Map<String,String> aliases;
+    private Map<String,String> aliases;
 
-    private final HashMap<String, Object> originalNestedVars;
+    private HashMap<String, Object> originalNestedVars;
 
     private ServletContext servletContext = null;
 
     private ELContext elContext = null;
 
-    private final PageContext rootJspCtxt;
+    private PageContext rootJspCtxt;
 
-    public JspContextWrapper(JspTag jspTag, JspContext jspContext,
+    public JspContextWrapper(JspContext jspContext,
             ArrayList<String> nestedVars, ArrayList<String> atBeginVars,
             ArrayList<String> atEndVars, Map<String,String> aliases) {
-        this.jspTag = jspTag;
         this.invokingJspCtxt = (PageContext) jspContext;
         if (jspContext instanceof JspContextWrapper) {
             rootJspCtxt = ((JspContextWrapper)jspContext).rootJspCtxt;
@@ -110,13 +99,11 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
         this.nestedVars = nestedVars;
         this.atBeginVars = atBeginVars;
         this.atEndVars = atEndVars;
-        this.pageAttributes = new HashMap<>(16);
+        this.pageAttributes = new HashMap<String, Object>(16);
         this.aliases = aliases;
 
         if (nestedVars != null) {
-            this.originalNestedVars = new HashMap<>(nestedVars.size());
-        } else {
-            this.originalNestedVars = null;
+            this.originalNestedVars = new HashMap<String, Object>(nestedVars.size());
         }
         syncBeginTagFile();
     }
@@ -454,7 +441,9 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
      */
     private void saveNestedVariables() {
         if (nestedVars != null) {
-            for (String varName : nestedVars) {
+            Iterator<String> iter = nestedVars.iterator();
+            while (iter.hasNext()) {
+                String varName = iter.next();
                 varName = findAlias(varName);
                 Object obj = invokingJspCtxt.getAttribute(varName);
                 if (obj != null) {
@@ -469,7 +458,9 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
      */
     private void restoreNestedVariables() {
         if (nestedVars != null) {
-            for (String varName : nestedVars) {
+            Iterator<String> iter = nestedVars.iterator();
+            while (iter.hasNext()) {
+                String varName = iter.next();
                 varName = findAlias(varName);
                 Object obj = originalNestedVars.get(varName);
                 if (obj != null) {
@@ -505,12 +496,7 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
     @Override
     public ELContext getELContext() {
         if (elContext == null) {
-            elContext = new ELContextWrapper(rootJspCtxt.getELContext(), jspTag, this);
-            JspFactory factory = JspFactory.getDefaultFactory();
-            JspApplicationContext jspAppCtxt = factory.getJspApplicationContext(servletContext);
-            if (jspAppCtxt instanceof JspApplicationContextImpl) {
-                ((JspApplicationContextImpl) jspAppCtxt).fireListeners(elContext);
-            }
+            elContext = new ELContextWrapper(rootJspCtxt.getELContext(), this);
         }
         return elContext;
     }
@@ -519,13 +505,10 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
     static class ELContextWrapper extends ELContext {
 
         private final ELContext wrapped;
-        private final JspTag jspTag;
         private final PageContext pageContext;
-        private ImportHandler importHandler;
 
-        private ELContextWrapper(ELContext wrapped, JspTag jspTag, PageContext pageContext) {
+        private ELContextWrapper(ELContext wrapped, PageContext pageContext) {
             this.wrapped = wrapped;
-            this.jspTag = jspTag;
             this.pageContext = pageContext;
         }
 
@@ -536,11 +519,6 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
         @Override
         public void setPropertyResolved(boolean resolved) {
             wrapped.setPropertyResolved(resolved);
-        }
-
-        @Override
-        public void setPropertyResolved(Object base, Object property) {
-            wrapped.setPropertyResolved(base, property);
         }
 
         @Override
@@ -562,29 +540,6 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
         }
 
         @Override
-        public ImportHandler getImportHandler() {
-            if (importHandler == null) {
-                importHandler = new ImportHandler();
-                if (jspTag instanceof JspSourceImports) {
-                    Set<String> packageImports = ((JspSourceImports) jspTag).getPackageImports();
-                    if (packageImports != null) {
-                        for (String packageImport : packageImports) {
-                            importHandler.importPackage(packageImport);
-                        }
-                    }
-                    Set<String> classImports = ((JspSourceImports) jspTag).getClassImports();
-                    if (classImports != null) {
-                        for (String classImport : classImports) {
-                            importHandler.importClass(classImport);
-                        }
-                    }
-                }
-
-            }
-            return importHandler;
-        }
-
-        @Override
         public Locale getLocale() {
             return wrapped.getLocale();
         }
@@ -592,56 +547,6 @@ public class JspContextWrapper extends PageContext implements VariableResolver {
         @Override
         public void setLocale(Locale locale) {
             wrapped.setLocale(locale);
-        }
-
-        @Override
-        public void addEvaluationListener(EvaluationListener listener) {
-            wrapped.addEvaluationListener(listener);
-        }
-
-        @Override
-        public List<EvaluationListener> getEvaluationListeners() {
-            return wrapped.getEvaluationListeners();
-        }
-
-        @Override
-        public void notifyBeforeEvaluation(String expression) {
-            wrapped.notifyBeforeEvaluation(expression);
-        }
-
-        @Override
-        public void notifyAfterEvaluation(String expression) {
-            wrapped.notifyAfterEvaluation(expression);
-        }
-
-        @Override
-        public void notifyPropertyResolved(Object base, Object property) {
-            wrapped.notifyPropertyResolved(base, property);
-        }
-
-        @Override
-        public boolean isLambdaArgument(String name) {
-            return wrapped.isLambdaArgument(name);
-        }
-
-        @Override
-        public Object getLambdaArgument(String name) {
-            return wrapped.getLambdaArgument(name);
-        }
-
-        @Override
-        public void enterLambdaScope(Map<String, Object> arguments) {
-            wrapped.enterLambdaScope(arguments);
-        }
-
-        @Override
-        public void exitLambdaScope() {
-            wrapped.exitLambdaScope();
-        }
-
-        @Override
-        public Object convertToType(Object obj, Class<?> type) {
-            return wrapped.convertToType(obj, type);
         }
 
         @Override

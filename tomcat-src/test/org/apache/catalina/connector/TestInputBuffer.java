@@ -16,13 +16,10 @@
  */
 package org.apache.catalina.connector;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.MalformedInputException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -35,6 +32,7 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
+import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.TestUtf8;
 import org.apache.tomcat.util.buf.TestUtf8.Utf8TestCase;
@@ -44,9 +42,10 @@ public class TestInputBuffer extends TomcatBaseTest {
     @Test
     public void testUtf8Body() throws Exception {
         Tomcat tomcat = getTomcatInstance();
-        Context root = tomcat.addContext("", TEMP_DIR);
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
         Tomcat.addServlet(root, "Echo", new Utf8Echo());
-        root.addServletMappingDecoded("/test", "Echo");
+        root.addServletMapping("/test", "Echo");
 
         tomcat.getConnector().setProperty("soTimeout", "300000");
         tomcat.start();
@@ -58,25 +57,6 @@ public class TestInputBuffer extends TomcatBaseTest {
             }
             doUtf8BodyTest(testCase.description, testCase.input, expected);
         }
-    }
-
-
-    @Test
-    public void testBug60400() throws Exception {
-        Tomcat tomcat = getTomcatInstance();
-        Context root = tomcat.addContext("", TEMP_DIR);
-        Tomcat.addServlet(root, "Bug60400Servlet", new Bug60400Servlet());
-        root.addServletMappingDecoded("/", "Bug60400Servlet");
-
-        tomcat.getConnector().setProperty("appReadBufSize", "9000");
-        tomcat.start();
-
-        ByteChunk bc = new ByteChunk();
-        byte[] requestBody = new byte[9500];
-        Arrays.fill(requestBody, (byte) 1);
-        int rc = postUrl(requestBody, "http://localhost:" + getPort() + "/", bc, null);
-        Assert.assertEquals(HttpServletResponse.SC_OK, rc);
-        Assert.assertEquals(requestBody.length, bc.getLength());
     }
 
 
@@ -98,7 +78,7 @@ public class TestInputBuffer extends TomcatBaseTest {
         } else if (expected.length() == 0) {
             Assert.assertNull(description, bc.toString());
         } else {
-            bc.setCharset(StandardCharsets.UTF_8);
+            bc.setCharset(B2CConverter.UTF_8);
             Assert.assertEquals(description, expected, bc.toString());
         }
     }
@@ -137,25 +117,6 @@ public class TestInputBuffer extends TomcatBaseTest {
                 resp.resetBuffer();
                 w.write("FAILED");
             }
-        }
-    }
-
-
-    private static class Bug60400Servlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-            StringBuilder builder = new StringBuilder();
-            try (BufferedReader reader = req.getReader()) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    builder.append(line);
-                }
-            }
-            resp.getWriter().print(builder);
         }
     }
 }

@@ -24,12 +24,16 @@ import java.io.PrintWriter;
  *
  * @author Remy Maucherat
  */
-public class CoyoteWriter extends PrintWriter {
+public class CoyoteWriter
+    extends PrintWriter {
 
 
     // -------------------------------------------------------------- Constants
 
-    private static final char[] LINE_SEP = System.lineSeparator().toCharArray();
+    // No need for a do privileged block - every web app has permission to read
+    // this by default
+    private static final char[] LINE_SEP =
+        System.getProperty("line.separator").toCharArray();
 
 
     // ----------------------------------------------------- Instance Variables

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -47,15 +47,6 @@
     <attribute   name="allowTrace"
           description="Allow disabling TRACE method"
                  type="boolean"/>
-
-    <attribute   name="ciphers"
-          description="Comma-separated list of requested cipher suites"
-                 type="java.lang.String"/>
-
-    <attribute   name="ciphersUsed"
-          description="Array of ciphers suites in use"
-                 type="[Ljava.lang.String;"
-            writeable="false"/>
 
     <attribute   name="className"
           description="Fully qualified class name of the managed object"
@@ -214,5 +205,17 @@
     <operation name="init" description="Init" impact="ACTION" returnType="void" />
     <operation name="destroy" description="Destroy" impact="ACTION" returnType="void" />
 
+  </mbean>
+
+  <mbean   name="Mapper"
+    description="Maps requests received by the associated connector to Hosts, Contexts and Wrappers"
+         domain="Catalina"
+          group="Mapper"
+           type="org.apache.catalina.connector.MapperListener">
+
+    <attribute name="connectorName"
+        description="Name of the associated connector"
+               type="java.lang.String"
+          writeable="false"/>
   </mbean>
 </mbeans-descriptors>

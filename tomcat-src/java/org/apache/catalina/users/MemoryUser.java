@@ -25,9 +25,7 @@ import java.util.Iterator;
 import org.apache.catalina.Group;
 import org.apache.catalina.Role;
 import org.apache.catalina.UserDatabase;
-import org.apache.tomcat.util.buf.StringUtils;
-import org.apache.tomcat.util.buf.StringUtils.Function;
-import org.apache.tomcat.util.security.Escape;
+import org.apache.catalina.util.RequestUtil;
 
 /**
  * <p>Concrete implementation of {@link org.apache.catalina.User} for the
@@ -69,19 +67,19 @@ public class MemoryUser extends AbstractUser {
     /**
      * The {@link MemoryUserDatabase} that owns this user.
      */
-    protected final MemoryUserDatabase database;
+    protected MemoryUserDatabase database = null;
 
 
     /**
      * The set of {@link Group}s that this user is a member of.
      */
-    protected final ArrayList<Group> groups = new ArrayList<>();
+    protected ArrayList<Group> groups = new ArrayList<Group>();
 
 
     /**
      * The set of {@link Role}s associated with this user.
      */
-    protected final ArrayList<Role> roles = new ArrayList<>();
+    protected ArrayList<Role> roles = new ArrayList<Role>();
 
 
     // ------------------------------------------------------------- Properties
@@ -92,9 +90,11 @@ public class MemoryUser extends AbstractUser {
      */
     @Override
     public Iterator<Group> getGroups() {
+
         synchronized (groups) {
-            return groups.iterator();
+            return (groups.iterator());
         }
+
     }
 
 
@@ -103,9 +103,11 @@ public class MemoryUser extends AbstractUser {
      */
     @Override
     public Iterator<Role> getRoles() {
+
         synchronized (roles) {
-            return roles.iterator();
+            return (roles.iterator());
         }
+
     }
 
 
@@ -114,7 +116,9 @@ public class MemoryUser extends AbstractUser {
      */
     @Override
     public UserDatabase getUserDatabase() {
-        return this.database;
+
+        return (this.database);
+
     }
 
 
@@ -162,9 +166,11 @@ public class MemoryUser extends AbstractUser {
      */
     @Override
     public boolean isInGroup(Group group) {
+
         synchronized (groups) {
-            return groups.contains(group);
+            return (groups.contains(group));
         }
+
     }
 
 
@@ -177,9 +183,11 @@ public class MemoryUser extends AbstractUser {
      */
     @Override
     public boolean isInRole(Role role) {
+
         synchronized (roles) {
-            return roles.contains(role);
+            return (roles.contains(role));
         }
+
     }
 
 
@@ -244,48 +252,55 @@ public class MemoryUser extends AbstractUser {
      *
      * <p><strong>IMPLEMENTATION NOTE</strong> - For backwards compatibility,
      * the reader that processes this entry will accept either
-     * <code>username</code> or <code>name</code> for the username
+     * <code>username</code> or </code>name</code> for the username
      * property.</p>
-     * @return the XML representation
      */
     public String toXml() {
 
         StringBuilder sb = new StringBuilder("<user username=\"");
-        sb.append(Escape.xml(username));
+        sb.append(RequestUtil.filter(username));
         sb.append("\" password=\"");
-        sb.append(Escape.xml(password));
+        sb.append(RequestUtil.filter(password));
         sb.append("\"");
         if (fullName != null) {
             sb.append(" fullName=\"");
-            sb.append(Escape.xml(fullName));
+            sb.append(RequestUtil.filter(fullName));
             sb.append("\"");
         }
         synchronized (groups) {
             if (groups.size() > 0) {
                 sb.append(" groups=\"");
-                StringUtils.join(groups, ',', new Function<Group>() {
-                    @Override public String apply(Group t) {
-                        return Escape.xml(t.getGroupname());
+                int n = 0;
+                Iterator<Group> values = groups.iterator();
+                while (values.hasNext()) {
+                    if (n > 0) {
+                        sb.append(',');
                     }
-                }, sb);
+                    n++;
+                    sb.append(RequestUtil.filter(values.next().getGroupname()));
+                }
                 sb.append("\"");
             }
         }
         synchronized (roles) {
             if (roles.size() > 0) {
                 sb.append(" roles=\"");
-                StringUtils.join(roles, ',', new Function<Role>() {
-                    @Override public String apply(Role t) {
-                        return Escape.xml(t.getRolename());
+                int n = 0;
+                Iterator<Role> values = roles.iterator();
+                while (values.hasNext()) {
+                    if (n > 0) {
+                        sb.append(',');
                     }
-                }, sb);
+                    n++;
+                    sb.append(RequestUtil.filter(values.next().getRolename()));
+                }
                 sb.append("\"");
             }
         }
         sb.append("/>");
-        return sb.toString();
-    }
+        return (sb.toString());
 
+    }
 
     /**
      * <p>Return a String representation of this user.</p>
@@ -294,35 +309,45 @@ public class MemoryUser extends AbstractUser {
     public String toString() {
 
         StringBuilder sb = new StringBuilder("User username=\"");
-        sb.append(Escape.xml(username));
+        sb.append(RequestUtil.filter(username));
         sb.append("\"");
         if (fullName != null) {
             sb.append(", fullName=\"");
-            sb.append(Escape.xml(fullName));
+            sb.append(RequestUtil.filter(fullName));
             sb.append("\"");
         }
         synchronized (groups) {
             if (groups.size() > 0) {
                 sb.append(", groups=\"");
-                StringUtils.join(groups, ',', new Function<Group>() {
-                    @Override public String apply(Group t) {
-                        return Escape.xml(t.getGroupname());
+                int n = 0;
+                Iterator<Group> values = groups.iterator();
+                while (values.hasNext()) {
+                    if (n > 0) {
+                        sb.append(',');
                     }
-                }, sb);
+                    n++;
+                    sb.append(RequestUtil.filter(values.next().getGroupname()));
+                }
                 sb.append("\"");
             }
         }
         synchronized (roles) {
             if (roles.size() > 0) {
                 sb.append(", roles=\"");
-                StringUtils.join(roles, ',', new Function<Role>() {
-                    @Override public String apply(Role t) {
-                        return Escape.xml(t.getRolename());
+                int n = 0;
+                Iterator<Role> values = roles.iterator();
+                while (values.hasNext()) {
+                    if (n > 0) {
+                        sb.append(',');
                     }
-                }, sb);
+                    n++;
+                    sb.append(RequestUtil.filter(values.next().getRolename()));
+                }
                 sb.append("\"");
             }
         }
-        return sb.toString();
+        return (sb.toString());
     }
+
+
 }

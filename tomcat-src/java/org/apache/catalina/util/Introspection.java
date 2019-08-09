@@ -23,7 +23,7 @@ import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
-import org.apache.catalina.Context;
+import org.apache.catalina.Container;
 import org.apache.catalina.Globals;
 import org.apache.juli.logging.Log;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -35,7 +35,7 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public class Introspection {
 
-    private static final StringManager sm =
+    private static StringManager sm =
             StringManager.getManager("org.apache.catalina.util");
 
 
@@ -44,8 +44,6 @@ public class Introspection {
      *
      * Note: This method assumes that the method name has already been checked
      *       for correctness.
-     * @param setter The setter method
-     * @return the bean property name
      */
     public static String getPropertyName(Method setter) {
         return Introspector.decapitalize(setter.getName().substring(3));
@@ -93,8 +91,6 @@ public class Introspection {
     /**
      * Obtain the declared fields for a class taking account of any security
      * manager that may be configured.
-     * @param clazz The class to introspect
-     * @return the class fields as an array
      */
     public static Field[] getDeclaredFields(final Class<?> clazz) {
         Field[] fields = null;
@@ -116,8 +112,6 @@ public class Introspection {
     /**
      * Obtain the declared methods for a class taking account of any security
      * manager that may be configured.
-     * @param clazz The class to introspect
-     * @return the class methods as an array
      */
     public static Method[] getDeclaredMethods(final Class<?> clazz) {
         Method[] methods = null;
@@ -140,18 +134,18 @@ public class Introspection {
      * Attempt to load a class using the given Container's class loader. If the
      * class cannot be loaded, a debug level log message will be written to the
      * Container's log and null will be returned.
-     * @param context The class loader of this context will be used to attempt
-     *  to load the class
-     * @param className The class name
-     * @return the loaded class or <code>null</code> if loading failed
      */
-    public static Class<?> loadClass(Context context, String className) {
-        ClassLoader cl = context.getLoader().getClassLoader();
-        Log log = context.getLogger();
+    public static Class<?> loadClass(Container container, String className) {
+        ClassLoader cl = container.getLoader().getClassLoader();
+        Log log = container.getLogger();
         Class<?> clazz = null;
         try {
             clazz = cl.loadClass(className);
-        } catch (ClassNotFoundException | NoClassDefFoundError | ClassFormatError e) {
+        } catch (ClassNotFoundException e) {
+            log.debug(sm.getString("introspection.classLoadFailed", className), e);
+        } catch (NoClassDefFoundError e) {
+            log.debug(sm.getString("introspection.classLoadFailed", className), e);
+        } catch (ClassFormatError e) {
             log.debug(sm.getString("introspection.classLoadFailed", className), e);
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);

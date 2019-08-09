@@ -31,15 +31,14 @@ import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Valve;
+import org.apache.catalina.deploy.LoginConfig;
+import org.apache.catalina.deploy.SecurityCollection;
+import org.apache.catalina.deploy.SecurityConstraint;
 import org.apache.catalina.startup.SimpleHttpClient;
-import org.apache.catalina.startup.TesterMapRealm;
+import org.apache.catalina.startup.TestTomcat.MapRealm;
 import org.apache.catalina.startup.TesterServlet;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
-import org.apache.tomcat.util.descriptor.web.SecurityCollection;
-import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
-import org.apache.tomcat.websocket.server.WsContextListener;
 
 /*
  * Test FORM authentication for sessions that do and do not use cookies.
@@ -54,13 +53,13 @@ import org.apache.tomcat.websocket.server.WsContextListener;
  *    achievable with servlets, jsps, jstl (all of which which can ask for an
  *    encoded url to be inserted into the dynamic web page). It cannot work
  *    with static html.
- *    note: this test class uses the Tomcat sample jsps, which conform.
+ *    note: this test class uses the tomcat somaple jsps, which conform.
  *
  * 3. Therefore, any webapp that MIGHT need to authenticate a client that
  *    does not accept cookies MUST generate EVERY protected resource url
  *    dynamically (so that it will include the current session ID).
  *
- * 4. Any webapp that cannot satisfy case 3 MUST turn off
+ * 4. Any webapp that cannot satify case 3 MUST turn off
  *    changeSessionIdOnAuthentication for its Context and thus degrade the
  *    session fixation protection for ALL of its clients.
  *    note from MarkT: Not sure I agree with this. If the URLs aren't
@@ -82,9 +81,6 @@ public class TestFormAuthenticator extends TomcatBaseTest {
     protected static final boolean CLIENT_USE_COOKIES = true;
     protected static final boolean CLIENT_NO_COOKIES = !CLIENT_USE_COOKIES;
 
-    protected static final boolean CLIENT_USE_HTTP_11 = true;
-    protected static final boolean CLIENT_USE_HTTP_10 = !CLIENT_USE_HTTP_11;
-
     protected static final boolean SERVER_USE_COOKIES = true;
     protected static final boolean SERVER_NO_COOKIES = !SERVER_USE_COOKIES;
 
@@ -92,8 +88,9 @@ public class TestFormAuthenticator extends TomcatBaseTest {
     protected static final boolean SERVER_FREEZE_SESSID = !SERVER_CHANGE_SESSID;
 
     // minimum session timeout
-    private static final int SHORT_SESSION_TIMEOUT_SECS = 1;
-    private static final long TIMEOUT_DELAY_MSECS = ((SHORT_SESSION_TIMEOUT_SECS + 10) * 1000);
+    private static final int TIMEOUT_MINS = 1;
+    private static final long TIMEOUT_DELAY_MSECS =
+                            (((TIMEOUT_MINS * 60) + 10) * 1000);
 
     private FormAuthClient client;
 
@@ -235,10 +232,6 @@ public class TestFormAuthenticator extends TomcatBaseTest {
                 CLIENT_NO_COOKIES, SERVER_USE_COOKIES,
                 SERVER_FREEZE_SESSID);
 
-        // Force session to expire one second from now
-        Context context = (Context) getTomcatInstance().getHost().findChildren()[0];
-        forceSessionMaxInactiveInterval(context, SHORT_SESSION_TIMEOUT_SECS);
-
         // wait long enough for my session to expire
         Thread.sleep(TIMEOUT_DELAY_MSECS);
 
@@ -249,20 +242,12 @@ public class TestFormAuthenticator extends TomcatBaseTest {
                 FormAuthClient.LOGIN_REQUIRED, 1);
     }
 
-    // HTTP 1.0 test
-    @Test
-    public void testGetWithCookiesHttp10() throws Exception {
-        doTest("GET", "GET", NO_100_CONTINUE,
-                CLIENT_USE_COOKIES, SERVER_USE_COOKIES, SERVER_CHANGE_SESSID,
-                CLIENT_USE_HTTP_10);
-    }
-
 
     @Test
     public void doTestSelectedMethods() throws Exception {
 
         FormAuthClientSelectedMethods client =
-                new FormAuthClientSelectedMethods(true, true, true, true);
+                new FormAuthClientSelectedMethods(true, true, true);
 
         // First request for protected resource gets the login page
         client.doResourceRequest("PUT", true, "/test?" +
@@ -277,7 +262,7 @@ public class TestFormAuthenticator extends TomcatBaseTest {
         client.doResourceRequest("POST", true, "/test/j_security_check",
                 FormAuthClientBase.LOGIN_REPLY);
         Assert.assertTrue("login failed " + client.getResponseLine(),
-                client.isResponse303());
+                client.isResponse302());
         Assert.assertTrue(client.isResponseBodyOK());
         String redirectUri = client.getRedirectUri();
         client.reset();
@@ -313,19 +298,9 @@ public class TestFormAuthenticator extends TomcatBaseTest {
             boolean useContinue, boolean clientShouldUseCookies,
             boolean serverWillUseCookies, boolean serverWillChangeSessid)
             throws Exception {
-        return doTest(resourceMethod, redirectMethod, useContinue,
-                clientShouldUseCookies, serverWillUseCookies,
-                serverWillChangeSessid, true);
-    }
-
-    private String doTest(String resourceMethod, String redirectMethod,
-            boolean useContinue, boolean clientShouldUseCookies,
-            boolean serverWillUseCookies, boolean serverWillChangeSessid,
-            boolean clientShouldUseHttp11) throws Exception {
 
         client = new FormAuthClient(clientShouldUseCookies,
-                clientShouldUseHttp11, serverWillUseCookies,
-                serverWillChangeSessid);
+                serverWillUseCookies, serverWillChangeSessid);
 
         // First request for protected resource gets the login page
         client.setUseContinue(useContinue);
@@ -347,13 +322,8 @@ public class TestFormAuthenticator extends TomcatBaseTest {
         // Second request replies to the login challenge
         client.setUseContinue(useContinue);
         client.doLoginRequest(loginUri);
-        if (clientShouldUseHttp11) {
-            Assert.assertTrue("login failed " + client.getResponseLine(),
-                    client.isResponse303());
-        } else {
-            Assert.assertTrue("login failed " + client.getResponseLine(),
-                    client.isResponse302());
-        }
+        Assert.assertTrue("login failed " + client.getResponseLine(),
+                client.isResponse302());
         Assert.assertTrue(client.isResponseBodyOK());
         String redirectUri = client.getRedirectUri();
         client.reset();
@@ -396,7 +366,7 @@ public class TestFormAuthenticator extends TomcatBaseTest {
      *     persistence of the authenticated session
      *
      * @param resourceMethod HTTP method for accessing the protected resource
-     * @param protectedUri to access (with or without sessionid)
+     * @param protectedUri to access (with or withour sessionid)
      * @param useContinue whether the HTTP client should expect a 100 Continue
      * @param clientShouldUseCookies whether the client should send cookies
      * @param serverWillUseCookies whether the server should send cookies
@@ -445,8 +415,6 @@ public class TestFormAuthenticator extends TomcatBaseTest {
         protected final String SESSION_PARAMETER_START =
             SESSION_PARAMETER_NAME + "=";
 
-        protected boolean clientShouldUseHttp11;
-
         protected void doLoginRequest(String loginUri) throws Exception {
 
             doResourceRequest("POST", true,
@@ -484,11 +452,7 @@ public class TestFormAuthenticator extends TomcatBaseTest {
                     requestHead.append("?role=bar");
                 }
             }
-            if (clientShouldUseHttp11) {
-                requestHead.append(" HTTP/1.1").append(CRLF);
-            } else {
-                requestHead.append(" HTTP/1.0").append(CRLF);
-            }
+            requestHead.append(" HTTP/1.1").append(CRLF);
 
             // next, add the constant http headers
             requestHead.append("Host: localhost").append(CRLF);
@@ -635,26 +599,25 @@ public class TestFormAuthenticator extends TomcatBaseTest {
 
     private class FormAuthClient extends FormAuthClientBase {
         private FormAuthClient(boolean clientShouldUseCookies,
-                boolean clientShouldUseHttp11,
                 boolean serverShouldUseCookies,
                 boolean serverShouldChangeSessid) throws Exception {
 
-            this.clientShouldUseHttp11 = clientShouldUseHttp11;
-
             Tomcat tomcat = getTomcatInstance();
-            File appDir = new File(System.getProperty("tomcat.test.basedir"), "webapps/examples");
+            File appDir = new File(getBuildDirectory(), "webapps/examples");
             Context ctx = tomcat.addWebapp(null, "/examples",
                     appDir.getAbsolutePath());
             setUseCookies(clientShouldUseCookies);
             ctx.setCookies(serverShouldUseCookies);
-            ctx.addApplicationListener(WsContextListener.class.getName());
 
-            TesterMapRealm realm = new TesterMapRealm();
+            MapRealm realm = new MapRealm();
             realm.addUser("tomcat", "tomcat");
             realm.addUserRole("tomcat", "tomcat");
             ctx.setRealm(realm);
 
             tomcat.start();
+
+            // perhaps this does not work until tomcat has started?
+            ctx.setSessionTimeout(TIMEOUT_MINS);
 
             // Valve pipeline is only established after tomcat starts
             Valve[] valves = ctx.getPipeline().getValves();
@@ -685,31 +648,28 @@ public class TestFormAuthenticator extends TomcatBaseTest {
     private class FormAuthClientSelectedMethods extends FormAuthClientBase {
 
         private FormAuthClientSelectedMethods(boolean clientShouldUseCookies,
-                boolean clientShouldUseHttp11,
                 boolean serverShouldUseCookies,
                 boolean serverShouldChangeSessid) throws Exception {
 
-            this.clientShouldUseHttp11 = clientShouldUseHttp11;
-
             Tomcat tomcat = getTomcatInstance();
 
-            Context ctx = tomcat.addContext(
-                    "", System.getProperty("java.io.tmpdir"));
+            // No file system docBase required
+            Context ctx = tomcat.addContext("", null);
             Tomcat.addServlet(ctx, "SelectedMethods",
                     new SelectedMethodsServlet());
-            ctx.addServletMappingDecoded("/test", "SelectedMethods");
+            ctx.addServletMapping("/test", "SelectedMethods");
             // Login servlet just needs to respond "OK". Client will handle
             // creating a valid response. No need for a form.
             Tomcat.addServlet(ctx, "Login",
                     new TesterServlet());
-            ctx.addServletMappingDecoded("/login", "Login");
+            ctx.addServletMapping("/login", "Login");
 
             // Configure the security constraints
             SecurityConstraint constraint = new SecurityConstraint();
             SecurityCollection collection = new SecurityCollection();
             collection.setName("Protect PUT");
             collection.addMethod("PUT");
-            collection.addPatternDecoded("/test");
+            collection.addPattern("/test");
             constraint.addCollection(collection);
             constraint.addAuthRole("tomcat");
             ctx.addConstraint(constraint);
@@ -724,12 +684,15 @@ public class TestFormAuthenticator extends TomcatBaseTest {
             setUseCookies(clientShouldUseCookies);
             ctx.setCookies(serverShouldUseCookies);
 
-            TesterMapRealm realm = new TesterMapRealm();
+            MapRealm realm = new MapRealm();
             realm.addUser("tomcat", "tomcat");
             realm.addUserRole("tomcat", "tomcat");
             ctx.setRealm(realm);
 
             tomcat.start();
+
+            // perhaps this does not work until tomcat has started?
+            ctx.setSessionTimeout(TIMEOUT_MINS);
 
             // Valve pipeline is only established after tomcat starts
             Valve[] valves = ctx.getPipeline().getValves();
@@ -748,7 +711,7 @@ public class TestFormAuthenticator extends TomcatBaseTest {
 
         @Override
         public boolean isResponseBodyOK() {
-            if (isResponse303()) {
+            if (isResponse302()) {
                 return true;
             }
             Assert.assertTrue(getResponseBody(), getResponseBody().contains("OK"));

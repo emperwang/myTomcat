@@ -63,8 +63,16 @@ public class JAASCallbackHandler implements CallbackHandler {
     public JAASCallbackHandler(JAASRealm realm, String username,
                                String password) {
 
-        this(realm, username, password, null, null, null, null, null, null,
-                null);
+        super();
+        this.realm = realm;
+        this.username = username;
+
+        if (realm.hasMessageDigest()) {
+            this.password = realm.digest(password);
+        }
+        else {
+            this.password = password;
+        }
     }
 
 
@@ -87,15 +95,7 @@ public class JAASCallbackHandler implements CallbackHandler {
                                String password, String nonce, String nc,
                                String cnonce, String qop, String realmName,
                                String md5a2, String authMethod) {
-        this.realm = realm;
-        this.username = username;
-
-        if (realm.hasMessageDigest()) {
-            this.password = realm.getCredentialHandler().mutate(password);
-        }
-        else {
-            this.password = password;
-        }
+        this(realm, username, password);
         this.nonce = nonce;
         this.nc = nc;
         this.cnonce = cnonce;
@@ -110,58 +110,59 @@ public class JAASCallbackHandler implements CallbackHandler {
     /**
      * The string manager for this package.
      */
-    protected static final StringManager sm = StringManager.getManager(JAASCallbackHandler.class);
+    protected static final StringManager sm =
+        StringManager.getManager(Constants.Package);
 
     /**
      * The password to be authenticated with.
      */
-    protected final String password;
+    protected String password = null;
 
 
     /**
      * The associated <code>JAASRealm</code> instance.
      */
-    protected final JAASRealm realm;
+    protected JAASRealm realm = null;
 
     /**
      * The username to be authenticated with.
      */
-    protected final String username;
+    protected String username = null;
 
     /**
      * Server generated nonce.
      */
-    protected final String nonce;
+    protected String nonce = null;
 
     /**
      * Nonce count.
      */
-    protected final String nc;
+    protected String nc = null;
 
     /**
      * Client generated nonce.
      */
-    protected final String cnonce;
+    protected String cnonce = null;
 
     /**
      * Quality of protection applied to the message.
      */
-    protected final String qop;
+    protected String qop;
 
     /**
      * Realm name.
      */
-    protected final String realmName;
+    protected String realmName;
 
     /**
      * Second MD5 digest.
      */
-    protected final String md5a2;
+    protected String md5a2;
 
     /**
      * The authentication method to be used. If null, assume BASIC/FORM.
      */
-    protected final String authMethod;
+    protected String authMethod;
 
     // --------------------------------------------------------- Public Methods
 
@@ -214,8 +215,6 @@ public class JAASCallbackHandler implements CallbackHandler {
                     cb.setText(md5a2);
                 } else if (cb.getPrompt().equals("authMethod")) {
                     cb.setText(authMethod);
-                } else if (cb.getPrompt().equals("catalinaBase")) {
-                    cb.setText(realm.getContainer().getCatalinaBase().getAbsolutePath());
                 } else {
                     throw new UnsupportedCallbackException(callbacks[i]);
                 }

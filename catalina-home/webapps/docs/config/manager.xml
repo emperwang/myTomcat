@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -65,6 +65,22 @@
         If not specified, the standard value (defined below) will be used.</p>
       </attribute>
 
+      <attribute name="distributable" required="false">
+        <p><strong>Deprecated</strong>: This should be configured via the
+        Context.</p>
+        <p>Set to <code>true</code> to ask the session manager to enforce
+        the restrictions described in the Servlet Specification on
+        distributable applications (primarily, this would mean that all
+        session attributes must implement <code>java.io.Serializable</code>).
+        Set to <code>false</code> (the default) to not enforce these
+        restrictions.</p>
+
+        <p><strong>NOTE</strong> - The value for this property is inherited
+        automatically based on the presence or absence of the
+        <code>&lt;distributable&gt;</code> element in the web application
+        deployment descriptor (<code>/WEB-INF/web.xml</code>).</p>
+      </attribute>
+
       <attribute name="maxActiveSessions" required="false">
         <p>The maximum number of active sessions that will be created by
         this Manager, or <code>-1</code> (the default) for no limit.</p>
@@ -73,6 +89,29 @@
         (e.g. with <code>HttpServletRequest.getSession()</code> call)
         will fail with an <code>IllegalStateException</code>.</p>
       </attribute>
+
+      <attribute name="maxInactiveInterval" required="false">
+        <p><strong>Deprecated</strong>: This should be configured via the
+        Context.</p>
+        <p>The initial maximum time interval, in seconds,
+        between client requests before a session is invalidated. A negative value
+        will result in sessions never timing out. If the attribute is not provided,
+        a default of 1800 seconds (30 minutes) is used.</p>
+
+        <p>This attribute provides the initial value whenever a
+        new session is created, but the interval may be dynamically
+        varied by a servlet via the
+        <code>setMaxInactiveInterval</code> method of the <code>HttpSession</code> object.</p>
+      </attribute>
+
+      <attribute name="sessionIdLength" required="false">
+       <p>The length of session ids created by this Manager, measured in bytes,
+        excluding subsequent conversion to a hexadecimal string and
+        excluding any JVM route information used for load balancing.
+        The default is 16. You should set the length on a nested
+        <strong>SessionIdGenerator</strong> element instead.</p>
+      </attribute>
+
     </attributes>
 
   </subsection>
@@ -311,7 +350,8 @@
 
   <h3>All Manager Implementations</h3>
 
-  <p>All Manager implementations allow nesting of a
+  <p>All Manager implementations bundled with Tomcat or extending
+  <code>ManagerBase</code> allow nesting of a
   <strong>&lt;SessionIdGenerator&gt;</strong> element. It defines
   the behavior of session id generation.  All implementations
   of the <a href="sessionidgenerator.html">SessionIdGenerator</a> allow the
@@ -351,6 +391,12 @@
 
   <attributes>
 
+    <attribute name="checkInterval" required="false">
+      <p>The interval (in seconds) between checks for expired sessions
+      among those sessions that are currently swapped out.  By default,
+      this interval is set to 60 seconds (one minute).</p>
+    </attribute>
+
     <attribute name="className" required="true">
       <p>Java class name of the implementation to use.  This class must
       implement the <code>org.apache.catalina.Store</code> interface.  You
@@ -383,22 +429,18 @@
 
   <attributes>
 
+    <attribute name="checkInterval" required="false">
+      <p>The interval (in seconds) between checks for expired sessions
+      among those sessions that are currently swapped out.  By default,
+      this interval is set to 60 seconds (one minute).</p>
+    </attribute>
+
     <attribute name="className" required="true">
       <p>Java class name of the implementation to use.  This class must
       implement the <code>org.apache.catalina.Store</code> interface.  You
       <strong>must</strong> specify
       <code>org.apache.catalina.session.JDBCStore</code>
       to use this implementation.</p>
-    </attribute>
-
-    <attribute name="connectionName" required="true">
-      <p>The user name that will be handed to the configured JDBC driver to
-      establish a connection to the database containing the session table.</p>
-    </attribute>
-
-    <attribute name="connectionPassword" required="true">
-      <p>The password that will be handed to the configured JDBC driver to
-      establish a connection to the database containing the session table.</p>
     </attribute>
 
     <attribute name="connectionURL" required="true">
@@ -410,75 +452,63 @@
     <attribute name="dataSourceName" required="false">
       <p>Name of the JNDI resource for a JDBC DataSource-factory. If this option
       is given and a valid JDBC resource can be found, it will be used and any
-      direct configuration of a JDBC connection via <code>connectionURL</code>,
-      <code>connectionName</code>, <code>connectionPassword</code> and
-      <code>driverName</code> will be ignored. Since this code uses prepared
+      direct configuration of a JDBC connection via <code>connectionURL</code>
+      and <code>driverName</code> will be ignored. Since this code uses prepared
       statements, you might want to configure pooled prepared statements as
       shown in <a href="../jndi-resources-howto.html">the JNDI resources
-      How-To</a>.</p>
+      HOW-TO</a>.</p>
     </attribute>
 
     <attribute name="driverName" required="true">
       <p>Java class name of the JDBC driver to be used.</p>
     </attribute>
 
-    <attribute name="localDataSource" required="false">
-      <p>This allows the Store to use a DataSource defined for the Context
-      rather than a global DataSource. If not specified, the default is
-      <code>false</code>: use a global DataSource.</p>
+    <attribute name="sessionAppCol" required="true">
+      <p>Name of the database column, contained in the specified session
+      table, that contains the Engine, Host, and Web Application Context
+      name in the format <code>/Engine/Host/Context</code>.</p>
     </attribute>
 
-    <attribute name="sessionAppCol" required="false">
-      <p>Name of the database column, contained in the specified session table,
-      that contains the Engine, Host, and Web Application Context name in the
-      format <code>/Engine/Host/Context</code>. If not specified the default
-      value of <code>app</code> will be used.</p>
+    <attribute name="sessionDataCol" required="true">
+      <p>Name of the database column, contained in the specified
+      session table, that contains the serialized form of all session
+      attributes for a swapped out session.  The column type must accept
+      a binary object (typically called a BLOB).</p>
     </attribute>
 
-    <attribute name="sessionDataCol" required="false">
-      <p>Name of the database column, contained in the specified session table,
-      that contains the serialized form of all session attributes for a swapped
-      out session. The column type must accept a binary object (typically called
-      a BLOB). If not specified the default value of <code>data</code> will be
-      used.</p>
+    <attribute name="sessionIdCol" required="true">
+      <p>Name of the database column, contained in the specified
+      session table, that contains the session identifier of the
+      swapped out session.  The column type must accept character
+      string data of at least as many characters as are contained
+      in session identifiers created by Tomcat (typically 32).</p>
     </attribute>
 
-    <attribute name="sessionIdCol" required="false">
-      <p>Name of the database column, contained in the specified session table,
-      that contains the session identifier of the swapped out session. The
-      column type must accept character string data of at least as many
-      characters as are contained in session identifiers created by Tomcat
-      (typically 32). If not specified the default value of <code>id</code> will
-      be used.</p>
+    <attribute name="sessionLastAccessedCol" required="true">
+      <p>Name of the database column, contained in the specified
+      session table, that contains the <code>lastAccessedTime</code>
+      property of this session.  The column type must accept a
+      Java <code>long</code> (64 bits).</p>
     </attribute>
 
-    <attribute name="sessionLastAccessedCol" required="false">
-      <p>Name of the database column, contained in the specified session table,
-      that contains the <code>lastAccessedTime</code> property of this session.
-      The column type must accept a Java <code>long</code> (64 bits). If not
-      specified the default value of <code>maxinactive</code> will be used.</p>
+    <attribute name="sessionMaxInactiveCol" required="true">
+      <p>Name of the database column, contained in the specified
+      session table, that contains the <code>maxInactiveInterval</code>
+      property of this session.  The column type must accept a
+      Java <code>integer</code> (32 bits).</p>
     </attribute>
 
-    <attribute name="sessionMaxInactiveCol" required="false">
-      <p>Name of the database column, contained in the specified session table,
-      that contains the <code>maxInactiveInterval</code> property of this
-      session. The column type must accept a Java <code>integer</code> (32
-      bits). If not specified, the default value of <code>maxinactive</code>
-      will be used.</p>
+    <attribute name="sessionTable" required="true">
+      <p>Name of the database table to be used for storing swapped out
+      sessions.  This table must contain (at least) the database columns
+      that are configured by the other attributes of this element.</p>
     </attribute>
 
-    <attribute name="sessionTable" required="false">
-      <p>Name of the database table to be used for storing swapped out sessions.
-      This table must contain (at least) the database columns that are
-      configured by the other attributes of this element. If not specified the
-      default value of <code>tomcat$sessions</code> will be used.</p>
-    </attribute>
-
-    <attribute name="sessionValidCol" required="false">
-      <p>Name of the database column, contained in the specified session table,
-      that contains a flag indicating whether this swapped out session is still
-      valid or not. The column type must accept a single character. If not
-      specified the default value of <code>valid</code> will be used.</p>
+    <attribute name="sessionValidCol" required="true">
+      <p>Name of the database column, contained in the specified
+      session table, that contains a flag indicating whether this
+      swapped out session is still valid or not.  The column type
+      must accept a single character.</p>
     </attribute>
 
   </attributes>
@@ -497,10 +527,6 @@
   session_data   mediumblob,
   KEY kapp_name(app_name)
 );</source>
-
-  <p>Note: The SQL command above does not use the default names for either the
-  table or the columns so the JDBC Store would need to be configured to reflect
-  this.</p>
 
   <p>In order for the JDBC Based Store to successfully connect to your
   database, the JDBC driver you configure must be visible to Tomcat's

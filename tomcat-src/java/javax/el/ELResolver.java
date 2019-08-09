@@ -122,21 +122,4 @@ public abstract class ELResolver {
 
     public abstract Class<?> getCommonPropertyType(ELContext context,
             Object base);
-
-    /**
-     * Converts the given object to the given type. This default implementation
-     * always returns <code>null</code>.
-     *
-     * @param context The EL context for this evaluation
-     * @param obj     The object to convert
-     * @param type    The type to which the object should be converted
-     *
-     * @return Always <code>null</code>
-     *
-     * @since EL 3.0
-     */
-    public Object convertToType(ELContext context, Object obj, Class<?> type) {
-        context.setPropertyResolved(false);
-        return null;
-    }
 }

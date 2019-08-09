@@ -21,17 +21,17 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.io.XByteBuffer;
 import org.apache.catalina.tribes.transport.SenderState;
-import org.apache.catalina.tribes.util.StringManager;
 
 /**
  * A <b>membership</b> implementation using simple multicast.
  * This is the representation of a multicast member.
  * Carries the host, and port of the this or other cluster nodes.
+ *
+ * @author Filip Hanik
  */
 public class MemberImpl implements Member, java.io.Externalizable {
 
@@ -41,39 +41,53 @@ public class MemberImpl implements Member, java.io.Externalizable {
      */
     public static final boolean DO_DNS_LOOKUPS = Boolean.parseBoolean(System.getProperty("org.apache.catalina.tribes.dns_lookups","false"));
 
+    /**
+     * @deprecated  Unused - will be removed in Tomcat 8.0.x
+     */
+    @Deprecated
+    public static final transient String TCP_LISTEN_PORT = "tcpListenPort";
+    /**
+     * @deprecated  Unused - will be removed in Tomcat 8.0.x
+     */
+    @Deprecated
+    public static final transient String TCP_LISTEN_HOST = "tcpListenHost";
+    /**
+     * @deprecated  Unused - will be removed in Tomcat 8.0.x
+     */
+    @Deprecated
+    public static final transient String MEMBER_NAME = "memberName";
+
     public static final transient byte[] TRIBES_MBR_BEGIN = new byte[] {84, 82, 73, 66, 69, 83, 45, 66, 1, 0};
     public static final transient byte[] TRIBES_MBR_END   = new byte[] {84, 82, 73, 66, 69, 83, 45, 69, 1, 0};
-    protected static final StringManager sm = StringManager.getManager(Constants.Package);
 
     /**
      * The listen host for this member
      */
-    protected volatile byte[] host = new byte[0];
-    protected transient volatile String hostname;
+    protected byte[] host = new byte[0];
+    protected transient String hostname;
     /**
      * The tcp listen port for this member
      */
-    protected volatile int port;
+    protected int port;
     /**
      * The udp listen port for this member
      */
-    protected volatile int udpPort = -1;
+    protected int udpPort = -1;
 
     /**
      * The tcp/SSL listen port for this member
      */
-    protected volatile int securePort = -1;
+    protected int securePort = -1;
 
     /**
      * Counter for how many broadcast messages have been sent from this member
      */
-    protected AtomicInteger msgCount = new AtomicInteger(0);
-
+    protected int msgCount = 0;
     /**
      * The number of milliseconds since this member was
      * created, is kept track of using the start time
      */
-    protected volatile long memberAliveTime = 0;
+    protected long memberAliveTime = 0;
 
     /**
      * For the local member only
@@ -89,24 +103,24 @@ public class MemberImpl implements Member, java.io.Externalizable {
     /**
      * Unique session Id for this member
      */
-    protected volatile byte[] uniqueId = new byte[16];
+    protected byte[] uniqueId = new byte[16];
 
     /**
      * Custom payload that an app framework can broadcast
      * Also used to transport stop command.
      */
-    protected volatile byte[] payload = new byte[0];
+    protected byte[] payload = new byte[0];
 
     /**
      * Command, so that the custom payload doesn't have to be used
      * This is for internal tribes use, such as SHUTDOWN_COMMAND
      */
-    protected volatile byte[] command = new byte[0];
+    protected byte[] command = new byte[0];
 
     /**
      * Domain if we want to filter based on domain.
      */
-    protected volatile byte[] domain = new byte[0];
+    protected byte[] domain = new byte[0];
 
     /**
      * The flag indicating that this member is a local member.
@@ -121,14 +135,10 @@ public class MemberImpl implements Member, java.io.Externalizable {
     }
 
     /**
-     * Construct a new member object.
-     *
+     * Construct a new member object
      * @param host - the tcp listen host
      * @param port - the tcp listen port
      * @param aliveTime - the number of milliseconds since this member was created
-     *
-     * @throws IOException If there is an error converting the host name to an
-     *                     IP address
      */
     public MemberImpl(String host,
                       int port,
@@ -163,7 +173,7 @@ public class MemberImpl implements Member, java.io.Externalizable {
      * Increment the message count.
      */
     protected void inc() {
-        msgCount.incrementAndGet();
+        msgCount++;
     }
 
     /**
@@ -174,16 +184,18 @@ public class MemberImpl implements Member, java.io.Externalizable {
     public byte[] getData()  {
         return getData(true);
     }
-
-
-    @Override
+    /**
+     * Highly optimized version of serializing a member into a byte array
+     * Returns a cached byte[] reference, do not modify this data
+     * @param getalive boolean
+     * @return byte[]
+     */
     public byte[] getData(boolean getalive)  {
         return getData(getalive,false);
     }
 
 
-    @Override
-    public synchronized int getDataLength() {
+    public int getDataLength() {
         return TRIBES_MBR_BEGIN.length+ //start pkg
                4+ //data length
                8+ //alive time
@@ -202,21 +214,21 @@ public class MemberImpl implements Member, java.io.Externalizable {
                TRIBES_MBR_END.length; //end pkg
     }
 
-
-    @Override
-    public synchronized byte[] getData(boolean getalive, boolean reset)  {
-        if (reset) {
-            dataPkg = null;
-        }
-        // Look in cache first
-        if (dataPkg != null) {
-            if (getalive) {
-                // You'd be surprised, but System.currentTimeMillis
-                // shows up on the profiler
-                long alive = System.currentTimeMillis() - getServiceStartTime();
-                byte[] result = dataPkg.clone();
-                XByteBuffer.toBytes(alive, result, TRIBES_MBR_BEGIN.length + 4);
-                dataPkg = result;
+    /**
+     *
+     * @param getalive boolean - calculate memberAlive time
+     * @param reset boolean - reset the cached data package, and create a new one
+     * @return byte[]
+     */
+    public byte[] getData(boolean getalive, boolean reset)  {
+        if ( reset ) dataPkg = null;
+        //look in cache first
+        if ( dataPkg!=null ) {
+            if ( getalive ) {
+                //you'd be surprised, but System.currentTimeMillis
+                //shows up on the profiler
+                long alive=System.currentTimeMillis()-getServiceStartTime();
+                XByteBuffer.toBytes(alive, dataPkg, TRIBES_MBR_BEGIN.length+4);
             }
             return dataPkg;
         }
@@ -238,7 +250,9 @@ public class MemberImpl implements Member, java.io.Externalizable {
         //payload length - 4 bytes
         //payload plen bytes
         //end package TRIBES_MBR_END.length
+        byte[] addr = host;
         long alive=System.currentTimeMillis()-getServiceStartTime();
+        byte hl = (byte)addr.length;
         byte[] data = new byte[getDataLength()];
 
         int bodylength = (getDataLength() - TRIBES_MBR_BEGIN.length - TRIBES_MBR_END.length - 4);
@@ -266,10 +280,10 @@ public class MemberImpl implements Member, java.io.Externalizable {
         XByteBuffer.toBytes(udpPort,data,pos);
         pos += 4;
         //host length
-        data[pos++] = (byte) host.length;
+        data[pos++] = hl;
         //host
-        System.arraycopy(host,0,data,pos,host.length);
-        pos+=host.length;
+        System.arraycopy(addr,0,data,pos,addr.length);
+        pos+=addr.length;
         //clen - 4 bytes
         XByteBuffer.toBytes(command.length,data,pos);
         pos+=4;
@@ -300,18 +314,15 @@ public class MemberImpl implements Member, java.io.Externalizable {
         return data;
     }
     /**
-     * Deserializes a member from data sent over the wire.
-     *
-     * @param data   The bytes received
-     * @param member The member object to populate
-     *
-     * @return The populated member object.
+     * Deserializes a member from data sent over the wire
+     * @param data - the bytes received
+     * @return a member object.
      */
-    public static Member getMember(byte[] data, MemberImpl member) {
+    public static MemberImpl getMember(byte[] data, MemberImpl member) {
         return getMember(data,0,data.length,member);
     }
 
-    public static Member getMember(byte[] data, int offset, int length, MemberImpl member) {
+    public static MemberImpl getMember(byte[] data, int offset, int length, MemberImpl member) {
         //package looks like
         //start package TRIBES_MBR_BEGIN.length
         //package length - 4 bytes
@@ -333,11 +344,11 @@ public class MemberImpl implements Member, java.io.Externalizable {
         int pos = offset;
 
         if (XByteBuffer.firstIndexOf(data,offset,TRIBES_MBR_BEGIN)!=pos) {
-            throw new IllegalArgumentException(sm.getString("memberImpl.invalid.package.begin", org.apache.catalina.tribes.util.Arrays.toString(TRIBES_MBR_BEGIN)));
+            throw new IllegalArgumentException("Invalid package, should start with:"+org.apache.catalina.tribes.util.Arrays.toString(TRIBES_MBR_BEGIN));
         }
 
         if ( length < (TRIBES_MBR_BEGIN.length+4) ) {
-            throw new ArrayIndexOutOfBoundsException(sm.getString("memberImpl.package.small"));
+            throw new ArrayIndexOutOfBoundsException("Member package to small to validate.");
         }
 
         pos += TRIBES_MBR_BEGIN.length;
@@ -346,12 +357,12 @@ public class MemberImpl implements Member, java.io.Externalizable {
         pos += 4;
 
         if ( length < (bodylength+4+TRIBES_MBR_BEGIN.length+TRIBES_MBR_END.length) ) {
-            throw new ArrayIndexOutOfBoundsException(sm.getString("memberImpl.notEnough.bytes"));
+            throw new ArrayIndexOutOfBoundsException("Not enough bytes in member package.");
         }
 
         int endpos = pos+bodylength;
         if (XByteBuffer.firstIndexOf(data,endpos,TRIBES_MBR_END)!=endpos) {
-            throw new IllegalArgumentException(sm.getString("memberImpl.invalid.package.end", org.apache.catalina.tribes.util.Arrays.toString(TRIBES_MBR_END)));
+            throw new IllegalArgumentException("Invalid package, should end with:"+org.apache.catalina.tribes.util.Arrays.toString(TRIBES_MBR_END));
         }
 
 
@@ -417,11 +428,11 @@ public class MemberImpl implements Member, java.io.Externalizable {
         return member;
     }
 
-    public static Member getMember(byte[] data) {
+    public static MemberImpl getMember(byte[] data) {
        return getMember(data,new MemberImpl());
     }
 
-    public static Member getMember(byte[] data, int offset, int length) {
+    public static MemberImpl getMember(byte[] data, int offset, int length) {
        return getMember(data,offset,length,new MemberImpl());
     }
 
@@ -456,20 +467,19 @@ public class MemberImpl implements Member, java.io.Externalizable {
         if ( this.hostname != null ) return hostname;
         else {
             try {
-                byte[] host = this.host;
                 if (DO_DNS_LOOKUPS)
                     this.hostname = java.net.InetAddress.getByAddress(host).getHostName();
                 else
                     this.hostname = org.apache.catalina.tribes.util.Arrays.toString(host,0,host.length,true);
                 return this.hostname;
             }catch ( IOException x ) {
-                throw new RuntimeException(sm.getString("memberImpl.unableParse.hostname"),x);
+                throw new RuntimeException("Unable to parse hostname.",x);
             }
         }
     }
 
     public int getMsgCount() {
-        return msgCount.get();
+        return this.msgCount;
     }
 
     /**
@@ -517,7 +527,6 @@ public class MemberImpl implements Member, java.io.Externalizable {
         return udpPort;
     }
 
-    @Override
     public void setMemberAliveTime(long time) {
        memberAliveTime=time;
     }
@@ -572,8 +581,7 @@ public class MemberImpl implements Member, java.io.Externalizable {
 
     /**
      * Returns true if the param o is a McastMember with the same name
-     *
-     * @param o The object to test for equality
+     * @param o
      */
     @Override
     public boolean equals(Object o) {
@@ -586,22 +594,20 @@ public class MemberImpl implements Member, java.io.Externalizable {
             return false;
     }
 
-    public synchronized void setHost(byte[] host) {
+    public void setHost(byte[] host) {
         this.host = host;
     }
 
     public void setHostname(String host) throws IOException {
         hostname = host;
-        synchronized (this) {
-            this.host = java.net.InetAddress.getByName(host).getAddress();
-        }
+        this.host = java.net.InetAddress.getByName(host).getAddress();
     }
 
     public void setMsgCount(int msgCount) {
-        this.msgCount.set(msgCount);
+        this.msgCount = msgCount;
     }
 
-    public synchronized void setPort(int port) {
+    public void setPort(int port) {
         this.port = port;
         this.dataPkg = null;
     }
@@ -610,60 +616,45 @@ public class MemberImpl implements Member, java.io.Externalizable {
         this.serviceStartTime = serviceStartTime;
     }
 
-    public synchronized void setUniqueId(byte[] uniqueId) {
+    public void setUniqueId(byte[] uniqueId) {
         this.uniqueId = uniqueId!=null?uniqueId:new byte[16];
         getData(true,true);
     }
 
-    @Override
-    public synchronized void setPayload(byte[] payload) {
-        // longs to avoid any possibility of overflow
-        long oldPayloadLength = 0;
-        if (this.payload != null) {
-            oldPayloadLength = this.payload.length;
+    public void setPayload(byte[] payload) {
+        byte[] oldpayload = this.payload;
+        this.payload = payload!=null?payload:new byte[0];
+        if ( this.getData(true,true).length > McastServiceImpl.MAX_PACKET_SIZE ) {
+            this.payload = oldpayload;
+            throw new IllegalArgumentException("Payload is to large for tribes to handle.");
         }
-        long newPayloadLength = 0;
-        if (payload != null) {
-            newPayloadLength = payload.length;
-        }
-        if (newPayloadLength > oldPayloadLength) {
-            // It is possible that the max packet size will be exceeded
-            if ((newPayloadLength - oldPayloadLength + getData(false, false).length) >
-                    McastServiceImpl.MAX_PACKET_SIZE) {
-                throw new IllegalArgumentException(sm.getString("memberImpl.large.payload"));
-            }
-        }
-        this.payload = payload != null ? payload : new byte[0];
-        getData(true, true);
+
     }
 
-    @Override
-    public synchronized void setCommand(byte[] command) {
+    public void setCommand(byte[] command) {
         this.command = command!=null?command:new byte[0];
         getData(true,true);
     }
 
-    public synchronized void setDomain(byte[] domain) {
+    public void setDomain(byte[] domain) {
         this.domain = domain!=null?domain:new byte[0];
         getData(true,true);
     }
 
-    public synchronized void setSecurePort(int securePort) {
+    public void setSecurePort(int securePort) {
         this.securePort = securePort;
         this.dataPkg = null;
     }
 
-    public synchronized void setUdpPort(int port) {
+    public void setUdpPort(int port) {
         this.udpPort = port;
         this.dataPkg = null;
     }
 
-    @Override
     public boolean isLocal() {
         return local;
     }
 
-    @Override
     public void setLocal(boolean local) {
         this.local = local;
     }

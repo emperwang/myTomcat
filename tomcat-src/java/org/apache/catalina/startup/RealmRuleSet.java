@@ -28,7 +28,6 @@ import org.apache.tomcat.util.digester.RuleSetBase;
  * element.  This <code>RuleSet</code> supports Realms such as the
  * <code>CombinedRealm</code> that used nested Realms.</p>
  */
-@SuppressWarnings("deprecation")
 public class RealmRuleSet extends RuleSetBase {
 
 
@@ -42,7 +41,7 @@ public class RealmRuleSet extends RuleSetBase {
     /**
      * The matching pattern prefix to use for recognizing our elements.
      */
-    protected final String prefix;
+    protected String prefix = null;
 
 
     // ------------------------------------------------------------ Constructor
@@ -53,7 +52,9 @@ public class RealmRuleSet extends RuleSetBase {
      * matching pattern prefix.
      */
     public RealmRuleSet() {
+
         this("");
+
     }
 
 
@@ -65,7 +66,11 @@ public class RealmRuleSet extends RuleSetBase {
      *  trailing slash character)
      */
     public RealmRuleSet(String prefix) {
+
+        super();
+        this.namespaceURI = null;
         this.prefix = prefix;
+
     }
 
 
@@ -98,6 +103,5 @@ public class RealmRuleSet extends RuleSetBase {
                 "className");
         digester.addSetProperties(pattern);
         digester.addSetNext(pattern, methodName, "org.apache.catalina.Realm");
-        digester.addRuleSet(new CredentialHandlerRuleSet(pattern + "/"));
     }
 }

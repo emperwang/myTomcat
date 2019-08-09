@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.ha.deploy;
 
 import java.io.File;
@@ -26,36 +27,45 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
+ * <p>
  * The <b>WarWatcher </b> watches the deployDir for changes made to the
- * directory (adding new WAR files-&gt;deploy or remove WAR files-&gt;undeploy)
- * and notifies a listener of the changes made.
+ * directory (adding new WAR files->deploy or remove WAR files->undeploy) And
+ * notifies a listener of the changes made
+ * </p>
  *
+ * @author Filip Hanik
  * @author Peter Rossbach
  * @version 1.1
  */
+
 public class WarWatcher {
 
     /*--Static Variables----------------------------------------*/
     private static final Log log = LogFactory.getLog(WarWatcher.class);
-    private static final StringManager sm = StringManager.getManager(WarWatcher.class);
+    private static final StringManager sm =
+            StringManager.getManager(Constants.Package);
 
     /*--Instance Variables--------------------------------------*/
     /**
      * Directory to watch for war files
      */
-    protected final File watchDir;
+    protected File watchDir = null;
 
     /**
      * Parent to be notified of changes
      */
-    protected final FileChangeListener listener;
+    protected FileChangeListener listener = null;
 
     /**
      * Currently deployed files
      */
-    protected final Map<String, WarInfo> currentStatus = new HashMap<>();
+    protected Map<String, WarInfo> currentStatus =
+        new HashMap<String, WarInfo>();
 
     /*--Constructor---------------------------------------------*/
+
+    public WarWatcher() {
+    }
 
     public WarWatcher(FileChangeListener listener, File watchDir) {
         this.listener = listener;
@@ -112,7 +122,7 @@ public class WarWatcher {
 
     /**
      * add cluster war to the watcher state
-     * @param warfile The WAR to add
+     * @param warfile
      */
     protected void addWarInfo(File warfile) {
         WarInfo info = currentStatus.get(warfile.getAbsolutePath());
@@ -130,6 +140,35 @@ public class WarWatcher {
         currentStatus.clear();
     }
 
+    /**
+     * @return Returns the watchDir.
+     */
+    public File getWatchDir() {
+        return watchDir;
+    }
+
+    /**
+     * @param watchDir
+     *            The watchDir to set.
+     */
+    public void setWatchDir(File watchDir) {
+        this.watchDir = watchDir;
+    }
+
+    /**
+     * @return Returns the listener.
+     */
+    public FileChangeListener getListener() {
+        return listener;
+    }
+
+    /**
+     * @param listener
+     *            The listener to set.
+     */
+    public void setListener(FileChangeListener listener) {
+        this.listener = listener;
+    }
 
     /*--Inner classes-------------------------------------------*/
 
@@ -149,7 +188,7 @@ public class WarWatcher {
      * File information on existing WAR files
      */
     protected static class WarInfo {
-        protected final File war;
+        protected File war = null;
 
         protected long lastChecked = 0;
 

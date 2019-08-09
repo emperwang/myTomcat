@@ -16,11 +16,14 @@
  */
 package org.apache.jasper.runtime;
 
+import java.io.File;
+
 import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
 
@@ -28,7 +31,12 @@ public class TestJspWriterImpl extends TomcatBaseTest {
 
     @Test
     public void bug54241a() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir = new File("test/webapp-3.0");
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         ByteChunk res = new ByteChunk();
 
@@ -44,7 +52,12 @@ public class TestJspWriterImpl extends TomcatBaseTest {
 
     @Test
     public void bug54241b() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir = new File("test/webapp-3.0");
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         ByteChunk res = new ByteChunk();
 

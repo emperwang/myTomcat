@@ -30,13 +30,14 @@ import org.apache.catalina.Container;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.core.ApplicationServletRegistration;
+import org.apache.catalina.deploy.ContextEnvironment;
+import org.apache.catalina.deploy.ContextResource;
+import org.apache.catalina.deploy.ContextResourceEnvRef;
+import org.apache.catalina.deploy.ContextService;
+import org.apache.catalina.deploy.FilterDef;
+import org.apache.catalina.deploy.MessageDestinationRef;
 import org.apache.catalina.util.Introspection;
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
-import org.apache.tomcat.util.descriptor.web.ContextResource;
-import org.apache.tomcat.util.descriptor.web.ContextResourceEnvRef;
-import org.apache.tomcat.util.descriptor.web.ContextService;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
-import org.apache.tomcat.util.descriptor.web.MessageDestinationRef;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -338,7 +339,9 @@ public class WebAnnotationSet {
             resource.setType(type);
             resource.setDescription(annotation.description());
             resource.setProperty(MAPPED_NAME_PROPERTY, annotation.mappedName());
-            resource.setLookupName(annotation.lookup());
+            if (JreCompat.getInstance().isCommonsAnnotations1_1Available()) {
+                resource.setLookupName(annotation.lookup());
+            }
 
             context.getNamingResources().addEnvironment(resource);
 
@@ -351,7 +354,9 @@ public class WebAnnotationSet {
             service.setWsdlfile(annotation.mappedName());
             service.setType(type);
             service.setDescription(annotation.description());
-            service.setLookupName(annotation.lookup());
+            if (JreCompat.getInstance().isCommonsAnnotations1_1Available()) {
+                service.setLookupName(annotation.lookup());
+            }
 
             context.getNamingResources().addService(service);
 
@@ -380,7 +385,9 @@ public class WebAnnotationSet {
             resource.setScope(annotation.shareable() ? "Shareable" : "Unshareable");
             resource.setProperty(MAPPED_NAME_PROPERTY, annotation.mappedName());
             resource.setDescription(annotation.description());
-            resource.setLookupName(annotation.lookup());
+            if (JreCompat.getInstance().isCommonsAnnotations1_1Available()) {
+                resource.setLookupName(annotation.lookup());
+            }
 
             context.getNamingResources().addResource(resource);
 
@@ -394,7 +401,9 @@ public class WebAnnotationSet {
             resource.setType(type);
             resource.setUsage(annotation.mappedName());
             resource.setDescription(annotation.description());
-            resource.setLookupName(annotation.lookup());
+            if (JreCompat.getInstance().isCommonsAnnotations1_1Available()) {
+                resource.setLookupName(annotation.lookup());
+            }
 
             context.getNamingResources().addMessageDestinationRef(resource);
 
@@ -412,7 +421,9 @@ public class WebAnnotationSet {
             resource.setType(type);
             resource.setProperty(MAPPED_NAME_PROPERTY, annotation.mappedName());
             resource.setDescription(annotation.description());
-            resource.setLookupName(annotation.lookup());
+            if (JreCompat.getInstance().isCommonsAnnotations1_1Available()) {
+                resource.setLookupName(annotation.lookup());
+            }
 
             context.getNamingResources().addResourceEnvRef(resource);
         }

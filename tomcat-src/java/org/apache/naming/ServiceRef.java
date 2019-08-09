@@ -78,7 +78,7 @@ public class ServiceRef extends AbstractRef {
      * The vector to save the handler Reference objects, because they can't be
      * saved in the addrs vector.
      */
-    private final Vector<HandlerRef> handlers = new Vector<>();
+    private final Vector<HandlerRef> handlers = new Vector<HandlerRef>();
 
 
     public ServiceRef(String refname, String serviceInterface, String[] serviceQname,

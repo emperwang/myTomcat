@@ -47,7 +47,7 @@ public class SingleSignOnListener implements SessionListener, Serializable {
         if (manager == null) {
             return;
         }
-        Context context = manager.getContext();
+        Context context = (Context) manager.getContainer();
         Authenticator authenticator = context.getAuthenticator();
         if (!(authenticator instanceof AuthenticatorBase)) {
             return;

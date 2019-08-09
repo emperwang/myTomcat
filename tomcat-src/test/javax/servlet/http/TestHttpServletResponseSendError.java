@@ -32,10 +32,10 @@ import org.junit.runners.Parameterized.Parameter;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
+import org.apache.catalina.deploy.ErrorPage;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
 
 /**
  * These tests evolved out of a discussion in the Jakarta Servlet project
@@ -81,7 +81,7 @@ public class TestHttpServletResponseSendError extends TomcatBaseTest {
 
     @Parameterized.Parameters(name = "{index}: async[{0}], throw[{1}], dispatch[{2}], errorPoint[{3}], useStart[{4}]")
     public static Collection<Object[]> parameters() {
-        List<Object[]> parameterSets = new ArrayList<>();
+        List<Object[]> parameterSets = new ArrayList<Object[]>();
 
         for (Boolean async : booleans) {
             for (Boolean throwException : booleans) {
@@ -139,14 +139,14 @@ public class TestHttpServletResponseSendError extends TomcatBaseTest {
         } else {
             Tomcat.addServlet(ctx, "target", new TesterServlet(throwException));
         }
-        ctx.addServletMappingDecoded("/target", "target");
+        ctx.addServletMapping("/target", "target");
         Tomcat.addServlet(ctx, "dispatch", new TesterDispatchServlet());
-        ctx.addServletMappingDecoded("/dispatch", "dispatch");
+        ctx.addServletMapping("/dispatch", "dispatch");
 
         Tomcat.addServlet(ctx, "error599", new ErrorServletStatic599());
-        ctx.addServletMappingDecoded("/error599", "error599");
+        ctx.addServletMapping("/error599", "error599");
         Tomcat.addServlet(ctx, "errorException", new ErrorServletStaticException());
-        ctx.addServletMappingDecoded("/errorException", "errorException");
+        ctx.addServletMapping("/errorException", "errorException");
 
         ErrorPage ep1 = new ErrorPage();
         ep1.setErrorCode(599);

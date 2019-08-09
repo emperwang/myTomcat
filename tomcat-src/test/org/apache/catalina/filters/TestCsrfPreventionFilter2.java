@@ -24,7 +24,7 @@ import org.apache.catalina.filters.CsrfPreventionFilter.LruCache;
 
 public class TestCsrfPreventionFilter2 {
 
-    /*
+    /**
      * When this test fails, it tends to enter a long running loop but it will
      * eventually finish (after ~70s on a 8-core Windows box).
      */
@@ -35,7 +35,7 @@ public class TestCsrfPreventionFilter2 {
 
         Assert.assertTrue(threadCount > 1);
 
-        LruCache<String> cache = new LruCache<>(threadCount - 1);
+        LruCache<String> cache = new LruCache<String>(threadCount - 1);
 
         LruTestThread[] threads = new LruTestThread[threadCount];
         for (int i = 0; i < threadCount; i++) {

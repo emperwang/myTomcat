@@ -188,7 +188,7 @@ public class StringManager {
     // --------------------------------------------------------------
 
     private static final Map<String, Map<Locale,StringManager>> managers =
-            new Hashtable<>();
+        new Hashtable<String, Map<Locale,StringManager>>();
 
 
     /**

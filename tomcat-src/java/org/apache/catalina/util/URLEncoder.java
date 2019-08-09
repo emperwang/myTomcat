@@ -19,11 +19,7 @@ package org.apache.catalina.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
 import java.util.BitSet;
-
-import org.apache.tomcat.util.buf.B2CConverter;
 
 /**
  *
@@ -39,7 +35,7 @@ import org.apache.tomcat.util.buf.B2CConverter;
  */
 public class URLEncoder implements Cloneable {
 
-    private static final char[] hexadecimal =
+    protected static final char[] hexadecimal =
             {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     public static final URLEncoder DEFAULT = new URLEncoder();
@@ -101,8 +97,8 @@ public class URLEncoder implements Cloneable {
         QUERY.addSafeCharacter('&');
     }
 
-    //Array containing the safe characters set.
-    private final BitSet safeCharacters;
+    // Array containing the safe characters set.
+    protected BitSet safeCharacters;
 
     private boolean encodeSpaceAsPlus = false;
 
@@ -164,35 +160,18 @@ public class URLEncoder implements Cloneable {
      * @param encoding  The encoding to use to convert the path to bytes
      *
      * @return The encoded path
-     *
-     * @deprecated This will be removed in Tomcat 9.0.x
      */
-    @Deprecated
     public String encode(String path, String encoding) {
-        Charset charset;
-        try {
-            charset = B2CConverter.getCharset(encoding);
-        } catch (UnsupportedEncodingException e) {
-            charset = Charset.defaultCharset();
-        }
-        return encode(path, charset);
-    }
-
-
-    /**
-     * URL encodes the provided path using the given character set.
-     *
-     * @param path      The path to encode
-     * @param charset   The character set to use to convert the path to bytes
-     *
-     * @return The encoded path
-     */
-    public String encode(String path, Charset charset) {
-
         int maxBytesPerChar = 10;
         StringBuilder rewrittenPath = new StringBuilder(path.length());
         ByteArrayOutputStream buf = new ByteArrayOutputStream(maxBytesPerChar);
-        OutputStreamWriter writer = new OutputStreamWriter(buf, charset);
+        OutputStreamWriter writer = null;
+        try {
+            writer = new OutputStreamWriter(buf, encoding);
+        } catch (Exception e) {
+            e.printStackTrace();
+            writer = new OutputStreamWriter(buf);
+        }
 
         for (int i = 0; i < path.length(); i++) {
             int c = path.charAt(i);

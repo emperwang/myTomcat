@@ -14,19 +14,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.coyote.http11.filters;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.zip.GZIPOutputStream;
 
+import org.apache.coyote.OutputBuffer;
 import org.apache.coyote.Response;
-import org.apache.coyote.http11.HttpOutputBuffer;
 import org.apache.coyote.http11.OutputFilter;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.ByteChunk;
+import org.apache.tomcat.util.compat.JreCompat;
 
 /**
  * Gzip output filter.
@@ -35,15 +34,21 @@ import org.apache.tomcat.util.buf.ByteChunk;
  */
 public class GzipOutputFilter implements OutputFilter {
 
-    protected static final Log log = LogFactory.getLog(GzipOutputFilter.class);
+
+    /**
+     * Logger.
+     */
+    protected static org.apache.juli.logging.Log log =
+        org.apache.juli.logging.LogFactory.getLog(GzipOutputFilter.class);
 
 
     // ----------------------------------------------------- Instance Variables
 
+
     /**
      * Next buffer in the pipeline.
      */
-    protected HttpOutputBuffer buffer;
+    protected OutputBuffer buffer;
 
 
     /**
@@ -55,41 +60,31 @@ public class GzipOutputFilter implements OutputFilter {
     /**
      * Fake internal output stream.
      */
-    protected final OutputStream fakeOutputStream = new FakeOutputStream();
+    protected OutputStream fakeOutputStream = new FakeOutputStream();
 
 
     // --------------------------------------------------- OutputBuffer Methods
 
+
     /**
-     * @deprecated Unused. Will be removed in Tomcat 9. Use
-     *             {@link #doWrite(ByteBuffer)}
+     * Write some bytes.
+     *
+     * @return number of bytes written by the filter
      */
-    @Deprecated
     @Override
-    public int doWrite(ByteChunk chunk) throws IOException {
+    public int doWrite(ByteChunk chunk, Response res)
+        throws IOException {
         if (compressionStream == null) {
-            compressionStream = new GZIPOutputStream(fakeOutputStream, true);
+            if (JreCompat.isJre7Available()) {
+                compressionStream =
+                        JreCompat.getInstance().getFlushableGZipOutputStream(fakeOutputStream);
+            } else {
+                compressionStream = new FlushableGZIPOutputStream(fakeOutputStream);
+            }
         }
         compressionStream.write(chunk.getBytes(), chunk.getStart(),
                                 chunk.getLength());
         return chunk.getLength();
-    }
-
-
-    @Override
-    public int doWrite(ByteBuffer chunk) throws IOException {
-        if (compressionStream == null) {
-            compressionStream = new GZIPOutputStream(fakeOutputStream, true);
-        }
-        int len = chunk.remaining();
-        if (chunk.hasArray()) {
-            compressionStream.write(chunk.array(), chunk.arrayOffset() + chunk.position(), len);
-        } else {
-            byte[] bytes = new byte[len];
-            chunk.put(bytes);
-            compressionStream.write(bytes, 0, len);
-        }
-        return len;
     }
 
 
@@ -104,8 +99,7 @@ public class GzipOutputFilter implements OutputFilter {
     /**
      * Added to allow flushing to happen for the gzip'ed outputstream
      */
-    @Override
-    public void flush() throws IOException {
+    public void flush() {
         if (compressionStream != null) {
             try {
                 if (log.isDebugEnabled()) {
@@ -118,30 +112,45 @@ public class GzipOutputFilter implements OutputFilter {
                 }
             }
         }
-        buffer.flush();
     }
 
-
+    /**
+     * Some filters need additional parameters from the response. All the
+     * necessary reading can occur in that method, as this method is called
+     * after the response header processing is complete.
+     */
     @Override
     public void setResponse(Response response) {
         // NOOP: No need for parameters from response in this filter
     }
 
 
+    /**
+     * Set the next buffer in the filter pipeline.
+     */
     @Override
-    public void setBuffer(HttpOutputBuffer buffer) {
+    public void setBuffer(OutputBuffer buffer) {
         this.buffer = buffer;
     }
 
 
+    /**
+     * End the current request. It is acceptable to write extra bytes using
+     * buffer.doWrite during the execution of this method.
+     */
     @Override
-    public void end() throws IOException {
+    public long end() throws IOException {
         if (compressionStream == null) {
-            compressionStream = new GZIPOutputStream(fakeOutputStream, true);
+            if (JreCompat.isJre7Available()) {
+                compressionStream =
+                        JreCompat.getInstance().getFlushableGZipOutputStream(fakeOutputStream);
+            } else {
+                compressionStream = new FlushableGZIPOutputStream(fakeOutputStream);
+            }
         }
         compressionStream.finish();
         compressionStream.close();
-        buffer.end();
+        return ((OutputFilter) buffer).end();
     }
 
 
@@ -160,19 +169,22 @@ public class GzipOutputFilter implements OutputFilter {
 
     protected class FakeOutputStream
         extends OutputStream {
-        protected final ByteBuffer outputChunk = ByteBuffer.allocate(1);
+        protected ByteChunk outputChunk = new ByteChunk();
+        protected byte[] singleByteBuffer = new byte[1];
         @Override
         public void write(int b)
             throws IOException {
             // Shouldn't get used for good performance, but is needed for
             // compatibility with Sun JDK 1.4.0
-            outputChunk.put(0, (byte) (b & 0xff));
-            buffer.doWrite(outputChunk);
+            singleByteBuffer[0] = (byte) (b & 0xff);
+            outputChunk.setBytes(singleByteBuffer, 0, 1);
+            buffer.doWrite(outputChunk, null);
         }
         @Override
         public void write(byte[] b, int off, int len)
             throws IOException {
-            buffer.doWrite(ByteBuffer.wrap(b, off, len));
+            outputChunk.setBytes(b, off, len);
+            buffer.doWrite(outputChunk, null);
         }
         @Override
         public void flush() throws IOException {/*NOOP*/}

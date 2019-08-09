@@ -31,7 +31,7 @@ public class VariableMapperImpl extends VariableMapper implements Externalizable
 
     private static final long serialVersionUID = 1L;
 
-    private Map<String, ValueExpression> vars = new HashMap<>();
+    private Map<String, ValueExpression> vars = new HashMap<String, ValueExpression>();
 
     public VariableMapperImpl() {
         super();
@@ -45,17 +45,12 @@ public class VariableMapperImpl extends VariableMapper implements Externalizable
     @Override
     public ValueExpression setVariable(String variable,
             ValueExpression expression) {
-        if (expression == null) {
-            return vars.remove(variable);
-        } else {
-            return vars.put(variable, expression);
-        }
+        return this.vars.put(variable, expression);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public void readExternal(ObjectInput in) throws IOException,
-            ClassNotFoundException {
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         this.vars = (Map<String, ValueExpression>) in.readObject();
     }
 

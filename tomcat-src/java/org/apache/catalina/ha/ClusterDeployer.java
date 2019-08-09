@@ -26,9 +26,14 @@ import org.apache.catalina.tribes.ChannelListener;
 /**
  * A <b>ClusterDeployer</b> interface allows to plug in and out the
  * different deployment implementations
+ *
+ * @author Filip Hanik
  */
 public interface ClusterDeployer extends ChannelListener {
-
+    /**
+     * Descriptive information about this component implementation.
+     */
+    public String info = "ClusterDeployer/1.0";
     /**
      * Start the cluster deployer, the owning container will invoke this
      * @throws Exception - if failure to start cluster
@@ -37,7 +42,7 @@ public interface ClusterDeployer extends ChannelListener {
 
     /**
      * Stops the cluster deployer, the owning container will invoke this
-     * @throws LifecycleException Error stopping cluster deployer
+     * @throws LifecycleException
      */
     public void stop() throws LifecycleException;
 

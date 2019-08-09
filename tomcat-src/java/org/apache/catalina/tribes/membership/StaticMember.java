@@ -14,12 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.tribes.membership;
 
 import java.io.IOException;
 
 import org.apache.catalina.tribes.util.Arrays;
 
+/**
+ * <p>Title: </p>
+ *
+ * <p>Description: </p>
+ *
+ * <p>Company: </p>
+ *
+ * @author not attributable
+ * @version 1.0
+ */
 public class StaticMember extends MemberImpl {
     public StaticMember() {
         super();
@@ -59,7 +70,7 @@ public class StaticMember extends MemberImpl {
      */
     public void setUniqueId(String id) {
         byte[] uuid = Arrays.fromString(id);
-        if ( uuid==null || uuid.length != 16 ) throw new RuntimeException(sm.getString("staticMember.invalid.uuidLength", id));
+        if ( uuid==null || uuid.length != 16 ) throw new RuntimeException("UUID must be exactly 16 bytes, not:"+id);
         setUniqueId(uuid);
     }
 

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.junit.After;
@@ -42,7 +43,7 @@ public class TestParameterMap {
 
     @Before
     public void setUp() {
-        paramMap = new ParameterMap<>();
+        paramMap = new ParameterMap<String, String[]>();
 
         paramMap.put("param1", TEST_PARAM_VALUES_1);
         paramMap.put("param2", TEST_PARAM_VALUES_2);
@@ -97,7 +98,7 @@ public class TestParameterMap {
         }
 
         try {
-            final Map<String, String[]> additionalParams = new HashMap<>();
+            final Map<String, String[]> additionalParams = new HashMap<String, String[]>();
             additionalParams.put("param4", new String[] { "value4" });
             paramMap.putAll(additionalParams);
             Assert.fail("ParameterMap is not locked.");
@@ -167,7 +168,7 @@ public class TestParameterMap {
         }
 
         try {
-            List<String[]> list = new ArrayList<>();
+            List<String[]> list = new ArrayList<String[]>();
             list.add(new String[] { "value4" });
             valuesCol.addAll(list);
             Assert.fail("ParameterMap is not locked.");
@@ -181,7 +182,7 @@ public class TestParameterMap {
         }
 
         try {
-            List<String[]> list = new ArrayList<>();
+            List<String[]> list = new ArrayList<String[]>();
             list.add(TEST_PARAM_VALUES_1);
             valuesCol.removeAll(list);
             Assert.fail("ParameterMap is not locked.");
@@ -208,7 +209,7 @@ public class TestParameterMap {
         final Set<Map.Entry<String, String[]>> entrySet = paramMap.entrySet();
 
         try {
-            final Map<String, String[]> anotherParamsMap = new HashMap<>();
+            final Map<String, String[]> anotherParamsMap = new HashMap<String, String[]>();
             anotherParamsMap.put("param4", new String[] { "value4" });
             Map.Entry<String, String[]> anotherEntry = anotherParamsMap.entrySet().iterator().next();
             entrySet.add(anotherEntry);
@@ -217,7 +218,7 @@ public class TestParameterMap {
         }
 
         try {
-            final Map<String, String[]> anotherParamsMap = new HashMap<>();
+            final Map<String, String[]> anotherParamsMap = new HashMap<String, String[]>();
             anotherParamsMap.put("param4", new String[] { "value4" });
             anotherParamsMap.put("param5", new String[] { "value5" });
             entrySet.addAll(anotherParamsMap.entrySet());
@@ -233,7 +234,7 @@ public class TestParameterMap {
         }
 
         try {
-            Set<Map.Entry<String, String[]>> anotherEntrySet = new HashSet<>(entrySet);
+            Set<Map.Entry<String, String[]>> anotherEntrySet = new HashSet<Entry<String, String[]>>(entrySet);
             entrySet.removeAll(anotherEntrySet);
             Assert.fail("ParameterMap is not locked.");
         } catch (UnsupportedOperationException expectedException) {

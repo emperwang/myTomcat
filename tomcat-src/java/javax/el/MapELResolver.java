@@ -24,12 +24,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class MapELResolver extends ELResolver {
 
-    private static final Class<?> UNMODIFIABLE =
-            Collections.unmodifiableMap(new HashMap<>()).getClass();
+    private static final Class<?> UNMODIFIABLE = Collections.unmodifiableMap(
+            new HashMap<Object, Object>()).getClass();
 
     private final boolean readOnly;
 
@@ -43,10 +42,12 @@ public class MapELResolver extends ELResolver {
 
     @Override
     public Class<?> getType(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof Map<?,?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             return Object.class;
         }
 
@@ -55,10 +56,12 @@ public class MapELResolver extends ELResolver {
 
     @Override
     public Object getValue(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof Map<?,?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             return ((Map<?,?>) base).get(property);
         }
 
@@ -68,10 +71,12 @@ public class MapELResolver extends ELResolver {
     @Override
     public void setValue(ELContext context, Object base, Object property,
             Object value) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof Map<?, ?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
 
             if (this.readOnly) {
                 throw new PropertyNotWritableException(Util.message(context,
@@ -90,10 +95,12 @@ public class MapELResolver extends ELResolver {
 
     @Override
     public boolean isReadOnly(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof Map<?, ?>) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             return this.readOnly || UNMODIFIABLE.equals(base.getClass());
         }
 
@@ -104,7 +111,7 @@ public class MapELResolver extends ELResolver {
     public Iterator<FeatureDescriptor> getFeatureDescriptors(ELContext context, Object base) {
         if (base instanceof Map<?, ?>) {
             Iterator<?> itr = ((Map<?, ?>) base).keySet().iterator();
-            List<FeatureDescriptor> feats = new ArrayList<>();
+            List<FeatureDescriptor> feats = new ArrayList<FeatureDescriptor>();
             Object key;
             FeatureDescriptor desc;
             while (itr.hasNext()) {

@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.el;
 
 import java.io.Externalizable;
@@ -25,6 +26,7 @@ import javax.el.ELContext;
 import javax.el.PropertyNotWritableException;
 import javax.el.ValueExpression;
 
+import org.apache.el.lang.ELSupport;
 import org.apache.el.util.MessageFactory;
 import org.apache.el.util.ReflectionUtil;
 
@@ -35,7 +37,6 @@ public final class ValueExpressionLiteral extends ValueExpression implements
     private static final long serialVersionUID = 1L;
 
     private Object value;
-    private String valueString;
 
     private Class<?> expectedType;
 
@@ -50,37 +51,26 @@ public final class ValueExpressionLiteral extends ValueExpression implements
 
     @Override
     public Object getValue(ELContext context) {
-        context.notifyBeforeEvaluation(getExpressionString());
-        Object result;
         if (this.expectedType != null) {
-            result = context.convertToType(this.value, this.expectedType);
-        } else {
-            result = this.value;
+            return ELSupport.coerceToType(this.value, this.expectedType);
         }
-        context.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return this.value;
     }
 
     @Override
     public void setValue(ELContext context, Object value) {
-        context.notifyBeforeEvaluation(getExpressionString());
         throw new PropertyNotWritableException(MessageFactory.get(
                 "error.value.literal.write", this.value));
     }
 
     @Override
     public boolean isReadOnly(ELContext context) {
-        context.notifyBeforeEvaluation(getExpressionString());
-        context.notifyAfterEvaluation(getExpressionString());
         return true;
     }
 
     @Override
     public Class<?> getType(ELContext context) {
-        context.notifyBeforeEvaluation(getExpressionString());
-        Class<?> result = (this.value != null) ? this.value.getClass() : null;
-        context.notifyAfterEvaluation(getExpressionString());
-        return result;
+        return (this.value != null) ? this.value.getClass() : null;
     }
 
     @Override
@@ -90,10 +80,7 @@ public final class ValueExpressionLiteral extends ValueExpression implements
 
     @Override
     public String getExpressionString() {
-        if (this.valueString == null) {
-            this.valueString = (this.value != null) ? this.value.toString() : null;
-        }
-        return this.valueString;
+        return (this.value != null) ? this.value.toString() : null;
     }
 
     @Override

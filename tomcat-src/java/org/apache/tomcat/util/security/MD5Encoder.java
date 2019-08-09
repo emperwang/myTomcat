@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.tomcat.util.security;
+
 
 /**
  * Encode an MD5 digest into a String.
@@ -25,26 +28,36 @@ package org.apache.tomcat.util.security;
  *
  * @author Remy Maucherat
  */
+
 public final class MD5Encoder {
 
 
-    private MD5Encoder() {
-        // Hide default constructor for utility class
+    /**
+     * @deprecated  Will be made private in Tomcat 8.0.x
+     */
+    @Deprecated
+    public MD5Encoder() {
+        // NOOP
     }
 
+    // ----------------------------------------------------- Instance Variables
 
-    private static final char[] hexadecimal = {'0', '1', '2', '3', '4', '5',
-        '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+    private static final char[] hexadecimal =
+    {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+     'a', 'b', 'c', 'd', 'e', 'f'};
+
+
+    // --------------------------------------------------------- Public Methods
 
 
     /**
      * Encodes the 128 bit (16 bytes) MD5 into a 32 character String.
      *
      * @param binaryData Array containing the digest
-     *
      * @return Encoded MD5, or null if encoding failed
      */
-    public static String encode(byte[] binaryData) {
+    public static String encode( byte[] binaryData ) {
 
         if (binaryData.length != 16)
             return null;
@@ -59,6 +72,9 @@ public final class MD5Encoder {
         }
 
         return new String(buffer);
+
     }
+
+
 }
 

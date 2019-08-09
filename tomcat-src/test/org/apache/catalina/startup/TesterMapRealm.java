@@ -30,8 +30,8 @@ import org.apache.catalina.realm.RealmBase;
  * passwords.
  */
 public final class TesterMapRealm extends RealmBase {
-    private Map<String,String> users = new HashMap<>();
-    private Map<String,List<String>> roles = new HashMap<>();
+    private Map<String,String> users = new HashMap<String,String>();
+    private Map<String,List<String>> roles = new HashMap<String,List<String>>();
 
     public void addUser(String username, String password) {
         users.put(username, password);
@@ -40,14 +40,13 @@ public final class TesterMapRealm extends RealmBase {
     public void addUserRole(String username, String role) {
         List<String> userRoles = roles.get(username);
         if (userRoles == null) {
-            userRoles = new ArrayList<>();
+            userRoles = new ArrayList<String>();
             roles.put(username, userRoles);
         }
         userRoles.add(role);
     }
 
     @Override
-    @Deprecated
     protected String getName() {
         return "MapRealm";
     }

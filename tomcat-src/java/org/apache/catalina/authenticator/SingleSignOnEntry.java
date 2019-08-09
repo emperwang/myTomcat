@@ -46,19 +46,19 @@ public class SingleSignOnEntry implements Serializable {
 
     // ------------------------------------------------------  Instance Fields
 
-    private String authType = null;
+    protected String authType = null;
 
-    private String password = null;
+    protected String password = null;
 
     // Marked as transient so special handling can be applied to serialization
-    private transient Principal principal = null;
+    protected transient Principal principal = null;
 
-    private final ConcurrentMap<SingleSignOnSessionKey,SingleSignOnSessionKey> sessionKeys =
-            new ConcurrentHashMap<>();
+    protected ConcurrentMap<SingleSignOnSessionKey,SingleSignOnSessionKey> sessionKeys =
+            new ConcurrentHashMap<SingleSignOnSessionKey, SingleSignOnSessionKey>();
 
-    private String username = null;
+    protected String username = null;
 
-    private boolean canReauthenticate = false;
+    protected boolean canReauthenticate = false;
 
     // ---------------------------------------------------------  Constructors
 

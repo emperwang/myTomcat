@@ -27,8 +27,8 @@ import java.util.Set;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.tomcat.Jar;
 import org.apache.tomcat.util.bcel.classfile.ClassParser;
+import org.apache.tomcat.util.scan.Jar;
 import org.apache.tomcat.util.scan.JarFactory;
 
 public class TesterPerformance {
@@ -42,7 +42,7 @@ public class TesterPerformance {
 
         Assert.assertNotNull(libs);
 
-        Set<URL> jarURLs = new HashSet<>();
+        Set<URL> jarURLs = new HashSet<URL>();
 
         for (String lib : libs) {
             if (!lib.toLowerCase(Locale.ENGLISH).endsWith(".jar")) {
@@ -54,7 +54,8 @@ public class TesterPerformance {
         long duration = 0;
 
         for (URL jarURL : jarURLs) {
-            try (Jar jar = JarFactory.newInstance(jarURL)) {
+            Jar jar = JarFactory.newInstance(jarURL);
+            try {
                 jar.nextEntry();
                 String jarEntryName = jar.getEntryName();
                 while (jarEntryName != null) {
@@ -68,6 +69,8 @@ public class TesterPerformance {
                     jar.nextEntry();
                     jarEntryName = jar.getEntryName();
                 }
+            } finally {
+                jar.close();
             }
         }
 

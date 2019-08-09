@@ -22,7 +22,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 import org.apache.catalina.tribes.ChannelMessage;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -34,18 +33,19 @@ import org.apache.juli.logging.LogFactory;
  * <code>XByteBuffer</code> until a full package has been received.
  * This object uses an XByteBuffer which is an extendable object buffer that also allows
  * for message encoding and decoding.
+ *
+ * @author Filip Hanik
  */
 public class ObjectReader {
 
     private static final Log log = LogFactory.getLog(ObjectReader.class);
-    protected static final StringManager sm = StringManager.getManager(ObjectReader.class);
 
     private XByteBuffer buffer;
 
     protected long lastAccess = System.currentTimeMillis();
 
     protected boolean accessed = false;
-    private volatile boolean cancelled;
+    private boolean cancelled;
 
     public ObjectReader(int packetSize) {
         this.buffer = new XByteBuffer(packetSize, true);
@@ -67,7 +67,7 @@ public class ObjectReader {
             this.buffer = new XByteBuffer(socket.getReceiveBufferSize(), true);
         }catch ( IOException x ) {
             //unable to get buffer size
-            log.warn(sm.getString("objectReader.retrieveFailed.socketReceiverBufferSize"));
+            log.warn("Unable to retrieve the socket receiver buffer size, setting to default 43800 bytes.");
             this.buffer = new XByteBuffer(43800,true);
         }
     }
@@ -82,7 +82,7 @@ public class ObjectReader {
         this.lastAccess = System.currentTimeMillis();
     }
 
-    public synchronized boolean isAccessed() {
+    public boolean isAccessed() {
         return this.accessed;
     }
 
@@ -93,15 +93,16 @@ public class ObjectReader {
      * @param len length in buffer
      * @param count whether to return the count
      * @return number of messages that was sent to callback (or -1 if count == false)
+     * @throws java.io.IOException
      */
-    public int append(ByteBuffer data, int len, boolean count) {
+    public int append(ByteBuffer data, int len, boolean count) throws java.io.IOException {
        buffer.append(data,len);
        int pkgCnt = -1;
        if ( count ) pkgCnt = buffer.countPackages();
        return pkgCnt;
    }
 
-     public int append(byte[] data,int off,int len, boolean count) {
+     public int append(byte[] data,int off,int len, boolean count) throws java.io.IOException {
         buffer.append(data,off,len);
         int pkgCnt = -1;
         if ( count ) pkgCnt = buffer.countPackages();
@@ -117,8 +118,9 @@ public class ObjectReader {
      * @see XByteBuffer#extractPackage(boolean)
      *
      * @return number of received packages/messages
+     * @throws java.io.IOException
      */
-    public ChannelMessage[] execute() {
+    public ChannelMessage[] execute() throws java.io.IOException {
         int pkgCnt = buffer.countPackages();
         ChannelMessage[] result = new ChannelMessage[pkgCnt];
         for (int i=0; i<pkgCnt; i++)  {
@@ -148,7 +150,7 @@ public class ObjectReader {
         this.buffer = null;
     }
 
-    public synchronized long getLastAccess() {
+    public long getLastAccess() {
         return lastAccess;
     }
 
@@ -156,7 +158,7 @@ public class ObjectReader {
         return cancelled;
     }
 
-    public synchronized void setLastAccess(long lastAccess) {
+    public void setLastAccess(long lastAccess) {
         this.lastAccess = lastAccess;
     }
 

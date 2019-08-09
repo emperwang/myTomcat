@@ -17,6 +17,7 @@
 package org.apache.jasper.compiler;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
 
@@ -91,11 +92,13 @@ abstract class Node implements TagConstants {
      */
     protected String innerClassName;
 
+    private boolean isDummy;
 
     /**
      * Zero-arg Constructor.
      */
     public Node() {
+        this.isDummy = true;
     }
 
     /**
@@ -108,6 +111,7 @@ abstract class Node implements TagConstants {
      */
     public Node(Mark start, Node parent) {
         this.startMark = start;
+        this.isDummy = (start == null);
         addToParent(parent);
     }
 
@@ -131,6 +135,7 @@ abstract class Node implements TagConstants {
         this.localName = localName;
         this.attrs = attrs;
         this.startMark = start;
+        this.isDummy = (start == null);
         addToParent(parent);
     }
 
@@ -162,6 +167,7 @@ abstract class Node implements TagConstants {
         this.nonTaglibXmlnsAttrs = nonTaglibXmlnsAttrs;
         this.taglibAttrs = taglibAttrs;
         this.startMark = start;
+        this.isDummy = (start == null);
         addToParent(parent);
     }
 
@@ -178,6 +184,7 @@ abstract class Node implements TagConstants {
         this.localName = localName;
         this.text = text;
         this.startMark = start;
+        this.isDummy = (start == null);
         addToParent(parent);
     }
 
@@ -229,10 +236,6 @@ abstract class Node implements TagConstants {
     /**
      * Get the attribute that is non request time expression, either from the
      * attribute of the node, or from a jsp:attribute
-     *
-     * @param name The name of the attribute
-     *
-     * @return The attribute value
      */
     public String getTextAttribute(String name) {
 
@@ -250,15 +253,12 @@ abstract class Node implements TagConstants {
     }
 
     /**
-     * Searches all sub-nodes of this node for jsp:attribute standard actions
-     * with the given name.
+     * Searches all subnodes of this node for jsp:attribute standard actions
+     * with the given name, and returns the NamedAttribute node of the matching
+     * named attribute, nor null if no such node is found.
      * <p>
      * This should always be called and only be called for nodes that accept
      * dynamic runtime attribute expressions.
-     *
-     * @param name The name of the attribute
-     * @return the NamedAttribute node of the matching named attribute, nor null
-     *         if no such node is found.
      */
     public NamedAttribute getNamedAttributeNode(String name) {
         NamedAttribute result = null;
@@ -356,6 +356,10 @@ abstract class Node implements TagConstants {
         endJavaLine = end;
     }
 
+    public boolean isDummy() {
+        return isDummy;
+    }
+
     public Node.Root getRoot() {
         Node n = this;
         while (!(n instanceof Node.Root)) {
@@ -408,9 +412,9 @@ abstract class Node implements TagConstants {
      */
     public static class Root extends Node {
 
-        private final Root parentRoot;
+        private Root parentRoot;
 
-        private final boolean isXmlSyntax;
+        private boolean isXmlSyntax;
 
         // Source encoding of the page containing this Root
         private String pageEnc;
@@ -523,9 +527,15 @@ abstract class Node implements TagConstants {
         }
 
         /**
+         * @return The enclosing root to this Root. Usually represents the page
+         *         that includes this one.
+         */
+        public Root getParentRoot() {
+            return parentRoot;
+        }
+
+        /**
          * Generates a new temporary variable name.
-         *
-         * @return The name to use for the temporary variable
          */
         public String nextTemporaryVariableName() {
             if (parentRoot == null) {
@@ -560,7 +570,7 @@ abstract class Node implements TagConstants {
      */
     public static class PageDirective extends Node {
 
-        private final Vector<String> imports;
+        private Vector<String> imports;
 
         public PageDirective(Attributes attrs, Mark start, Node parent) {
             this(JSP_PAGE_DIRECTIVE_ACTION, attrs, null, null, start, parent);
@@ -571,7 +581,7 @@ abstract class Node implements TagConstants {
                 Mark start, Node parent) {
             super(qName, PAGE_DIRECTIVE_ACTION, attrs, nonTaglibXmlnsAttrs,
                     taglibAttrs, start, parent);
-            imports = new Vector<>();
+            imports = new Vector<String>();
         }
 
         @Override
@@ -664,7 +674,7 @@ abstract class Node implements TagConstants {
      * Represents a tag directive
      */
     public static class TagDirective extends Node {
-        private final Vector<String> imports;
+        private Vector<String> imports;
 
         public TagDirective(Attributes attrs, Mark start, Node parent) {
             this(JSP_TAG_DIRECTIVE_ACTION, attrs, null, null, start, parent);
@@ -675,7 +685,7 @@ abstract class Node implements TagConstants {
                 Mark start, Node parent) {
             super(qName, TAG_DIRECTIVE_ACTION, attrs, nonTaglibXmlnsAttrs,
                     taglibAttrs, start, parent);
-            imports = new Vector<>();
+            imports = new Vector<String>();
         }
 
         @Override
@@ -976,7 +986,7 @@ abstract class Node implements TagConstants {
      */
     public static class ParamAction extends Node {
 
-        private JspAttribute value;
+        JspAttribute value;
 
         public ParamAction(Attributes attrs, Mark start, Node parent) {
             this(JSP_PARAM_ACTION, attrs, null, null, start, parent);
@@ -1168,7 +1178,7 @@ abstract class Node implements TagConstants {
      */
     public static class UseBean extends Node {
 
-        private JspAttribute beanName;
+        JspAttribute beanName;
 
         public UseBean(Attributes attrs, Mark start, Node parent) {
             this(JSP_USE_BEAN_ACTION, attrs, null, null, start, parent);
@@ -1403,9 +1413,9 @@ abstract class Node implements TagConstants {
      */
     public static class CustomTag extends Node {
 
-        private final String uri;
+        private String uri;
 
-        private final String prefix;
+        private String prefix;
 
         private JspAttribute[] jspAttrs;
 
@@ -1413,29 +1423,29 @@ abstract class Node implements TagConstants {
 
         private String tagHandlerPoolName;
 
-        private final TagInfo tagInfo;
+        private TagInfo tagInfo;
 
-        private final TagFileInfo tagFileInfo;
+        private TagFileInfo tagFileInfo;
 
         private Class<?> tagHandlerClass;
 
         private VariableInfo[] varInfos;
 
-        private final int customNestingLevel;
+        private int customNestingLevel;
 
-        private final ChildInfo childInfo;
+        private ChildInfo childInfo;
 
-        private final boolean implementsIterationTag;
+        private boolean implementsIterationTag;
 
-        private final boolean implementsBodyTag;
+        private boolean implementsBodyTag;
 
-        private final boolean implementsTryCatchFinally;
+        private boolean implementsTryCatchFinally;
 
-        private final boolean implementsJspIdConsumer;
+        private boolean implementsJspIdConsumer;
 
-        private final boolean implementsSimpleTag;
+        private boolean implementsSimpleTag;
 
-        private final boolean implementsDynamicAttributes;
+        private boolean implementsDynamicAttributes;
 
         private List<Object> atBeginScriptingVars;
 
@@ -1484,7 +1494,6 @@ abstract class Node implements TagConstants {
             this.uri = uri;
             this.prefix = prefix;
             this.tagInfo = tagInfo;
-            this.tagFileInfo = null;
             this.tagHandlerClass = tagHandlerClass;
             this.customNestingLevel = makeCustomNestingLevel();
             this.childInfo = new ChildInfo();
@@ -1709,10 +1718,6 @@ abstract class Node implements TagConstants {
         /**
          * Checks to see if the attribute of the given name is of type
          * JspFragment.
-         *
-         * @param name The attribute to check
-         *
-         * @return {@code true} if it is a JspFragment
          */
         public boolean checkIfAttributeIsJspFragment(String name) {
             boolean result = false;
@@ -1787,12 +1792,12 @@ abstract class Node implements TagConstants {
         }
 
         /**
+         * Returns true if this custom action has an empty body, and false
+         * otherwise.
+         *
          * A custom action is considered to have an empty body if the following
          * holds true: - getBody() returns null, or - all immediate children are
          * jsp:attribute actions, or - the action's jsp:body is empty.
-         *
-         * @return {@code true} if this custom action has an empty body, and
-         *         {@code false} otherwise.
          */
         public boolean hasEmptyBody() {
             boolean hasEmptyBody = true;
@@ -1821,9 +1826,9 @@ abstract class Node implements TagConstants {
      * attribute (used by the tag plugin machinery only).
      */
     public static class AttributeGenerator extends Node {
-        private String name; // name of the attribute
+        String name; // name of the attribute
 
-        private CustomTag tag; // The tag this attribute belongs to
+        CustomTag tag; // The tag this attribute belongs to
 
         public AttributeGenerator(Mark start, String name, CustomTag tag) {
             super(start, null);
@@ -1877,9 +1882,9 @@ abstract class Node implements TagConstants {
         // used with a <jsp:element>, otherwise false
         private JspAttribute omit;
 
-        private final ChildInfo childInfo;
+        private ChildInfo childInfo;
 
-        private final String name;
+        private String name;
 
         private String localName;
 
@@ -1966,7 +1971,7 @@ abstract class Node implements TagConstants {
         public String getText() {
 
             class AttributeVisitor extends Visitor {
-                private String attrValue = null;
+                String attrValue = null;
 
                 @Override
                 public void visit(TemplateText txt) {
@@ -2000,7 +2005,7 @@ abstract class Node implements TagConstants {
      */
     public static class JspBody extends Node {
 
-        private final ChildInfo childInfo;
+        private ChildInfo childInfo;
 
         public JspBody(Mark start, Node parent) {
             this(JSP_BODY_ACTION, null, null, start, parent);
@@ -2066,7 +2071,7 @@ abstract class Node implements TagConstants {
         }
 
         /**
-         * @return true if this template text contains whitespace only.
+         * Returns true if this template text contains whitespace only.
          */
         public boolean isAllSpace() {
             boolean isAllSpace = true;
@@ -2089,7 +2094,7 @@ abstract class Node implements TagConstants {
          */
         public void addSmap(int srcLine) {
             if (extraSmap == null) {
-                extraSmap = new ArrayList<>();
+                extraSmap = new ArrayList<Integer>();
             }
             extraSmap.add(Integer.valueOf(srcLine));
         }
@@ -2113,27 +2118,27 @@ abstract class Node implements TagConstants {
 
     public static class JspAttribute {
 
-        private final String qName;
+        private String qName;
 
-        private final String uri;
+        private String uri;
 
-        private final String localName;
+        private String localName;
 
-        private final String value;
+        private String value;
 
-        private final boolean expression;
+        private boolean expression;
 
-        private final boolean dynamic;
+        private boolean dynamic;
 
         private final ELNode.Nodes el;
 
         private final TagAttributeInfo tai;
 
         // If true, this JspAttribute represents a <jsp:attribute>
-        private final boolean namedAttribute;
+        private boolean namedAttribute;
 
         // The node in the parse tree for the NamedAttribute
-        private final NamedAttribute namedAttributeNode;
+        private NamedAttribute namedAttributeNode;
 
         JspAttribute(TagAttributeInfo tai, String qName, String uri,
                 String localName, String value, boolean expr, ELNode.Nodes el,
@@ -2151,12 +2156,11 @@ abstract class Node implements TagConstants {
         }
 
         /**
-         * Allow node to validate itself.
+         * Allow node to validate itself
          *
-         * @param ef The expression factory to use to evaluate any EL
-         * @param ctx The context to use to evaluate any EL
-         *
-         * @throws ELException If validation fails
+         * @param ef
+         * @param ctx
+         * @throws ELException
          */
         public void validateEL(ExpressionFactory ef, ELContext ctx)
                 throws ELException {
@@ -2180,8 +2184,7 @@ abstract class Node implements TagConstants {
             this.el = null;
             this.dynamic = dyn;
             this.namedAttribute = true;
-            this.tai = tai;
-            this.uri = null;
+            this.tai = null;
         }
 
         /**
@@ -2320,7 +2323,7 @@ abstract class Node implements TagConstants {
         }
 
         /**
-         * @return {@code true} if the attribute is a "dynamic" attribute of a
+         * <code>true</code> if the attribute is a "dynamic" attribute of a
          * custom tag that implements DynamicAttributes interface. That is,
          * a random extra attribute that is not declared by the tag.
          */
@@ -2339,19 +2342,19 @@ abstract class Node implements TagConstants {
      */
     public static class Nodes {
 
-        private final List<Node> list;
+        private List<Node> list;
 
         private Node.Root root; // null if this is not a page
 
         private boolean generatedInBuffer;
 
         public Nodes() {
-            list = new Vector<>();
+            list = new Vector<Node>();
         }
 
         public Nodes(Node.Root root) {
             this.root = root;
-            list = new Vector<>();
+            list = new Vector<Node>();
             list.add(root);
         }
 
@@ -2381,11 +2384,11 @@ abstract class Node implements TagConstants {
          *
          * @param v
          *            The visitor used
-         *
-         * @throws JasperException if an error occurs while visiting a node
          */
         public void visit(Visitor v) throws JasperException {
-            for (Node n : list) {
+            Iterator<Node> iter = list.iterator();
+            while (iter.hasNext()) {
+                Node n = iter.next();
                 n.accept(v);
             }
         }

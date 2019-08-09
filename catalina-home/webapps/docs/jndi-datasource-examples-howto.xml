@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -27,7 +27,7 @@
         <author email="david-tomcat@haraburda.com">David Haraburda</author>
         <author>Glenn Nielsen</author>
         <author email="yoavs@apache.org">Yoav Shapira</author>
-        <title>JNDI Datasource How-To</title>
+        <title>JNDI Datasource HOW-TO</title>
     </properties>
 
 <body>
@@ -52,12 +52,9 @@ to the wider audience, or if you feel we can improve this section in anyway.</p>
 
 <p>
 <b>Please note that JNDI resource configuration changed somewhat between
-Tomcat 7.x and Tomcat 8.x as they are using different versions of
-Apache Commons DBCP library.</b>  You will most likely need to modify older
+Tomcat 5.0.x and Tomcat 5.5.x.</b>  You will most likely need to modify older
 JNDI resource configurations to match the syntax in the example below in order
-to make them work in Tomcat <version-major/>.
-See <a href="https://tomcat.apache.org/migration.html">Tomcat Migration Guide</a>
-for details.
+to make them work in Tomcat 7.x.x.
 </p>
 
 <p>
@@ -112,7 +109,7 @@ a <code>ServletContextListener</code>.
 
 </section>
 
-<section name="Database Connection Pool (DBCP 2) Configurations">
+<section name="Database Connection Pool (DBCP 1.x) Configurations">
 
 <p>The default database connection pool implementation in Apache Tomcat
 relies on the libraries from the
@@ -121,8 +118,8 @@ The following libraries are used:
 </p>
 
 <ul>
-<li>Commons DBCP 2</li>
-<li>Commons Pool 2</li>
+<li>Commons DBCP 1.x</li>
+<li>Commons Pool 1.x</li>
 </ul>
 
 <p>
@@ -132,12 +129,12 @@ only the classes needed for connection pooling have been included, and the
 packages have been renamed to avoid interfering with applications.
 </p>
 
-<p>DBCP 2 provides support for JDBC 4.1.</p>
+<p>DBCP 1.4 provides support for JDBC 4.0.</p>
 
 <subsection name="Installation">
 
 <p>See the <a href="https://commons.apache.org/dbcp/configuration.html">
-DBCP 2 documentation</a> for a complete list of configuration parameters.
+DBCP 1.x documentation</a> for a complete list of configuration parameters.
 </p>
 
 </subsection>
@@ -159,24 +156,22 @@ This can eventually result in your web application database connections failing
 if there are no more available connections.</p>
 
 <p>
-There is a solution to this problem.  The Apache Commons DBCP 2 can be
+There is a solution to this problem.  The Apache Commons DBCP 1.x can be
 configured to track and recover these abandoned database connections.  Not
 only can it recover them, but also generate a stack trace for the code
 which opened these resources and never closed them.</p>
 
 <p>
-To configure a DBCP 2 DataSource so that abandoned database connections are
-removed and recycled, add one or both of the following attributes to the
-<code>Resource</code> configuration for your DBCP 2 DataSource:
+To configure a DBCP 1.x DataSource so that abandoned database connections are
+removed and recycled add the following attribute to the
+<code>Resource</code> configuration for your DBCP 1.x DataSource:
 </p>
-<source>removeAbandonedOnBorrow=true</source>
-<source>removeAbandonedOnMaintenance=true</source>
-<p> The default for both of these attributes is <code>false</code>.  Note that
-<code>removeAbandonedOnMaintenance</code> has no effect unless pool
-maintenance is enabled by setting <code>timeBetweenEvictionRunsMillis</code>
-to a positive value.  See the
-<a href="https://commons.apache.org/dbcp/configuration.html">
-DBCP 2 documentation</a> for full documentation on these attributes.
+
+<source>removeAbandoned="true"</source>
+
+<p>
+When available database connections run low DBCP 1.x will recover and recycle
+any abandoned database connections it finds. The default is <code>false</code>.
 </p>
 
 <p>
@@ -192,7 +187,7 @@ The default timeout for removing abandoned connections is 300 seconds.
 
 <p>
 The <code>logAbandoned</code> attribute can be set to <code>true</code>
-if you want DBCP 2 to log a stack trace of the code which abandoned the
+if you want DBCP 1.x to log a stack trace of the code which abandoned the
 database connection resources.
 </p>
 <source>logAbandoned="true"</source>
@@ -202,7 +197,7 @@ The default is <code>false</code>.
 
 </subsection>
 
-<subsection name="MySQL DBCP 2 Example">
+<subsection name="MySQL DBCP 1.x Example">
 
 <h5>0. Introduction</h5>
 <p>Versions of <a href="https://www.mysql.com/products/mysql/index.html">MySQL</a> and JDBC
@@ -259,17 +254,17 @@ resource to your <a href="config/context.html">Context</a>.</p>
 <p>For example:</p>
 <source><![CDATA[<Context>
 
-    <!-- maxTotal: Maximum number of database connections in pool. Make sure you
+    <!-- maxActive: Maximum number of database connections in pool. Make sure you
          configure your mysqld max_connections large enough to handle
          all of your db connections. Set to -1 for no limit.
          -->
 
     <!-- maxIdle: Maximum number of idle database connections to retain in pool.
-         Set to -1 for no limit.  See also the DBCP 2 documentation on this
+         Set to -1 for no limit.  See also the DBCP 1.x documentation on this
          and the minEvictableIdleTimeMillis configuration parameter.
          -->
 
-    <!-- maxWaitMillis: Maximum time to wait for a database connection to become available
+    <!-- maxWait: Maximum time to wait for a database connection to become available
          in ms, in this example 10 seconds. An Exception is thrown if
          this timeout is exceeded.  Set to -1 to wait indefinitely.
          -->
@@ -285,7 +280,7 @@ resource to your <a href="config/context.html">Context</a>.</p>
          -->
 
   <Resource name="jdbc/TestDB" auth="Container" type="javax.sql.DataSource"
-               maxTotal="100" maxIdle="30" maxWaitMillis="10000"
+               maxActive="100" maxIdle="30" maxWait="10000"
                username="javauser" password="javadude" driverClassName="com.mysql.jdbc.Driver"
                url="jdbc:mysql://localhost:3306/javatest"/>
 
@@ -383,8 +378,8 @@ user scott.</p>
 <source><![CDATA[<Resource name="jdbc/myoracle" auth="Container"
               type="javax.sql.DataSource" driverClassName="oracle.jdbc.OracleDriver"
               url="jdbc:oracle:thin:@127.0.0.1:1521:mysid"
-              username="scott" password="tiger" maxTotal="20" maxIdle="10"
-              maxWaitMillis="-1"/>]]></source>
+              username="scott" password="tiger" maxActive="20" maxIdle="10"
+              maxWait="-1"/>]]></source>
 
 <h5>2.    web.xml configuration</h5>
 <p>You should ensure that you respect the element ordering defined by the DTD when you
@@ -413,7 +408,7 @@ Connection conn = ds.getConnection();
 <h5>1. Required files </h5>
 <p>
 Copy the Postgres JDBC jar to $CATALINA_HOME/lib. As with Oracle, the
-jars need to be in this directory in order for DBCP 2's Classloader to find
+jars need to be in this directory in order for DBCP 1.x's Classloader to find
 them. This has to be done regardless of which configuration step you take next.
 </p>
 
@@ -436,7 +431,7 @@ Clarification would be appreciated here.</i></p>
 <source><![CDATA[<Resource name="jdbc/postgres" auth="Container"
           type="javax.sql.DataSource" driverClassName="org.postgresql.Driver"
           url="jdbc:postgresql://127.0.0.1:5432/mydb"
-          username="myuser" password="mypasswd" maxTotal="20" maxIdle="10" maxWaitMillis="-1"/>]]></source>
+          username="myuser" password="mypasswd" maxActive="20" maxIdle="10" maxWait="-1"/>]]></source>
 <h6>2b. Application-specific resource configuration</h6>
 
 <p>
@@ -455,8 +450,8 @@ The Context element should look something like the following.
 <Resource name="jdbc/postgres" auth="Container"
           type="javax.sql.DataSource" driverClassName="org.postgresql.Driver"
           url="jdbc:postgresql://127.0.0.1:5432/mydb"
-          username="myuser" password="mypasswd" maxTotal="20" maxIdle="10"
-maxWaitMillis="-1"/>
+          username="myuser" password="mypasswd" maxActive="20" maxIdle="10"
+maxWait="-1"/>
 </Context>]]></source>
 
 <h5>3. web.xml configuration</h5>
@@ -499,7 +494,7 @@ than testing!) or some other pooling technology.
 <section name="Oracle 8i with OCI client">
 <subsection name="Introduction">
 <p>Whilst not strictly addressing the creation of a JNDI DataSource using the OCI client, these notes can be combined with the
-Oracle and DBCP 2 solution above.</p>
+Oracle and DBCP 1.x solution above.</p>
 <p>
 In order to use OCI driver, you should have an Oracle client installed. You should have installed
 Oracle8i(8.1.7) client from cd,  and download the suitable JDBC/OCI
@@ -520,7 +515,7 @@ Ensure that you have the <code>ocijdbc8.dll</code> or <code>.so</code> in your <
 using <code>System.loadLibrary("ocijdbc8");</code>
 </p>
 <p>
-You should next create a simple test servlet or JSP that has these
+You should next create a simple test servlet or jsp that has these
 <strong>critical lines</strong>:
 </p>
 <source><![CDATA[DriverManager.registerDriver(new
@@ -529,7 +524,7 @@ conn =
 DriverManager.getConnection("jdbc:oracle:oci8:@database","username","password");]]></source>
 <p>
 where database is of the form <code>host:port:SID</code> Now if you try to access the URL of your
-test servlet/JSP and what you get is a
+test servlet/jsp and what you get is a
 <code>ServletException</code> with a root cause of <code>java.lang.UnsatisfiedLinkError:get_env_handle</code>.
 </p>
 <p>
@@ -586,7 +581,7 @@ than one second.  The remainder will only take a few seconds.  Rarely,
 if ever should a GC take more than 10 seconds.</p>
 
 <p>Make sure that the db connection timeout is set to 10-15 seconds.
-For DBCP 2 you set this using the parameter <code>maxWaitMillis</code>.</p>
+For the DBCP 1.x you set this using the parameter <code>maxWait</code>.</p>
 
 </subsection>
 

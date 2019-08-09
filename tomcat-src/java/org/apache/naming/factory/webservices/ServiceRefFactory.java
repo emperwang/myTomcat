@@ -93,7 +93,7 @@ public class ServiceRefFactory implements ObjectFactory {
             }
 
             // PortComponent
-            Hashtable<String,QName> portComponentRef = new Hashtable<>();
+            Hashtable<String,QName> portComponentRef = new Hashtable<String,QName>();
 
             // Create QName object
             QName serviceQname = null;
@@ -234,7 +234,7 @@ public class ServiceRefFactory implements ObjectFactory {
             if (ref.getHandlersSize() > 0) {
 
                 HandlerRegistry handlerRegistry = service.getHandlerRegistry();
-                List<String> soaproles = new ArrayList<>();
+                List<String> soaproles = new ArrayList<String>();
 
                 while (ref.getHandlersSize() > 0) {
                     HandlerRef handlerRef = ref.getHandler();
@@ -254,9 +254,9 @@ public class ServiceRefFactory implements ObjectFactory {
 
                     // Load all datas relative to the handler : SOAPHeaders, config init element,
                     // portNames to be set on
-                    List<QName> headers = new ArrayList<>();
-                    Hashtable<String,String> config = new Hashtable<>();
-                    List<String> portNames = new ArrayList<>();
+                    List<QName> headers = new ArrayList<QName>();
+                    Hashtable<String,String> config = new Hashtable<String,String>();
+                    List<String> portNames = new ArrayList<String>();
                     for (int i = 0; i < handlerRef.size(); i++) {
                         if (HandlerRef.HANDLER_LOCALPART.equals(handlerRef.get(i).getType())) {
                             String localpart = "";

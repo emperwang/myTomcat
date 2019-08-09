@@ -46,6 +46,17 @@ public class ResourceLinkRef extends AbstractRef {
      *
      * @param resourceClass Resource class
      * @param globalName Global name
+     */
+    public ResourceLinkRef(String resourceClass, String globalName) {
+        this(resourceClass, globalName, null, null);
+    }
+
+
+    /**
+     * ResourceLink Reference.
+     *
+     * @param resourceClass Resource class
+     * @param globalName Global name
      * @param factory The possibly null class name of the object's factory.
      * @param factoryLocation The possibly null location from which to load the
      *                        factory (e.g. URL)

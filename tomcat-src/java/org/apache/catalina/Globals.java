@@ -16,6 +16,8 @@
  */
 package org.apache.catalina;
 
+import org.apache.tomcat.util.compat.JreVendor;
+
 /**
  * Global constants that are applicable to multiple packages within Catalina.
  *
@@ -64,8 +66,8 @@ public final class Globals {
 
 
     /**
-     * The WebResourceRoot which is associated with the context. This can be
-     * used to manipulate static files.
+     * The JNDI directory context which is associated with the context. This
+     * context can be used to manipulate static files.
      */
     public static final String RESOURCES_ATTR =
         "org.apache.catalina.resources";
@@ -94,7 +96,13 @@ public final class Globals {
      */
     public static final String SSL_SESSION_ID_ATTR =
         "javax.servlet.request.ssl_session_id";
-
+    /**
+     * Tomcat specific attribute as used in Tomcat 6.
+     * @deprecated
+     */
+    @Deprecated
+    public static final String SSL_SESSION_ID_TOMCAT_ATTR =
+        "javax.servlet.request.ssl_session";
 
     /**
      * The request attribute key for the session manager.
@@ -102,6 +110,26 @@ public final class Globals {
      */
     public static final String SSL_SESSION_MGR_ATTR =
         "javax.servlet.request.ssl_session_mgr";
+
+
+    /**
+     * The servlet context attribute under which the managed bean Registry
+     * will be stored for privileged contexts (if enabled).
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x.
+     */
+    @Deprecated
+    public static final String MBEAN_REGISTRY_ATTR =
+        "org.apache.catalina.Registry";
+
+
+    /**
+     * The servlet context attribute under which the MBeanServer will be stored
+     * for privileged contexts (if enabled).
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x.
+     */
+    @Deprecated
+    public static final String MBEAN_SERVER_ATTR =
+        "org.apache.catalina.MBeanServer";
 
 
     /**
@@ -136,6 +164,52 @@ public final class Globals {
 
     public static final String GSS_CREDENTIAL_ATTR =
         "org.apache.catalina.realm.GSS_CREDENTIAL";
+
+
+    /**
+     * All request attributes which names start with this prefix are used by
+     * connector implementations. They are passed down to coyoteRequest and back
+     * up. See <code>Request.setAttribute(String, Object)</code>.
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x.
+     */
+    @Deprecated
+    public static final String TOMCAT_CONNECTOR_ATTR_PREFIX =
+        "org.apache.tomcat.";
+
+
+    /**
+     * The request attribute that is set to the value of {@code Boolean.TRUE}
+     * if connector processing this request supports Comet API.
+     * Duplicated here for neater code in the catalina packages.
+     */
+    public static final String COMET_SUPPORTED_ATTR =
+        org.apache.coyote.Constants.COMET_SUPPORTED_ATTR;
+
+
+    /**
+     * The request attribute that is set to the value of {@code Boolean.TRUE}
+     * if connector processing this request supports setting
+     * per-connection request timeout through Comet API.
+     *
+     * @see org.apache.catalina.comet.CometEvent#setTimeout(int)
+     *
+     * Duplicated here for neater code in the catalina packages.
+     */
+    public static final String COMET_TIMEOUT_SUPPORTED_ATTR =
+            org.apache.coyote.Constants.COMET_TIMEOUT_SUPPORTED_ATTR;
+
+
+    /**
+     * The request attribute that can be set to a value of type
+     * {@code java.lang.Integer} to specify per-connection request
+     * timeout for Comet API. The value is in milliseconds.
+     *
+     * @see org.apache.catalina.comet.CometEvent#setTimeout(int)
+     *
+     * Duplicated here for neater code in the catalina packages.
+     */
+    public static final String COMET_TIMEOUT_ATTR =
+        org.apache.coyote.Constants.COMET_TIMEOUT_ATTR;
 
 
     /**
@@ -277,6 +351,16 @@ public final class Globals {
 
     /**
      * Name of the ServletContext init-param that determines if the JSP engine
+     * should validate web.xml files when parsing them.
+     * <p>
+     * This must be kept in sync with org.apache.jasper.Constants
+     */
+    public static final String JASPER_XML_VALIDATION_INIT_PARAM =
+            "org.apache.jasper.XML_VALIDATE";
+
+
+    /**
+     * Name of the ServletContext init-param that determines if the JSP engine
      * will block external entities from being used in *.tld, *.jspx, *.tagx and
      * tagplugin.xml files.
      * <p>
@@ -285,11 +369,9 @@ public final class Globals {
     public static final String JASPER_XML_BLOCK_EXTERNAL_INIT_PARAM =
             "org.apache.jasper.XML_BLOCK_EXTERNAL";
 
-    /**
-     * Name of the ServletContext attribute under which we store the context
-     * Realm's CredentialHandler (if both the Realm and the CredentialHandler
-     * exist).
-     */
-    public static final String CREDENTIAL_HANDLER
-            = "org.apache.catalina.CredentialHandler";
+    @Deprecated // Will be removed in Tomcat 9.0.x
+    public static final boolean IS_ORACLE_JVM = JreVendor.IS_ORACLE_JVM;
+
+    @Deprecated // Will be removed in Tomcat 9.0.x
+    public static final boolean IS_IBM_JVM = JreVendor.IS_IBM_JVM;
 }

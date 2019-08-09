@@ -28,7 +28,7 @@ import java.util.Map;
  * class implements the Wrapper or Decorator pattern. Methods default to calling
  * through to the wrapped request object.
  *
- * @since Servlet 2.3
+ * @since v 2.3
  * @see javax.servlet.ServletRequest
  */
 public class ServletRequestWrapper implements ServletRequest {
@@ -36,8 +36,6 @@ public class ServletRequestWrapper implements ServletRequest {
 
     /**
      * Creates a ServletRequest adaptor wrapping the given request object.
-     *
-     * @param request The request to wrap
      *
      * @throws IllegalArgumentException if the request is null
      */
@@ -113,17 +111,6 @@ public class ServletRequestWrapper implements ServletRequest {
     @Override
     public int getContentLength() {
         return this.request.getContentLength();
-    }
-
-    /**
-     * The default behavior of this method is to return getContentLengthLong()
-     * on the wrapped request object.
-     *
-     * @since Servlet 3.1
-     */
-    @Override
-    public long getContentLengthLong() {
-        return this.request.getContentLengthLong();
     }
 
     /**
@@ -314,7 +301,7 @@ public class ServletRequestWrapper implements ServletRequest {
      * The default behavior of this method is to return getRemotePort() on the
      * wrapped request object.
      *
-     * @since Servlet 2.4
+     * @since 2.4
      */
     @Override
     public int getRemotePort() {
@@ -325,7 +312,7 @@ public class ServletRequestWrapper implements ServletRequest {
      * The default behavior of this method is to return getLocalName() on the
      * wrapped request object.
      *
-     * @since Servlet 2.4
+     * @since 2.4
      */
     @Override
     public String getLocalName() {
@@ -336,7 +323,7 @@ public class ServletRequestWrapper implements ServletRequest {
      * The default behavior of this method is to return getLocalAddr() on the
      * wrapped request object.
      *
-     * @since Servlet 2.4
+     * @since 2.4
      */
     @Override
     public String getLocalAddr() {
@@ -347,7 +334,7 @@ public class ServletRequestWrapper implements ServletRequest {
      * The default behavior of this method is to return getLocalPort() on the
      * wrapped request object.
      *
-     * @since Servlet 2.4
+     * @since 2.4
      */
     @Override
     public int getLocalPort() {
@@ -375,7 +362,7 @@ public class ServletRequestWrapper implements ServletRequest {
      * @since Servlet 3.0
      */
     @Override
-    public AsyncContext startAsync() throws IllegalStateException {
+    public AsyncContext startAsync() {
         return request.startAsync();
     }
 
@@ -458,7 +445,9 @@ public class ServletRequestWrapper implements ServletRequest {
      *         otherwise <code>false</code>
      * @since Servlet 3.0
      */
-    public boolean isWrapperFor(Class<?> wrappedType) {
+    @SuppressWarnings("unchecked")
+    // Spec API does not use generics
+    public boolean isWrapperFor(@SuppressWarnings("rawtypes") Class wrappedType) {
         if (wrappedType.isAssignableFrom(request.getClass())) {
             return true;
         }

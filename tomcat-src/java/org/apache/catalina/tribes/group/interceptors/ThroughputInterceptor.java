@@ -27,7 +27,6 @@ import org.apache.catalina.tribes.group.ChannelInterceptorBase;
 import org.apache.catalina.tribes.group.InterceptorPayload;
 import org.apache.catalina.tribes.io.ChannelData;
 import org.apache.catalina.tribes.io.XByteBuffer;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -36,27 +35,25 @@ import org.apache.juli.logging.LogFactory;
 /**
  *
  *
+ * @author Filip Hanik
  * @version 1.0
  */
-public class ThroughputInterceptor extends ChannelInterceptorBase
-        implements ThroughputInterceptorMBean {
-
+public class ThroughputInterceptor extends ChannelInterceptorBase {
     private static final Log log = LogFactory.getLog(ThroughputInterceptor.class);
-    protected static final StringManager sm = StringManager.getManager(ThroughputInterceptor.class);
 
     double mbTx = 0;
     double mbAppTx = 0;
     double mbRx = 0;
     double timeTx = 0;
     double lastCnt = 0;
-    final AtomicLong msgTxCnt = new AtomicLong(1);
-    final AtomicLong msgRxCnt = new AtomicLong(0);
-    final AtomicLong msgTxErr = new AtomicLong(0);
+    AtomicLong msgTxCnt = new AtomicLong(1);
+    AtomicLong msgRxCnt = new AtomicLong(0);
+    AtomicLong msgTxErr = new AtomicLong(0);
     int interval = 10000;
-    final AtomicInteger access = new AtomicInteger(0);
+    AtomicInteger access = new AtomicInteger(0);
     long txStart = 0;
     long rxStart = 0;
-    final DecimalFormat df = new DecimalFormat("#0.00");
+    DecimalFormat df = new DecimalFormat("#0.00");
 
 
     @Override
@@ -94,71 +91,72 @@ public class ThroughputInterceptor extends ChannelInterceptorBase
 
     }
 
-    @Override
     public void report(double timeTx) {
-        if ( log.isInfoEnabled() )
-            log.info(sm.getString("throughputInterceptor.report",
-                    msgTxCnt, df.format(mbTx), df.format(mbAppTx), df.format(timeTx), df.format(mbTx/timeTx),
-                    df.format(mbAppTx/timeTx), msgTxErr, msgRxCnt, df.format(mbRx/((System.currentTimeMillis()-rxStart)/1000)),
-                    df.format(mbRx)));
+        StringBuilder buf = new StringBuilder("ThroughputInterceptor Report[\n\tTx Msg:");
+        buf.append(msgTxCnt).append(" messages\n\tSent:");
+        buf.append(df.format(mbTx));
+        buf.append(" MB (total)\n\tSent:");
+        buf.append(df.format(mbAppTx));
+        buf.append(" MB (application)\n\tTime:");
+        buf.append(df.format(timeTx));
+        buf.append(" seconds\n\tTx Speed:");
+        buf.append(df.format(mbTx/timeTx));
+        buf.append(" MB/sec (total)\n\tTxSpeed:");
+        buf.append(df.format(mbAppTx/timeTx));
+        buf.append(" MB/sec (application)\n\tError Msg:");
+        buf.append(msgTxErr).append("\n\tRx Msg:");
+        buf.append(msgRxCnt);
+        buf.append(" messages\n\tRx Speed:");
+        buf.append(df.format(mbRx/((System.currentTimeMillis()-rxStart)/1000)));
+        buf.append(" MB/sec (since 1st msg)\n\tReceived:");
+        buf.append(df.format(mbRx)).append(" MB]\n");
+        if ( log.isInfoEnabled() ) log.info(buf);
     }
 
-    @Override
     public void setInterval(int interval) {
         this.interval = interval;
     }
 
-    @Override
     public int getInterval() {
         return interval;
     }
 
-    @Override
     public double getLastCnt() {
         return lastCnt;
     }
 
-    @Override
     public double getMbAppTx() {
         return mbAppTx;
     }
 
-    @Override
     public double getMbRx() {
         return mbRx;
     }
 
-    @Override
     public double getMbTx() {
         return mbTx;
     }
 
-    @Override
     public AtomicLong getMsgRxCnt() {
         return msgRxCnt;
     }
 
-    @Override
     public AtomicLong getMsgTxCnt() {
         return msgTxCnt;
     }
 
-    @Override
     public AtomicLong getMsgTxErr() {
         return msgTxErr;
     }
 
-    @Override
     public long getRxStart() {
         return rxStart;
     }
 
-    @Override
     public double getTimeTx() {
         return timeTx;
     }
 
-    @Override
     public long getTxStart() {
         return txStart;
     }

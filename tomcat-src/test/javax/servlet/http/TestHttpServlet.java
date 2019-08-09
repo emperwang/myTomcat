@@ -39,16 +39,18 @@ public class TestHttpServlet extends TomcatBaseTest {
         Tomcat tomcat = getTomcatInstance();
 
         // No file system docBase required
-        StandardContext ctx = (StandardContext) tomcat.addContext("", null);
+        StandardContext ctx = (StandardContext)
+            tomcat.addContext("", null);
 
         // Map the test Servlet
         LargeBodyServlet largeBodyServlet = new LargeBodyServlet();
         Tomcat.addServlet(ctx, "largeBodyServlet", largeBodyServlet);
-        ctx.addServletMappingDecoded("/", "largeBodyServlet");
+        ctx.addServletMapping("/", "largeBodyServlet");
 
         tomcat.start();
 
-        Map<String,List<String>> resHeaders= new HashMap<>();
+        Map<String,List<String>> resHeaders=
+                new HashMap<String, List<String>>();
         int rc = headUrl("http://localhost:" + getPort() + "/", new ByteChunk(),
                resHeaders);
 
@@ -71,7 +73,7 @@ public class TestHttpServlet extends TomcatBaseTest {
     }
 
 
-    /*
+    /**
      * Verifies that the same Content-Length is returned for both GET and HEAD
      * operations when a Servlet includes content from another Servlet
      */
@@ -84,15 +86,15 @@ public class TestHttpServlet extends TomcatBaseTest {
 
         Bug57602ServletOuter outer = new Bug57602ServletOuter();
         Tomcat.addServlet(ctx, "Bug57602ServletOuter", outer);
-        ctx.addServletMappingDecoded("/outer", "Bug57602ServletOuter");
+        ctx.addServletMapping("/outer", "Bug57602ServletOuter");
 
         Bug57602ServletInner inner = new Bug57602ServletInner();
         Tomcat.addServlet(ctx, "Bug57602ServletInner", inner);
-        ctx.addServletMappingDecoded("/inner", "Bug57602ServletInner");
+        ctx.addServletMapping("/inner", "Bug57602ServletInner");
 
         tomcat.start();
 
-        Map<String,List<String>> resHeaders= new HashMap<>();
+        Map<String,List<String>> resHeaders= new HashMap<String,List<String>>();
         String path = "http://localhost:" + getPort() + "/outer";
         ByteChunk out = new ByteChunk();
 
@@ -106,51 +108,6 @@ public class TestHttpServlet extends TomcatBaseTest {
         Assert.assertEquals(HttpServletResponse.SC_OK, rc);
         Assert.assertEquals(0, out.getLength());
         Assert.assertEquals(length, resHeaders.get("Content-Length").get(0));
-
-        tomcat.stop();
-    }
-
-
-    @Test
-    public void testChunkingWithHead() throws Exception {
-        Tomcat tomcat = getTomcatInstance();
-
-        // No file system docBase required
-        StandardContext ctx = (StandardContext) tomcat.addContext("", null);
-
-        ChunkingServlet s = new ChunkingServlet();
-        Tomcat.addServlet(ctx, "ChunkingServlet", s);
-        ctx.addServletMappingDecoded("/chunking", "ChunkingServlet");
-
-        tomcat.start();
-
-        Map<String,List<String>> getHeaders = new HashMap<>();
-        String path = "http://localhost:" + getPort() + "/chunking";
-        ByteChunk out = new ByteChunk();
-
-        int rc = getUrl(path, out, getHeaders);
-        Assert.assertEquals(HttpServletResponse.SC_OK, rc);
-        out.recycle();
-
-        Map<String,List<String>> headHeaders = new HashMap<>();
-        rc = headUrl(path, out, headHeaders);
-        Assert.assertEquals(HttpServletResponse.SC_OK, rc);
-
-        // Headers should be the same (apart from Date)
-        Assert.assertEquals(getHeaders.size(), headHeaders.size());
-        for (Map.Entry<String, List<String>> getHeader : getHeaders.entrySet()) {
-            String headerName = getHeader.getKey();
-            if ("date".equalsIgnoreCase(headerName)) {
-                continue;
-            }
-            Assert.assertTrue(headerName, headHeaders.containsKey(headerName));
-            List<String> getValues = getHeader.getValue();
-            List<String> headValues = headHeaders.get(headerName);
-            Assert.assertEquals(getValues.size(), headValues.size());
-            for (String value : getValues) {
-                Assert.assertTrue(headValues.contains(value));
-            }
-        }
 
         tomcat.stop();
     }
@@ -184,23 +141,6 @@ public class TestHttpServlet extends TomcatBaseTest {
             resp.setCharacterEncoding("UTF-8");
             PrintWriter pw = resp.getWriter();
             pw.println("Included");
-        }
-    }
-
-
-    private static class ChunkingServlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-            resp.setContentType("text/plain");
-            resp.setCharacterEncoding("UTF-8");
-            PrintWriter pw = resp.getWriter();
-            // Trigger chunking
-            pw.write(new char[8192 * 16]);
-            pw.println("Data");
         }
     }
 }

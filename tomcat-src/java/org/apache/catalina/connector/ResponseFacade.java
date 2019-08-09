@@ -38,6 +38,7 @@ import org.apache.tomcat.util.res.StringManager;
  * All methods are delegated to the wrapped response.
  *
  * @author Remy Maucherat
+ * @author Jean-Francois Arcand
  */
 @SuppressWarnings("deprecation")
 public class ResponseFacade
@@ -106,7 +107,8 @@ public class ResponseFacade
     /**
      * The string manager for this package.
      */
-    protected static final StringManager sm = StringManager.getManager(ResponseFacade.class);
+    protected static final StringManager sm =
+        StringManager.getManager(Constants.Package);
 
 
     /**
@@ -195,7 +197,7 @@ public class ResponseFacade
         if (isFinished()) {
             response.setSuspended(true);
         }
-        return sos;
+        return (sos);
 
     }
 
@@ -212,7 +214,7 @@ public class ResponseFacade
         if (isFinished()) {
             response.setSuspended(true);
         }
-        return writer;
+        return (writer);
 
     }
 
@@ -225,15 +227,7 @@ public class ResponseFacade
         }
 
         response.setContentLength(len);
-    }
 
-
-    @Override
-    public void setContentLengthLong(long length) {
-        if (isCommitted()) {
-            return;
-        }
-        response.setContentLengthLong(length);
     }
 
 
@@ -336,7 +330,7 @@ public class ResponseFacade
                             sm.getString("responseFacade.nullResponse"));
         }
 
-        return response.isAppCommitted();
+        return (response.isAppCommitted());
     }
 
 

@@ -17,6 +17,7 @@
 package org.apache.catalina.mbeans;
 
 import java.lang.reflect.Array;
+import java.util.Iterator;
 import java.util.Set;
 
 import javax.management.JMRuntimeException;
@@ -41,14 +42,14 @@ public class MBeanDumper {
 
     /**
      * The following code to dump MBeans has been copied from JMXProxyServlet.
-     * @param mbeanServer the MBean server
-     * @param names a set of object names for which to dump the info
-     * @return a string representation of the MBeans
+     *
      */
     public static String dumpBeans(MBeanServer mbeanServer, Set<ObjectName> names)
     {
         StringBuilder buf = new StringBuilder();
-        for (ObjectName oname : names) {
+        Iterator<ObjectName> it=names.iterator();
+        while( it.hasNext()) {
+            ObjectName oname=it.next();
             buf.append("Name: ");
             buf.append(oname.toString());
             buf.append(CRLF);

@@ -17,7 +17,6 @@
 package org.apache.catalina.core;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -40,7 +39,6 @@ import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.catalina.util.URLEncoder;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.buf.UDecoder;
 
 @RunWith(value = Parameterized.class)
 public class TestApplicationContextGetRequestDispatcher extends TomcatBaseTest {
@@ -374,18 +372,21 @@ public class TestApplicationContextGetRequestDispatcher extends TomcatBaseTest {
         // Setup Tomcat instance
         Tomcat tomcat = getTomcatInstance();
 
+        // Need to make sure we use UTF-8 for the URI
+        tomcat.getConnector().setURIEncoding("UTF-8");
+
         // No file system docBase required
         Context ctx = tomcat.addContext("/test\u6771\u4eac", null);
         ctx.setDispatchersUseEncodedPaths(useEncodedDispatchPaths);
 
         // Add a default servlet to return 404 for not found resources
         Tomcat.addServlet(ctx, "Default", new Default404Servlet());
-        ctx.addServletMappingDecoded("/*", "Default");
+        ctx.addServletMapping("/*", "Default");
 
         // Add a target servlet to dispatch to
         Tomcat.addServlet(ctx, "target", new TargetServlet());
-        ctx.addServletMappingDecoded(
-                UDecoder.URLDecode(targetPath, StandardCharsets.UTF_8), "target");
+        // Note: This will decode the provided path
+        ctx.addServletMapping(targetPath, "target");
 
         if (useAsync) {
             Wrapper w = Tomcat.addServlet(
@@ -394,7 +395,8 @@ public class TestApplicationContextGetRequestDispatcher extends TomcatBaseTest {
         } else {
             Tomcat.addServlet(ctx, "rd", new DispatcherServlet(dispatchPath));
         }
-        ctx.addServletMappingDecoded(UDecoder.URLDecode(startPath, StandardCharsets.UTF_8), "rd");
+        // Note: This will decode the provided path
+        ctx.addServletMapping(startPath, "rd");
 
         tomcat.start();
 
@@ -507,7 +509,7 @@ public class TestApplicationContextGetRequestDispatcher extends TomcatBaseTest {
                 int lastSlash = target.lastIndexOf('/');
                 target = target.substring(0, lastSlash + 1);
                 if (encodePath) {
-                    target = URLEncoder.DEFAULT.encode(target, StandardCharsets.UTF_8);
+                    target = URLEncoder.DEFAULT.encode(target, "UTF-8");
                 }
                 target += dispatchPath;
             }

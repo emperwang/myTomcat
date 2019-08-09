@@ -51,12 +51,12 @@ public final class RemoteCIDRFilter extends FilterBase {
     /**
      * The list of allowed {@link NetMask}s
      */
-    private final List<NetMask> allow = new ArrayList<>();
+    private final List<NetMask> allow = new ArrayList<NetMask>();
 
     /**
      * The list of denied {@link NetMask}s
      */
-    private final List<NetMask> deny = new ArrayList<>();
+    private final List<NetMask> deny = new ArrayList<NetMask>();
 
 
     /**
@@ -219,7 +219,7 @@ public final class RemoteCIDRFilter extends FilterBase {
             return Collections.emptyList();
         }
 
-        final List<String> messages = new LinkedList<>();
+        final List<String> messages = new LinkedList<String>();
         NetMask nm;
 
         for (final String s : input.split("\\s*,\\s*")) {

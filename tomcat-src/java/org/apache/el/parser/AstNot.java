@@ -41,7 +41,7 @@ public final class AstNot extends SimpleNode {
     public Object getValue(EvaluationContext ctx)
             throws ELException {
         Object obj = this.children[0].getValue(ctx);
-        Boolean b = coerceToBoolean(ctx, obj, true);
+        Boolean b = coerceToBoolean(obj);
         return Boolean.valueOf(!b.booleanValue());
     }
 }

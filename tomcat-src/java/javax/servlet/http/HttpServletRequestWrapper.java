@@ -38,8 +38,6 @@ public class HttpServletRequestWrapper extends ServletRequestWrapper implements
     /**
      * Constructs a request object wrapping the given request.
      *
-     * @param request The request to wrap
-     *
      * @throws java.lang.IllegalArgumentException
      *             if the request is null
      */
@@ -241,15 +239,6 @@ public class HttpServletRequestWrapper extends ServletRequestWrapper implements
     }
 
     /**
-     * The default behavior of this method is to call changeSessionId() on the
-     * wrapped request object.
-     */
-    @Override
-    public String changeSessionId() {
-        return this._getHttpServletRequest().changeSessionId();
-    }
-
-    /**
      * The default behavior of this method is to return
      * isRequestedSessionIdValid() on the wrapped request object.
      */
@@ -342,8 +331,8 @@ public class HttpServletRequestWrapper extends ServletRequestWrapper implements
      * @since Servlet 3.0
      */
     @Override
-    public Collection<Part> getParts() throws IOException,
-            ServletException {
+    public Collection<Part> getParts() throws IllegalStateException,
+            IOException, ServletException {
         return this._getHttpServletRequest().getParts();
     }
 
@@ -357,22 +346,8 @@ public class HttpServletRequestWrapper extends ServletRequestWrapper implements
      * @since Servlet 3.0
      */
     @Override
-    public Part getPart(String name) throws IOException,
+    public Part getPart(String name) throws IllegalStateException, IOException,
             ServletException {
         return this._getHttpServletRequest().getPart(name);
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * The default behavior of this method is to return
-     * {@link HttpServletRequest#upgrade(Class)} on the wrapped request object.
-     *
-     * @since Servlet 3.1
-     */
-    @Override
-    public <T extends HttpUpgradeHandler> T upgrade(
-            Class<T> httpUpgradeHandlerClass) throws IOException, ServletException {
-        return this._getHttpServletRequest().upgrade(httpUpgradeHandlerClass);
     }
 }

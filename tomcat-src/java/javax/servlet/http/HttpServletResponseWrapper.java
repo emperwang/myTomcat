@@ -27,6 +27,7 @@ import javax.servlet.ServletResponseWrapper;
  * Servlet. This class implements the Wrapper or Decorator pattern. Methods
  * default to calling through to the wrapped response object.
  *
+ * @author Various
  * @since v 2.3
  * @see javax.servlet.http.HttpServletResponse
  */
@@ -35,8 +36,6 @@ public class HttpServletResponseWrapper extends ServletResponseWrapper
 
     /**
      * Constructs a response adaptor wrapping the given response.
-     *
-     * @param response The response to be wrapped
      *
      * @throws java.lang.IllegalArgumentException
      *             if the response is null
@@ -219,7 +218,7 @@ public class HttpServletResponseWrapper extends ServletResponseWrapper
      * <p>
      * The default implementation is to call
      * {@link HttpServletResponse#getStatus()}
-     * on the wrapped {@link HttpServletResponse}.
+     * on the wrapper {@link HttpServletResponse}.
      *
      * @since Servlet 3.0
      */
@@ -233,7 +232,7 @@ public class HttpServletResponseWrapper extends ServletResponseWrapper
      * <p>
      * The default implementation is to call
      * {@link HttpServletResponse#getHeader(String)}
-     * on the wrapped {@link HttpServletResponse}.
+     * on the wrapper {@link HttpServletResponse}.
      *
      * @since Servlet 3.0
      */
@@ -247,7 +246,7 @@ public class HttpServletResponseWrapper extends ServletResponseWrapper
      * <p>
      * The default implementation is to call
      * {@link HttpServletResponse#getHeaders(String)}
-     * on the wrapped {@link HttpServletResponse}.
+     * on the wrapper {@link HttpServletResponse}.
      *
      * @since Servlet 3.0
      */
@@ -261,7 +260,7 @@ public class HttpServletResponseWrapper extends ServletResponseWrapper
      * <p>
      * The default implementation is to call
      * {@link HttpServletResponse#getHeaderNames()}
-     * on the wrapped {@link HttpServletResponse}.
+     * on the wrapper {@link HttpServletResponse}.
      *
      * @since Servlet 3.0
      */

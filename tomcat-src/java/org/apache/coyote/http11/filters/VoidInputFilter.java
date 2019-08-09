@@ -14,16 +14,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.coyote.http11.filters;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 
 import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
 import org.apache.coyote.http11.InputFilter;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.net.ApplicationBufferHandler;
 
 /**
  * Void input filter, which returns -1 when attempting a read. Used with a GET,
@@ -36,37 +36,42 @@ public class VoidInputFilter implements InputFilter {
 
     // -------------------------------------------------------------- Constants
 
+
     protected static final String ENCODING_NAME = "void";
     protected static final ByteChunk ENCODING = new ByteChunk();
 
 
     // ----------------------------------------------------- Static Initializer
 
+
     static {
-        ENCODING.setBytes(ENCODING_NAME.getBytes(StandardCharsets.ISO_8859_1),
-                0, ENCODING_NAME.length());
+        ENCODING.setBytes(ENCODING_NAME.getBytes(Charset.defaultCharset()), 0,
+                ENCODING_NAME.length());
     }
 
 
-    // ---------------------------------------------------- InputBuffer Methods
+    // ----------------------------------------------------- Instance Variables
+
+
+    // --------------------------------------------------- OutputBuffer Methods
+
 
     /**
-     * @deprecated Unused. Will be removed in Tomcat 9. Use
-     *             {@link #doRead(ApplicationBufferHandler)}
+     * Write some bytes.
+     *
+     * @return number of bytes written by the filter
      */
-    @Deprecated
     @Override
-    public int doRead(ByteChunk chunk) throws IOException {
-        return -1;
-    }
+    public int doRead(ByteChunk chunk, Request req)
+        throws IOException {
 
-    @Override
-    public int doRead(ApplicationBufferHandler handler) throws IOException {
         return -1;
+
     }
 
 
-    // ---------------------------------------------------- InputFilter Methods
+    // --------------------------------------------------- OutputFilter Methods
+
 
     /**
      * Set the associated request.
@@ -91,7 +96,7 @@ public class VoidInputFilter implements InputFilter {
      */
     @Override
     public void recycle() {
-        // NOOP
+        // NOOP: Nothing to recycle
     }
 
 
@@ -115,19 +120,18 @@ public class VoidInputFilter implements InputFilter {
      * Note: It is recommended that extra bytes be swallowed by the filter.
      */
     @Override
-    public long end() throws IOException {
+    public long end()
+        throws IOException {
         return 0;
     }
 
 
+    /**
+     * Amount of bytes still available in a buffer.
+     */
     @Override
     public int available() {
         return 0;
     }
 
-
-    @Override
-    public boolean isFinished() {
-        return true;
-    }
 }

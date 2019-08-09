@@ -55,7 +55,7 @@ public final class Extension {
 
 
     public String getExtensionName() {
-        return this.extensionName;
+        return (this.extensionName);
     }
 
     public void setExtensionName(String extensionName) {
@@ -69,7 +69,7 @@ public final class Extension {
     private String implementationURL = null;
 
     public String getImplementationURL() {
-        return this.implementationURL;
+        return (this.implementationURL);
     }
 
     public void setImplementationURL(String implementationURL) {
@@ -84,7 +84,7 @@ public final class Extension {
     private String implementationVendor = null;
 
     public String getImplementationVendor() {
-        return this.implementationVendor;
+        return (this.implementationVendor);
     }
 
     public void setImplementationVendor(String implementationVendor) {
@@ -99,7 +99,7 @@ public final class Extension {
     private String implementationVendorId = null;
 
     public String getImplementationVendorId() {
-        return this.implementationVendorId;
+        return (this.implementationVendorId);
     }
 
     public void setImplementationVendorId(String implementationVendorId) {
@@ -114,7 +114,7 @@ public final class Extension {
     private String implementationVersion = null;
 
     public String getImplementationVersion() {
-        return this.implementationVersion;
+        return (this.implementationVersion);
     }
 
     public void setImplementationVersion(String implementationVersion) {
@@ -129,7 +129,7 @@ public final class Extension {
     private String specificationVendor = null;
 
     public String getSpecificationVendor() {
-        return this.specificationVendor;
+        return (this.specificationVendor);
     }
 
     public void setSpecificationVendor(String specificationVendor) {
@@ -144,7 +144,7 @@ public final class Extension {
     private String specificationVersion = null;
 
     public String getSpecificationVersion() {
-        return this.specificationVersion;
+        return (this.specificationVersion);
     }
 
     public void setSpecificationVersion(String specificationVersion) {
@@ -176,46 +176,49 @@ public final class Extension {
      * <code>false</code>.
      *
      * @param required Extension of the required optional package
-     * @return <code>true</code> if the extension is satisfied
      */
     public boolean isCompatibleWith(Extension required) {
 
         // Extension Name must match
         if (extensionName == null)
-            return false;
+            return (false);
         if (!extensionName.equals(required.getExtensionName()))
-            return false;
+            return (false);
 
         // If specified, available specification version must be >= required
         if (required.getSpecificationVersion() != null) {
             if (!isNewer(specificationVersion,
                          required.getSpecificationVersion()))
-                return false;
+                return (false);
         }
 
         // If specified, Implementation Vendor ID must match
         if (required.getImplementationVendorId() != null) {
             if (implementationVendorId == null)
-                return false;
+                return (false);
             if (!implementationVendorId.equals(required
                     .getImplementationVendorId()))
-                return false;
+                return (false);
         }
 
         // If specified, Implementation version must be >= required
         if (required.getImplementationVersion() != null) {
             if (!isNewer(implementationVersion,
                          required.getImplementationVersion()))
-                return false;
+                return (false);
         }
 
         // This available optional package satisfies the requirements
-        return true;
+        return (true);
 
     }
 
+    /**
+     * Return a String representation of this object.
+     */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("Extension[");
         sb.append(extensionName);
         if (implementationURL != null) {
@@ -243,7 +246,8 @@ public final class Extension {
             sb.append(specificationVersion);
         }
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 
@@ -264,9 +268,9 @@ public final class Extension {
         throws NumberFormatException {
 
         if ((first == null) || (second == null))
-            return false;
+            return (false);
         if (first.equals(second))
-            return true;
+            return (true);
 
         StringTokenizer fTok = new StringTokenizer(first, ".", true);
         StringTokenizer sTok = new StringTokenizer(second, ".", true);
@@ -282,16 +286,16 @@ public final class Extension {
             else
                 sVersion = 0;
             if (fVersion < sVersion)
-                return false;
+                return (false);
             else if (fVersion > sVersion)
-                return true;
+                return (true);
             if (fTok.hasMoreTokens())   // Swallow the periods
                 fTok.nextToken();
             if (sTok.hasMoreTokens())
                 sTok.nextToken();
         }
 
-        return true;  // Exact match
+        return (true);  // Exact match
 
     }
 

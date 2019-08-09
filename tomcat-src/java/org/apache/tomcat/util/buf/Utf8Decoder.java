@@ -20,7 +20,6 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderResult;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Decodes bytes to UTF-8. Extracted from Apache Harmony and modified to reject
@@ -68,7 +67,7 @@ public class Utf8Decoder extends CharsetDecoder {
 
 
     public Utf8Decoder() {
-        super(StandardCharsets.UTF_8, 1.0f, 1.0f);
+        super(B2CConverter.UTF_8, 1.0f, 1.0f);
     }
 
 

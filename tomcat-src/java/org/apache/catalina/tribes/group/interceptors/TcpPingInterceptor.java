@@ -26,9 +26,9 @@ import org.apache.catalina.tribes.ChannelInterceptor;
 import org.apache.catalina.tribes.ChannelMessage;
 import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.group.ChannelInterceptorBase;
+import org.apache.catalina.tribes.group.GroupChannel;
 import org.apache.catalina.tribes.io.ChannelData;
 import org.apache.catalina.tribes.io.XByteBuffer;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -37,15 +37,15 @@ import org.apache.juli.logging.LogFactory;
  * Sends a ping to all members.
  * Configure this interceptor with the TcpFailureDetector below it,
  * and the TcpFailureDetector will act as the membership guide.
+ * @author Filip Hanik
  * @version 1.0
  */
 
-public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPingInterceptorMBean {
+public class TcpPingInterceptor extends ChannelInterceptorBase {
 
     private static final Log log = LogFactory.getLog(TcpPingInterceptor.class);
-    protected static final StringManager sm = StringManager.getManager(TcpPingInterceptor.class);
 
-    protected static final byte[] TCP_PING_DATA = new byte[] {
+    protected static byte[] TCP_PING_DATA = new byte[] {
         79, -89, 115, 72, 121, -33, 67, -55, -97, 111, -119, -128, -95, 91, 7, 20,
         125, -39, 82, 91, -21, -33, 67, -102, -73, 126, -66, -113, -127, 103, 30, -74,
         55, 21, -66, -121, 69, 33, 76, -88, -65, 10, 77, 19, 83, 56, 21, 50,
@@ -57,7 +57,7 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
     protected boolean staticOnly = false;
     protected volatile boolean running = true;
     protected PingThread thread = null;
-    protected static final AtomicInteger cnt = new AtomicInteger(0);
+    protected static AtomicInteger cnt = new AtomicInteger(0);
 
     WeakReference<TcpFailureDetector> failureDetector = null;
     WeakReference<StaticMembershipInterceptor> staticMembers = null;
@@ -70,7 +70,9 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
             thread = new PingThread();
             thread.setDaemon(true);
             String channelName = "";
-            if (getChannel().getName() != null) channelName = "[" + getChannel().getName() + "]";
+            if (getChannel() instanceof GroupChannel && ((GroupChannel)getChannel()).getName() != null) {
+                channelName = "[" + ((GroupChannel)getChannel()).getName() + "]";
+            }
             thread.setName("TcpPingInterceptor.PingThread" + channelName +"-"+cnt.addAndGet(1));
             thread.start();
         }
@@ -79,9 +81,9 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
         ChannelInterceptor next = getNext();
         while ( next != null ) {
             if ( next instanceof TcpFailureDetector )
-                failureDetector = new WeakReference<>((TcpFailureDetector)next);
+                failureDetector = new WeakReference<TcpFailureDetector>((TcpFailureDetector)next);
             if ( next instanceof StaticMembershipInterceptor )
-                staticMembers = new WeakReference<>((StaticMembershipInterceptor)next);
+                staticMembers = new WeakReference<StaticMembershipInterceptor>((StaticMembershipInterceptor)next);
             next = next.getNext();
         }
 
@@ -103,7 +105,6 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
         if (!getUseThread()) sendPing();
     }
 
-    @Override
     public long getInterval() {
         return interval;
     }
@@ -120,7 +121,6 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
         this.staticOnly = staticOnly;
     }
 
-    @Override
     public boolean getUseThread() {
         return useThread;
     }
@@ -157,7 +157,7 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
         try {
             super.sendMessage(members, data, null);
         }catch (ChannelException x) {
-            log.warn(sm.getString("tcpPingInterceptor.ping.failed"),x);
+            log.warn("Unable to send TCP ping.",x);
         }
     }
 
@@ -184,11 +184,9 @@ public class TcpPingInterceptor extends ChannelInterceptorBase implements TcpPin
                     sleep(interval);
                     sendPing();
                 }catch ( InterruptedException ix ) {
-                    // Ignore. Probably triggered by a call to stop().
-                    // In the highly unlikely event it was a different trigger,
-                    // simply ignore it and continue.
+                    interrupted();
                 }catch ( Exception x )  {
-                    log.warn(sm.getString("tcpPingInterceptor.pingFailed.pingThread"),x);
+                    log.warn("Unable to send ping from TCP ping thread.",x);
                 }
             }
         }

@@ -44,7 +44,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
          *
          * @throws IOException If an I/O error occurs during reading
          */
-        public int realReadChars() throws IOException;
+        public int realReadChars(char cbuf[], int off, int len) throws IOException;
     }
 
     /**
@@ -74,6 +74,8 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     private transient CharInputChannel in = null;
     private transient CharOutputChannel out = null;
 
+    private boolean optimizedWrite = true;
+
 
     /**
      * Creates a new, uninitialized CharChunk object.
@@ -88,6 +90,28 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
 
     // --------------------
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public CharChunk getClone() {
+        try {
+            return (CharChunk) this.clone();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void reset() {
+        buff = null;
+    }
+
 
     @Override
     public Object clone() throws CloneNotSupportedException {
@@ -106,6 +130,11 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
         end = 0;
         isSet = true;
         hasHashCode = false;
+    }
+
+
+    public void setOptimizedWrite(boolean optimizedWrite) {
+        this.optimizedWrite = optimizedWrite;
     }
 
 
@@ -199,7 +228,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
         // If the buffer is empty and the source is going to fill up all the
         // space in buffer, may as well write it directly to the output,
         // and avoid an extra copy
-        if (len == limit && end == start && out != null) {
+        if (optimizedWrite && len == limit && end == start && out != null) {
             out.realWriteChars(src, off, len);
             return;
         }
@@ -248,6 +277,37 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
     /**
      * Append a string to the buffer.
+     *
+     * @param sb The string builder
+     * @throws IOException Writing overflow data to the output channel failed
+     *
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void append(StringBuilder sb) throws IOException {
+        int len = sb.length();
+
+        // will grow, up to limit
+        makeSpace(len);
+        int limit = getLimitInternal();
+
+        int off = 0;
+        int sbOff = off;
+        int sbEnd = off + len;
+        while (sbOff < sbEnd) {
+            int d = min(limit - end, sbEnd - sbOff);
+            sb.getChars(sbOff, sbOff + d, buff, end);
+            sbOff += d;
+            end += d;
+            if (end >= limit) {
+                flushBuffer();
+            }
+        }
+    }
+
+
+    /**
+     * Append a string to the buffer
      *
      * @param s The string
      * @throws IOException Writing overflow data to the output channel failed
@@ -298,6 +358,30 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     }
 
 
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int substract(CharChunk src) throws IOException {
+
+        if ((end - start) == 0) {
+            if (in == null) {
+                return -1;
+            }
+            int n = in.realReadChars(buff, end, buff.length - end);
+            if (n < 0) {
+                return -1;
+            }
+        }
+
+        int len = getLength();
+        src.append(buff, start, len);
+        start = end;
+        return len;
+
+    }
+
+
     public int substract(char dest[], int off, int len) throws IOException {
         if (checkEof()) {
             return -1;
@@ -317,7 +401,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
             if (in == null) {
                 return true;
             }
-            int n = in.realReadChars();
+            int n = in.realReadChars(buff, end, buff.length - end);
             if (n < 0) {
                 return true;
             }
@@ -410,6 +494,15 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     }
 
 
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int getInt() {
+        return Ascii.parseInt(buff, start, end - start);
+    }
+
+
     // -------------------- equals --------------------
 
     @Override
@@ -495,6 +588,31 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
 
     /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public boolean equals(byte b2[], int off2, int len2) {
+        char b1[] = buff;
+        if (b2 == null && b1 == null) {
+            return true;
+        }
+
+        if (b1 == null || b2 == null || end - start != len2) {
+            return false;
+        }
+        int off1 = start;
+        int len = end - start;
+
+        while (len-- > 0) {
+            if (b1[off1++] != (char) b2[off2++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
      * @return <code>true</code> if the message bytes starts with the specified
      *         string.
      * @param s The string
@@ -563,6 +681,19 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     @Override
     protected int getBufferElement(int index) {
         return buff[index];
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int hashIgnoreCase() {
+        int code = 0;
+        for (int i = start; i < end; i++) {
+            code = code * 37 + Ascii.toLower(buff[i]);
+        }
+        return code;
     }
 
 
@@ -648,15 +779,4 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
         return end - start;
     }
 
-    /**
-     * NO-OP.
-     *
-     * @param optimizedWrite Ignored
-     *
-     * @deprecated Unused code. This is now a NO-OP and will be removed without
-     *             replacement in Tomcat 10.
-     */
-    @Deprecated
-    public void setOptimizedWrite(boolean optimizedWrite) {
-    }
 }

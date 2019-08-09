@@ -23,19 +23,15 @@ import java.io.Reader;
 import java.io.UTFDataFormatException;
 
 import org.apache.jasper.compiler.Localizer;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 
 /**
  * @author Andy Clark, IBM
- *
- * @deprecated Will be removed in Tomcat 9.0.x onwards
  */
-@Deprecated
 public class UTF8Reader
     extends Reader {
 
-    private final Log log = LogFactory.getLog(UTF8Reader.class); // must not be static
+    private final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog( UTF8Reader.class );
 
     // debugging
 
@@ -47,13 +43,13 @@ public class UTF8Reader
     //
 
     /** Input stream. */
-    private final InputStream fInputStream;
+    protected InputStream fInputStream;
 
     /** Byte buffer. */
-    private final byte[] fBuffer;
+    protected byte[] fBuffer;
 
     /** Offset into buffer. */
-    private int fOffset;
+    protected int fOffset;
 
     /** Surrogate character. */
     private int fSurrogate = -1;

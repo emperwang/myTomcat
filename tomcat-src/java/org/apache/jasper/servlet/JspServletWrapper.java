@@ -33,10 +33,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.jsp.tagext.TagInfo;
 
+import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
 import org.apache.jasper.Options;
 import org.apache.jasper.compiler.ErrorDispatcher;
+import org.apache.jasper.compiler.JarResource;
 import org.apache.jasper.compiler.JavacErrorDetail;
 import org.apache.jasper.compiler.JspRuntimeContext;
 import org.apache.jasper.compiler.Localizer;
@@ -47,7 +49,6 @@ import org.apache.jasper.util.FastRemovalDequeue;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.InstanceManager;
-import org.apache.tomcat.Jar;
 
 /**
  * The JSP engine (a.k.a Jasper).
@@ -71,7 +72,7 @@ import org.apache.tomcat.Jar;
 public class JspServletWrapper {
 
     private static final Map<String,Long> ALWAYS_OUTDATED_DEPENDENCIES =
-            new HashMap<>();
+        new HashMap<String,Long>();
 
     static {
         // If this is missing,
@@ -82,12 +83,12 @@ public class JspServletWrapper {
     private final Log log = LogFactory.getLog(JspServletWrapper.class); // must not be static
 
     private Servlet theServlet;
-    private final String jspUri;
+    private String jspUri;
     private Class<?> tagHandlerClass;
-    private final JspCompilationContext ctxt;
+    private JspCompilationContext ctxt;
     private long available = 0L;
-    private final ServletConfig config;
-    private final Options options;
+    private ServletConfig config;
+    private Options options;
     /*
      * The servlet / tag file needs a compilation check on first access. Use a
      * separate flag (rather then theServlet == null / tagHandlerClass == null
@@ -98,7 +99,7 @@ public class JspServletWrapper {
     private volatile boolean mustCompile = true;
     /* Whether the servlet/tag file needs reloading on next access */
     private volatile boolean reload = true;
-    private final boolean isTagFile;
+    private boolean isTagFile;
     private int tripCount;
     private JasperException compileException;
     /* Timestamp of last time servlet resource was modified */
@@ -136,7 +137,7 @@ public class JspServletWrapper {
                              String tagFilePath,
                              TagInfo tagInfo,
                              JspRuntimeContext rctxt,
-                             Jar tagJar) {
+                             JarResource tagJarResource) {
 
         this.isTagFile = true;
         this.config = null;        // not used
@@ -148,7 +149,7 @@ public class JspServletWrapper {
         unloadAllowed = unloadByCount || unloadByIdle ? true : false;
         ctxt = new JspCompilationContext(jspUri, tagInfo, options,
                                          servletContext, this, rctxt,
-                                         tagJar);
+                                         tagJarResource);
     }
 
     public JspCompilationContext getJspEngineContext() {
@@ -253,9 +254,7 @@ public class JspServletWrapper {
     }
 
     /**
-     * Compile (if needed) and load a tag file.
-     * @return the loaded class
-     * @throws JasperException Error compiling or loading tag file
+     * Compile (if needed) and load a tag file
      */
     public Class<?> loadTagFile() throws JasperException {
 
@@ -297,8 +296,6 @@ public class JspServletWrapper {
      * when compiling tag files with circular dependencies.  A prototype
      * (skeleton) with no dependencies on other other tag files is
      * generated and compiled.
-     * @return the loaded class
-     * @throws JasperException Error compiling or loading tag file
      */
     public Class<?> loadTagFilePrototype() throws JasperException {
 
@@ -312,7 +309,6 @@ public class JspServletWrapper {
 
     /**
      * Get a list of files that the current page has source dependency on.
-     * @return the map of dependent resources
      */
     public java.util.Map<String,Long> getDependants() {
         try {
@@ -326,11 +322,11 @@ public class JspServletWrapper {
                         }
                     }
                 }
-                target = tagHandlerClass.getConstructor().newInstance();
+                target = tagHandlerClass.newInstance();
             } else {
                 target = getServlet();
             }
-            if (target instanceof JspSourceDependent) {
+            if (target != null && target instanceof JspSourceDependent) {
                 return ((JspSourceDependent) target).getDependants();
             }
         } catch (AbstractMethodError ame) {
@@ -443,6 +439,7 @@ public class JspServletWrapper {
         }
 
         try {
+
             /*
              * (3) Handle limitation of number of loaded Jsps
              */
@@ -462,7 +459,6 @@ public class JspServletWrapper {
                     }
                 }
             }
-
             /*
              * (4) Service request
              */
@@ -616,9 +612,9 @@ public class JspServletWrapper {
             if (options.getDisplaySourceFragment()) {
                 return new JasperException(Localizer.getMessage
                         ("jsp.exception", detail.getJspFileName(),
-                                "" + jspLineNumber) + System.lineSeparator() +
-                                System.lineSeparator() + detail.getJspExtract() +
-                                System.lineSeparator() + System.lineSeparator() +
+                                "" + jspLineNumber) + Constants.NEWLINE +
+                                Constants.NEWLINE + detail.getJspExtract() +
+                                Constants.NEWLINE + Constants.NEWLINE +
                                 "Stacktrace:", ex);
 
             }
@@ -634,4 +630,5 @@ public class JspServletWrapper {
             return new JasperException(ex);
         }
     }
+
 }

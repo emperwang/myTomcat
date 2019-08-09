@@ -32,12 +32,12 @@ public class ExpressionParseTree {
      * Contains the current set of completed nodes. This is a workspace for the
      * parser.
      */
-    private final LinkedList<Node> nodeStack = new LinkedList<>();
+    private LinkedList<Node> nodeStack = new LinkedList<Node>();
     /**
      * Contains operator nodes that don't yet have values. This is a workspace
      * for the parser.
      */
-    private final LinkedList<OppNode> oppStack = new LinkedList<>();
+    private LinkedList<OppNode> oppStack = new LinkedList<OppNode>();
     /**
      * The root node after the expression has been parsed.
      */
@@ -45,14 +45,11 @@ public class ExpressionParseTree {
     /**
      * The SSIMediator to use when evaluating the expressions.
      */
-    private final SSIMediator ssiMediator;
+    private SSIMediator ssiMediator;
 
 
     /**
      * Creates a new parse tree for the specified expression.
-     * @param expr The expression string
-     * @param ssiMediator Used to evaluated the expressions
-     * @throws ParseException a parsing error occurred
      */
     public ExpressionParseTree(String expr, SSIMediator ssiMediator)
             throws ParseException {
@@ -64,7 +61,6 @@ public class ExpressionParseTree {
     /**
      * Evaluates the tree and returns true or false. The specified SSIMediator
      * is used to resolve variable references.
-     * @return the evaluation result
      */
     public boolean evaluateTree() {
         return root.evaluate();
@@ -74,7 +70,6 @@ public class ExpressionParseTree {
     /**
      * Pushes a new operator onto the opp stack, resolving existing opps as
      * needed.
-     * @param node The operator node
      */
     private void pushOpp(OppNode node) {
         // If node is null then it's just a group marker
@@ -120,8 +115,6 @@ public class ExpressionParseTree {
 
     /**
      * Parses the specified expression into a tree of parse nodes.
-     * @param expr The expression to parse
-     * @throws ParseException a parsing error occurred
      */
     private void parseExpression(String expr) throws ParseException {
         StringNode currStringNode = null;
@@ -211,7 +204,7 @@ public class ExpressionParseTree {
      */
     private abstract class Node {
         /**
-         * @return {@code true} if the node evaluates to true.
+         * Return true if the node evaluates to true.
          */
         public abstract boolean evaluate();
     }
@@ -230,8 +223,6 @@ public class ExpressionParseTree {
 
         /**
          * Resolves any variable references and returns the value string.
-         *
-         * @return the value string
          */
         public String getValue() {
             if (resolved == null)
@@ -274,7 +265,7 @@ public class ExpressionParseTree {
 
 
         /**
-         * @return a precedence level suitable for comparison to other OppNode
+         * Returns a preference level suitable for comparison to other OppNode
          * preference levels.
          */
         public abstract int getPrecedence();
@@ -283,8 +274,6 @@ public class ExpressionParseTree {
         /**
          * Lets the node pop its own branch nodes off the front of the
          * specified list. The default pulls two.
-         *
-         * @param values The list from which to pop the values
          */
         public void popValues(List<Node> values) {
             right = values.remove(0);

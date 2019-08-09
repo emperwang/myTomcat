@@ -35,37 +35,19 @@ public class TestValidator extends TomcatBaseTest {
 
     @Test
     public void testBug47331() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
-
-        int rc = getUrl("http://localhost:" + getPort() +
-                "/test/bug47331.jsp", new ByteChunk(), null);
-
-        Assert.assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, rc);
-    }
-
-    @Test
-    public void testTldVersions22() throws Exception {
         Tomcat tomcat = getTomcatInstance();
 
         File appDir =
-            new File("test/webapp-2.2");
+            new File("test/webapp-3.0");
         // app dir is relative to server home
         tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
 
         tomcat.start();
 
-        ByteChunk res = getUrl("http://localhost:" + getPort() +
-                "/test/tld-versions.jsp");
+        int rc = getUrl("http://localhost:" + getPort() +
+                "/test/bug47331.jsp", new ByteChunk(), null);
 
-        String result = res.toString();
-
-        Assert.assertTrue(result.indexOf("<p>${'00-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>#{'01-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>${'02-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>#{'03-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>${'04-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>#{'05-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>${'06-hello world'}</p>") > 0);
+        Assert.assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, rc);
     }
 
     @Test
@@ -149,31 +131,6 @@ public class TestValidator extends TomcatBaseTest {
 
         File appDir =
             new File("test/webapp-3.0");
-        // app dir is relative to server home
-        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
-
-        tomcat.start();
-
-        ByteChunk res = getUrl("http://localhost:" + getPort() +
-                "/test/tld-versions.jsp");
-
-        String result = res.toString();
-
-        Assert.assertTrue(result.indexOf("<p>00-hello world</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>#{'01-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>02-hello world</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>#{'03-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>04-hello world</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>#{'05-hello world'}</p>") > 0);
-        Assert.assertTrue(result.indexOf("<p>06-hello world</p>") > 0);
-    }
-
-    @Test
-    public void testTldVersions31() throws Exception {
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir =
-            new File("test/webapp-3.1");
         // app dir is relative to server home
         tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
 

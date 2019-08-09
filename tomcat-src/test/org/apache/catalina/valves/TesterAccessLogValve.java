@@ -35,7 +35,7 @@ public class TesterAccessLogValve extends ValveBase implements AccessLog {
     // Timing tests need an error margin to prevent failures.
     private static final long ERROR_MARGIN = RELAX_TIMING ? 2000 : 100;
 
-    private final Queue<Entry> entries = new ConcurrentLinkedQueue<>();
+    private final Queue<Entry> entries = new ConcurrentLinkedQueue<Entry>();
 
     public TesterAccessLogValve() {
         // Async requests are supported
@@ -44,6 +44,7 @@ public class TesterAccessLogValve extends ValveBase implements AccessLog {
 
     @Override
     public void log(Request request, Response response, long time) {
+        (new Exception("Do log")).printStackTrace();
         entries.add(new Entry(request.getRequestURI(), response.getStatus(),
                 time));
     }
@@ -66,10 +67,6 @@ public class TesterAccessLogValve extends ValveBase implements AccessLog {
         getNext().invoke(request, response);
     }
 
-    public int getEntryCount() {
-        return entries.size();
-    }
-
     public void validateAccessLog(int count, int status, long minTime,
             long maxTime) throws Exception {
 
@@ -79,12 +76,7 @@ public class TesterAccessLogValve extends ValveBase implements AccessLog {
             Thread.sleep(100);
         }
 
-        StringBuilder entriesLog = new StringBuilder();
-        for (Entry entry : entries) {
-            entriesLog.append(entry.toString());
-            entriesLog.append(System.lineSeparator());
-        }
-        Assert.assertEquals(entriesLog.toString(), count, entries.size());
+        Assert.assertEquals(count, entries.size());
         for (Entry entry : entries) {
             Assert.assertEquals(status, entry.getStatus());
             Assert.assertTrue(entry.toString() + " duration is not >= " + (minTime - ERROR_MARGIN),

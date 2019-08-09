@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -33,6 +33,11 @@
                  type="java.lang.String"
             writeable="false"/>
 
+    <attribute   name="distributable"
+          description="The distributable flag for Sessions created by this
+                       Manager"
+                 type="boolean"/>
+
     <attribute   name="duplicates"
           description="Number of duplicated session ids generated"
                  type="int" />
@@ -53,6 +58,11 @@
     <attribute   name="maxActiveSessions"
           description="The maximum number of active Sessions allowed, or -1
                        for no limit"
+                 type="int"/>
+
+    <attribute   name="maxInactiveInterval"
+          description="The default maximum inactive interval for Sessions
+                       created by this Manager"
                  type="int"/>
 
     <attribute   name="name"
@@ -103,6 +113,11 @@
           description="Session expiration rate in sessions per minute"
                  type="int"
             writeable="false" />
+
+    <attribute   name="sessionIdLength"
+          description="The session id length (in bytes) of Sessions
+                       created by this Manager"
+                 type="int"/>
 
     <attribute   name="sessionMaxAliveTime"
           description="Longest time an expired session had been alive"
@@ -217,6 +232,10 @@
                  type="java.lang.String"
             writeable="false"/>
 
+    <attribute   name="distributable"
+          description="The distributable flag for Sessions created by this Manager"
+                 type="boolean"/>
+
     <attribute   name="duplicates"
           description="Number of duplicated session ids generated"
                  type="int" />
@@ -245,6 +264,10 @@
 
     <attribute   name="maxIdleSwap"
           description="Indicates how many seconds old a session can get, after its last use in a request, before it should be backed up to the store. -1 means sessions are not backed up."
+                 type="int"/>
+
+    <attribute   name="maxInactiveInterval"
+          description="The default maximum inactive interval for Sessions created by this Manager"
                  type="int"/>
 
     <attribute   name="minIdleSwap"
@@ -290,6 +313,11 @@
           description="Session expiration rate in sessions per minute"
                  type="int"
             writeable="false" />
+
+    <attribute   name="sessionIdLength"
+          description="The session id length (in bytes) of Sessions
+                       created by this Manager"
+                 type="int"/>
 
     <attribute   name="sessionMaxAliveTime"
           description="Longest time an expired session had been alive"

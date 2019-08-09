@@ -84,7 +84,7 @@ public abstract class ServletOptionsBaseTest extends TomcatBaseTest {
         w.addInitParameter("listings", Boolean.toString(listings));
         w.addInitParameter("readonly", Boolean.toString(readonly));
 
-        ctx.addServletMappingDecoded("/*", "servlet");
+        ctx.addServletMapping("/*", "servlet");
 
         tomcat.start();
 
@@ -152,7 +152,7 @@ public abstract class ServletOptionsBaseTest extends TomcatBaseTest {
             for (int i = 0; i < values.length; i++) {
                 values[i] = values[i].trim();
             }
-            Set<String> allowed = new HashSet<>();
+            Set<String> allowed = new HashSet<String>();
             allowed.addAll(Arrays.asList(values));
 
             return allowed;

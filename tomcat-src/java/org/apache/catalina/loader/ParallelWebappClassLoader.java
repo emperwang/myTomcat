@@ -16,20 +16,46 @@
  */
 package org.apache.catalina.loader;
 
+import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
 import org.apache.catalina.LifecycleException;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.util.compat.JreCompat;
 
+/**
+ * Parallel class loading implementation of WebappClassLoaderBase. Parallel
+ * class loading is only available when using a Java 7+ JRE.
+ */
 public class ParallelWebappClassLoader extends WebappClassLoaderBase {
 
     private static final Log log = LogFactory.getLog(ParallelWebappClassLoader.class);
 
     static {
-        boolean result = ClassLoader.registerAsParallelCapable();
-        if (!result) {
-            log.warn(sm.getString("webappClassLoaderParallel.registrationFailed"));
+        try {
+            if (JreCompat.isJre7Available()) {
+                // parallel class loading capable
+                final Method registerParallel =
+                        ClassLoader.class.getDeclaredMethod("registerAsParallelCapable");
+                AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                    @Override
+                    public Object run() {
+                        registerParallel.setAccessible(true);
+                        return null;
+                    }
+                });
+                Boolean result = (Boolean)registerParallel.invoke(null);
+                if (!result.booleanValue()) {
+                    log.warn(sm.getString("webappClassLoaderParallel.registrationFailed"));
+                }
+            }
+        } catch (Exception e) {
+            // ignore
         }
     }
+
 
     public ParallelWebappClassLoader() {
         super();

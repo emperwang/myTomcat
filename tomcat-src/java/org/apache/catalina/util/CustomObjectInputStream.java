@@ -44,12 +44,12 @@ public final class CustomObjectInputStream extends ObjectInputStream {
     private static final StringManager sm = StringManager.getManager(CustomObjectInputStream.class);
 
     private static final WeakHashMap<ClassLoader, Set<String>> reportedClassCache =
-            new WeakHashMap<>();
+            new WeakHashMap<ClassLoader, Set<String>>();
 
     /**
      * The class loader we will use to resolve classes.
      */
-    private final ClassLoader classLoader;
+    private ClassLoader classLoader = null;
     private final Set<String> reportedClasses;
     private final Log log;
 
@@ -110,18 +110,9 @@ public final class CustomObjectInputStream extends ObjectInputStream {
         Set<String> reportedClasses;
         synchronized (reportedClassCache) {
             reportedClasses = reportedClassCache.get(classLoader);
-        }
-        if (reportedClasses == null) {
-            reportedClasses = Collections.newSetFromMap(new ConcurrentHashMap<String,Boolean>());
-            synchronized (reportedClassCache) {
-                Set<String> original = reportedClassCache.get(classLoader);
-                if (original == null) {
-                    reportedClassCache.put(classLoader, reportedClasses);
-                } else {
-                    // Concurrent attempts to create the new Set. Make sure all
-                    // threads use the first successfully added Set.
-                    reportedClasses = original;
-                }
+            if (reportedClasses == null) {
+                reportedClasses = Collections.newSetFromMap(new ConcurrentHashMap<String,Boolean>());
+                reportedClassCache.put(classLoader, reportedClasses);
             }
         }
         this.reportedClasses = reportedClasses;

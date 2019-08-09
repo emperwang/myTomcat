@@ -40,14 +40,14 @@ public class CookieFilter {
         // Hide default constructor
     }
 
-    public static String filter(String cookieHeader, String sessionId) {
+    public static String filter(String input, String sessionId) {
 
-        StringBuilder sb = new StringBuilder(cookieHeader.length());
+        StringBuilder sb = new StringBuilder(input.length());
 
         // Cookie name value pairs are ';' separated.
         // Session IDs don't use ; in the value so don't worry about quoted
         // values that contain ;
-        StringTokenizer st = new StringTokenizer(cookieHeader, ";");
+        StringTokenizer st = new StringTokenizer(input, ";");
 
         boolean first = true;
         while (st.hasMoreTokens()) {
@@ -71,15 +71,11 @@ public class CookieFilter {
         String name = input.substring(0, i);
         String value = input.substring(i + 1, input.length());
 
-        return name + "=" + filter(name, value, sessionId);
-    }
-
-    public static String filter(String cookieName, String cookieValue, String sessionId) {
-        if (cookieName.toLowerCase(Locale.ENGLISH).contains("jsessionid") &&
-                (sessionId == null || !cookieValue.contains(sessionId))) {
-            cookieValue = OBFUSCATED;
+        if (name.toLowerCase(Locale.ENGLISH).contains("jsessionid") &&
+                (sessionId == null || !value.contains(sessionId))) {
+            value = OBFUSCATED;
         }
 
-        return cookieValue;
+        return name + "=" + value;
     }
 }

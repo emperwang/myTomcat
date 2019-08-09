@@ -22,9 +22,6 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
-
 /**
  * This class implements a String cache for ByteChunk and CharChunk.
  *
@@ -33,7 +30,8 @@ import org.apache.juli.logging.LogFactory;
 public class StringCache {
 
 
-    private static final Log log = LogFactory.getLog(StringCache.class);
+    private static final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog( StringCache.class );
 
 
     // ------------------------------------------------------- Static Variables
@@ -58,16 +56,15 @@ public class StringCache {
             "tomcat.util.buf.StringCache.cacheSize", "200"));
 
 
-    protected static final int maxStringSize =
-            Integer.parseInt(System.getProperty(
-                    "tomcat.util.buf.StringCache.maxStringSize", "128"));
+    protected static int maxStringSize = Integer.parseInt(System.getProperty(
+            "tomcat.util.buf.StringCache.maxStringSize", "128"));
 
 
    /**
      * Statistics hash map for byte chunk.
      */
-    protected static final HashMap<ByteEntry,int[]> bcStats =
-            new HashMap<>(cacheSize);
+    protected static HashMap<ByteEntry,int[]> bcStats =
+        new HashMap<ByteEntry,int[]>(cacheSize);
 
 
     /**
@@ -85,8 +82,8 @@ public class StringCache {
     /**
      * Statistics hash map for char chunk.
      */
-    protected static final HashMap<CharEntry,int[]> ccStats =
-            new HashMap<>(cacheSize);
+    protected static HashMap<CharEntry,int[]> ccStats =
+        new HashMap<CharEntry,int[]>(cacheSize);
 
 
     /**
@@ -235,7 +232,7 @@ public class StringCache {
                         long t1 = System.currentTimeMillis();
                         // Sort the entries according to occurrence
                         TreeMap<Integer,ArrayList<ByteEntry>> tempMap =
-                                new TreeMap<>();
+                            new TreeMap<Integer,ArrayList<ByteEntry>>();
                         for (Entry<ByteEntry,int[]> item : bcStats.entrySet()) {
                             ByteEntry entry = item.getKey();
                             int[] countA = item.getValue();
@@ -244,7 +241,7 @@ public class StringCache {
                             ArrayList<ByteEntry> list = tempMap.get(count);
                             if (list == null) {
                                 // Create list
-                                list = new ArrayList<>();
+                                list = new ArrayList<ByteEntry>();
                                 tempMap.put(count, list);
                             }
                             list.add(entry);
@@ -352,7 +349,7 @@ public class StringCache {
                         long t1 = System.currentTimeMillis();
                         // Sort the entries according to occurrence
                         TreeMap<Integer,ArrayList<CharEntry>> tempMap =
-                                new TreeMap<>();
+                            new TreeMap<Integer,ArrayList<CharEntry>>();
                         for (Entry<CharEntry,int[]> item : ccStats.entrySet()) {
                             CharEntry entry = item.getKey();
                             int[] countA = item.getValue();
@@ -361,7 +358,7 @@ public class StringCache {
                             ArrayList<CharEntry> list = tempMap.get(count);
                             if (list == null) {
                                 // Create list
-                                list = new ArrayList<>();
+                                list = new ArrayList<CharEntry>();
                                 tempMap.put(count, list);
                             }
                             list.add(entry);
@@ -450,9 +447,7 @@ public class StringCache {
 
     /**
      * Compare given byte chunk with byte array.
-     * @param name The name to compare
-     * @param compareTo The compared to data
-     * @return -1, 0 or +1 if inferior, equal, or superior to the String.
+     * Return -1, 0 or +1 if inferior, equal, or superior to the String.
      */
     protected static final int compare(ByteChunk name, byte[] compareTo) {
         int result = 0;
@@ -486,8 +481,6 @@ public class StringCache {
     /**
      * Find an entry given its name in the cache and return the associated
      * String.
-     * @param name The name to find
-     * @return the corresponding value
      */
     protected static final String find(ByteChunk name) {
         int pos = findClosest(name, bcCache, bcCache.length);
@@ -504,10 +497,6 @@ public class StringCache {
      * Find an entry given its name in a sorted array of map elements.
      * This will return the index for the closest inferior or equal item in the
      * given array.
-     * @param name The name to find
-     * @param array The array in which to look
-     * @param len The effective length of the array
-     * @return the position of the best match
      */
     protected static final int findClosest(ByteChunk name, ByteEntry[] array,
             int len) {
@@ -553,9 +542,7 @@ public class StringCache {
 
     /**
      * Compare given char chunk with char array.
-     * @param name The name to compare
-     * @param compareTo The compared to data
-     * @return -1, 0 or +1 if inferior, equal, or superior to the String.
+     * Return -1, 0 or +1 if inferior, equal, or superior to the String.
      */
     protected static final int compare(CharChunk name, char[] compareTo) {
         int result = 0;
@@ -589,8 +576,6 @@ public class StringCache {
     /**
      * Find an entry given its name in the cache and return the associated
      * String.
-     * @param name The name to find
-     * @return the corresponding value
      */
     protected static final String find(CharChunk name) {
         int pos = findClosest(name, ccCache, ccCache.length);
@@ -606,10 +591,6 @@ public class StringCache {
      * Find an entry given its name in a sorted array of map elements.
      * This will return the index for the closest inferior or equal item in the
      * given array.
-     * @param name The name to find
-     * @param array The array in which to look
-     * @param len The effective length of the array
-     * @return the position of the best match
      */
     protected static final int findClosest(CharChunk name, CharEntry[] array,
             int len) {
@@ -656,11 +637,11 @@ public class StringCache {
     // -------------------------------------------------- ByteEntry Inner Class
 
 
-    private static class ByteEntry {
+    public static class ByteEntry {
 
-        private byte[] name = null;
-        private Charset charset = null;
-        private String value = null;
+        public byte[] name = null;
+        public Charset charset = null;
+        public String value = null;
 
         @Override
         public String toString() {
@@ -684,10 +665,10 @@ public class StringCache {
     // -------------------------------------------------- CharEntry Inner Class
 
 
-    private static class CharEntry {
+    public static class CharEntry {
 
-        private char[] name = null;
-        private String value = null;
+        public char[] name = null;
+        public String value = null;
 
         @Override
         public String toString() {

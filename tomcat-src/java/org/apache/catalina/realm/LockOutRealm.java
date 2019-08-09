@@ -212,7 +212,7 @@ public class LockOutRealm extends CombinedRealm {
      */
     private Principal filterLockedAccounts(String username, Principal authenticatedUser) {
         // Register all failed authentications
-        if (authenticatedUser == null && isAvailable()) {
+        if (authenticatedUser == null) {
             registerAuthFailure(username);
         }
 
@@ -246,7 +246,7 @@ public class LockOutRealm extends CombinedRealm {
      * a login attempt, then the last access time will be recorded and any
      * attempt to authenticated a locked user will log a warning.
      */
-    public boolean isLocked(String username) {
+    private boolean isLocked(String username) {
         LockRecord lockRecord = null;
         synchronized (this) {
             lockRecord = failedUsers.get(username);
@@ -392,7 +392,7 @@ public class LockOutRealm extends CombinedRealm {
 
 
     protected static class LockRecord {
-        private final AtomicInteger failures = new AtomicInteger(0);
+        private AtomicInteger failures = new AtomicInteger(0);
         private long lastFailureTime = 0;
 
         public int getFailures() {

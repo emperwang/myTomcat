@@ -18,14 +18,12 @@
 package org.apache.coyote.http11.filters;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 
 import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
 import org.apache.coyote.http11.InputFilter;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.net.ApplicationBufferHandler;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -33,7 +31,7 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Remy Maucherat
  */
-public class IdentityInputFilter implements InputFilter, ApplicationBufferHandler {
+public class IdentityInputFilter implements InputFilter {
 
     private static final StringManager sm = StringManager.getManager(
             IdentityInputFilter.class.getPackage().getName());
@@ -50,8 +48,8 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
 
 
     static {
-        ENCODING.setBytes(ENCODING_NAME.getBytes(StandardCharsets.ISO_8859_1),
-                0, ENCODING_NAME.length());
+        ENCODING.setBytes(ENCODING_NAME.getBytes(Charset.defaultCharset()), 0,
+                ENCODING_NAME.length());
     }
 
 
@@ -77,13 +75,39 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
 
 
     /**
-     * ByteBuffer used to read leftover bytes.
+     * Chunk used to read leftover bytes.
      */
-    protected ByteBuffer tempRead;
+    protected ByteChunk endChunk = new ByteChunk();
 
 
     private final int maxSwallowSize;
 
+
+    // ------------------------------------------------------------- Properties
+
+    /**
+     * Get content length.
+     *
+     * @deprecated  Unused - will be removed in 8.0.x
+     */
+    @Deprecated
+    public long getContentLength() {
+        return contentLength;
+    }
+
+
+    /**
+     * Get remaining bytes.
+     *
+     * @deprecated  Unused - will be removed in 8.0.x
+     */
+    @Deprecated
+    public long getRemaining() {
+        return remaining;
+    }
+
+
+    // ------------------------------------------------------------ Constructor
 
     public IdentityInputFilter(int maxSwallowSize) {
         this.maxSwallowSize = maxSwallowSize;
@@ -92,19 +116,25 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
 
     // ---------------------------------------------------- InputBuffer Methods
 
+
     /**
-     * @deprecated Unused. Will be removed in Tomcat 9. Use
-     *             {@link #doRead(ApplicationBufferHandler)}
+     * Read bytes.
+     *
+     * @return If the filter does request length control, this value is
+     * significant; it should be the number of bytes consumed from the buffer,
+     * up until the end of the current request body, or the buffer length,
+     * whichever is greater. If the filter does not do request body length
+     * control, the returned value should be -1.
      */
-    @Deprecated
     @Override
-    public int doRead(ByteChunk chunk) throws IOException {
+    public int doRead(ByteChunk chunk, Request req)
+        throws IOException {
 
         int result = -1;
 
         if (contentLength >= 0) {
             if (remaining > 0) {
-                int nRead = buffer.doRead(chunk);
+                int nRead = buffer.doRead(chunk, req);
                 if (nRead > remaining) {
                     // The chunk is longer than the number of bytes remaining
                     // in the body; changing the chunk length to the number
@@ -122,40 +152,6 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
                 // No more bytes left to be read : return -1 and clear the
                 // buffer
                 chunk.recycle();
-                result = -1;
-            }
-        }
-
-        return result;
-
-    }
-
-    @Override
-    public int doRead(ApplicationBufferHandler handler) throws IOException {
-
-        int result = -1;
-
-        if (contentLength >= 0) {
-            if (remaining > 0) {
-                int nRead = buffer.doRead(handler);
-                if (nRead > remaining) {
-                    // The chunk is longer than the number of bytes remaining
-                    // in the body; changing the chunk length to the number
-                    // of bytes remaining
-                    handler.getByteBuffer().limit(handler.getByteBuffer().position() + (int) remaining);
-                    result = (int) remaining;
-                } else {
-                    result = nRead;
-                }
-                if (nRead > 0) {
-                    remaining = remaining - nRead;
-                }
-            } else {
-                // No more bytes left to be read : return -1 and clear the
-                // buffer
-                if (handler.getByteBuffer() != null) {
-                    handler.getByteBuffer().position(0).limit(0);
-                }
                 result = -1;
             }
         }
@@ -187,8 +183,7 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
         // Consume extra bytes.
         while (remaining > 0) {
 
-            int nread = buffer.doRead(this);
-            tempRead = null;
+            int nread = buffer.doRead(endChunk, null);
             if (nread > 0 ) {
                 swallowed += nread;
                 remaining = remaining - nread;
@@ -234,6 +229,7 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
     public void recycle() {
         contentLength = -1;
         remaining = 0;
+        endChunk.recycle();
     }
 
 
@@ -247,28 +243,4 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
     }
 
 
-    @Override
-    public boolean isFinished() {
-        // Only finished if a content length is defined and there is no data
-        // remaining
-        return contentLength > -1 && remaining <= 0;
-    }
-
-
-    @Override
-    public void setByteBuffer(ByteBuffer buffer) {
-        tempRead = buffer;
-    }
-
-
-    @Override
-    public ByteBuffer getByteBuffer() {
-        return tempRead;
-    }
-
-
-    @Override
-    public void expand(int size) {
-        // no-op
-    }
 }

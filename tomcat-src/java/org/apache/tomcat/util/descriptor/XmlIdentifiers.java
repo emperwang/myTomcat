@@ -67,12 +67,6 @@ public final class XmlIdentifiers {
     public static final String WEB_FRAGMENT_30_XSD = JAVAEE_6_NS + "/web-fragment_3_0.xsd";
     public static final String WEBSERVICES_13_XSD = JAVAEE_6_NS + "/javaee_web_services_1_3.xsd";
 
-    // from JavaEE 7
-    public static final String JAVAEE_7_NS = "http://xmlns.jcp.org/xml/ns/javaee";
-    public static final String WEB_31_XSD = JAVAEE_7_NS + "/web-app_3_1.xsd";
-    public static final String WEB_FRAGMENT_31_XSD = JAVAEE_7_NS + "/web-fragment_3_1.xsd";
-    public static final String WEBSERVICES_14_XSD = JAVAEE_7_NS + "/javaee_web_services_1_4.xsd";
-
     private XmlIdentifiers() {
     }
 }

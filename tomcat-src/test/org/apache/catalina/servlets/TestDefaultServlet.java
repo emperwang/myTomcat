@@ -37,12 +37,11 @@ import org.junit.Test;
 import static org.apache.catalina.startup.SimpleHttpClient.CRLF;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
+import org.apache.catalina.deploy.ErrorPage;
 import org.apache.catalina.startup.SimpleHttpClient;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
-import org.apache.tomcat.websocket.server.WsContextListener;
 
 public class TestDefaultServlet extends TomcatBaseTest {
 
@@ -87,288 +86,6 @@ public class TestDefaultServlet extends TomcatBaseTest {
     }
 
     /*
-     * Verify serving of gzipped resources from context root.
-     */
-    @Test
-    public void testGzippedFile() throws Exception {
-
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir = new File("test/webapp");
-
-        File gzipIndex = new File(appDir, "index.html.gz");
-        long gzipSize = gzipIndex.length();
-
-        File index = new File(appDir, "index.html");
-        long indexSize = index.length();
-
-        // app dir is relative to server home
-        Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
-        Wrapper defaultServlet = Tomcat.addServlet(ctxt, "default",
-                "org.apache.catalina.servlets.DefaultServlet");
-        defaultServlet.addInitParameter("gzip", "true");
-        defaultServlet.addInitParameter("fileEncoding", "ISO-8859-1");
-        ctxt.addServletMappingDecoded("/", "default");
-
-        ctxt.addMimeMapping("html", "text/html");
-
-        tomcat.start();
-
-        TestCompressedClient gzipClient = new TestCompressedClient(getPort());
-
-        gzipClient.reset();
-        gzipClient.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                "Host: localhost" + CRLF +
-                "Connection: Close" + CRLF +
-                "Accept-Encoding: gzip, br" + CRLF + CRLF });
-        gzipClient.connect();
-        gzipClient.processRequest();
-        Assert.assertTrue(gzipClient.isResponse200());
-        List<String> responseHeaders = gzipClient.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: gzip"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + gzipSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-
-        gzipClient.reset();
-        gzipClient.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                "Host: localhost" + CRLF +
-                "Connection: Close" + CRLF+ CRLF });
-        gzipClient.connect();
-        gzipClient.processRequest();
-        Assert.assertTrue(gzipClient.isResponse200());
-        responseHeaders = gzipClient.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Type: text/html"));
-        Assert.assertFalse(responseHeaders.contains("Content-Encoding: gzip"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + indexSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-    }
-
-    /*
-     * Verify serving of brotli compressed resources from context root.
-     */
-    @Test
-    public void testBrotliCompressedFile() throws Exception {
-
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir = new File("test/webapp");
-
-        long brSize = new File(appDir, "index.html.br").length();
-        long indexSize = new File(appDir, "index.html").length();
-
-        // app dir is relative to server home
-        Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
-        Wrapper defaultServlet = Tomcat.addServlet(ctxt, "default",
-                "org.apache.catalina.servlets.DefaultServlet");
-        defaultServlet.addInitParameter("precompressed", "true");
-        defaultServlet.addInitParameter("fileEncoding", "ISO-8859-1");
-
-        ctxt.addServletMappingDecoded("/", "default");
-        ctxt.addMimeMapping("html", "text/html");
-
-        tomcat.start();
-
-        TestCompressedClient client = new TestCompressedClient(getPort());
-
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: br, gzip" + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        List<String> responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: br"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + brSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF+ CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Type: text/html"));
-        Assert.assertFalse(responseHeaders.contains("Content-Encoding"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + indexSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-    }
-
-    /*
-     * Verify serving of custom compressed resources from context root.
-     */
-    @Test
-    public void testCustomCompressedFile() throws Exception {
-
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir = new File("test/webapp");
-
-        long brSize = new File(appDir, "index.html.br").length();
-        long gzSize = new File(appDir, "index.html.gz").length();
-
-        // app dir is relative to server home
-        Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
-        Wrapper defaultServlet = Tomcat.addServlet(ctxt, "default",
-                DefaultServlet.class.getName());
-        defaultServlet.addInitParameter("precompressed", "gzip=.gz,custom=.br");
-
-        ctxt.addServletMappingDecoded("/", "default");
-        ctxt.addMimeMapping("html", "text/html");
-
-        tomcat.start();
-
-        TestCompressedClient client = new TestCompressedClient(getPort());
-
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: br, gzip ; q = 0.5 , custom" + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        List<String> responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: custom"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + brSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: br;q=1,gzip,custom" + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: gzip"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + gzSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-    }
-
-    /*
-     * Verify that "*" and "identity" values are handled correctly in accept-encoding header.
-     */
-    @Test
-    public void testIdentityAndStarAcceptEncodings() throws Exception {
-
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir = new File("test/webapp");
-
-        long brSize = new File(appDir, "index.html.br").length();
-        long indexSize = new File(appDir, "index.html").length();
-
-        // app dir is relative to server home
-        Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
-        Wrapper defaultServlet = Tomcat.addServlet(ctxt, "default",
-                DefaultServlet.class.getName());
-        defaultServlet.addInitParameter("precompressed", "br=.br,gzip=.gz");
-        defaultServlet.addInitParameter("fileEncoding", "ISO-8859-1");
-
-        ctxt.addServletMappingDecoded("/", "default");
-        ctxt.addMimeMapping("html", "text/html");
-
-        tomcat.start();
-
-        TestCompressedClient client = new TestCompressedClient(getPort());
-
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: gzip;q=0.9,*" + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        List<String> responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: br"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + brSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: gzip;q=0.9,br;q=0,identity," + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        responseHeaders = client.getResponseHeaders();
-        Assert.assertFalse(responseHeaders.contains("Content-Encoding"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + indexSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-    }
-
-    /*
-     * Verify preferring of brotli in default configuration for actual Firefox and Chrome requests.
-     */
-    @Test
-    public void testBrotliPreference() throws Exception {
-
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir = new File("test/webapp");
-
-        long brSize = new File(appDir, "index.html.br").length();
-
-        // app dir is relative to server home
-        Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
-        Wrapper defaultServlet = Tomcat.addServlet(ctxt, "default",
-                DefaultServlet.class.getName());
-        defaultServlet.addInitParameter("precompressed", "true");
-
-        ctxt.addServletMappingDecoded("/", "default");
-        ctxt.addMimeMapping("html", "text/html");
-
-        tomcat.start();
-
-        TestCompressedClient client = new TestCompressedClient(getPort());
-
-        // Firefox 45 Accept-Encoding
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: gzip, deflate, br" + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        List<String> responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: br"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + brSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-
-        // Chrome 50 Accept-Encoding
-        client.reset();
-        client.setRequest(new String[] {
-                "GET /index.html HTTP/1.1" + CRLF +
-                        "Host: localhost" + CRLF +
-                        "Connection: Close" + CRLF +
-                        "Accept-Encoding: gzip, deflate, sdch, br" + CRLF + CRLF });
-        client.connect();
-        client.processRequest();
-        Assert.assertTrue(client.isResponse200());
-        responseHeaders = client.getResponseHeaders();
-        Assert.assertTrue(responseHeaders.contains("Content-Encoding: br"));
-        Assert.assertTrue(responseHeaders.contains("Content-Length: " + brSize));
-        Assert.assertTrue(responseHeaders.contains("vary: accept-encoding"));
-    }
-
-    /*
      * Test https://bz.apache.org/bugzilla/show_bug.cgi?id=50026
      * Verify serving of resources from context root with subpath mapping.
      */
@@ -382,13 +99,12 @@ public class TestDefaultServlet extends TomcatBaseTest {
         // app dir is relative to server home
         org.apache.catalina.Context ctx =
             tomcat.addWebapp(null, "/examples", appDir.getAbsolutePath());
-        ctx.addApplicationListener(WsContextListener.class.getName());
 
         // Override the default servlet with our own mappings
         Tomcat.addServlet(ctx, "default2", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default2");
-        ctx.addServletMappingDecoded("/servlets/*", "default2");
-        ctx.addServletMappingDecoded("/static/*", "default2");
+        ctx.addServletMapping("/", "default2");
+        ctx.addServletMapping("/servlets/*", "default2");
+        ctx.addServletMapping("/static/*", "default2");
 
         tomcat.start();
 
@@ -448,7 +164,7 @@ public class TestDefaultServlet extends TomcatBaseTest {
 
         Tomcat tomcat = getTomcatInstance();
 
-        File appDir = new File("test/webapp");
+        File appDir = new File("test/webapp-3.0");
 
         // app dir is relative to server home
         Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
@@ -456,7 +172,7 @@ public class TestDefaultServlet extends TomcatBaseTest {
                 DefaultServlet.class.getName());
         defaultServlet.addInitParameter("fileEncoding", "ISO-8859-1");
 
-        ctxt.addServletMappingDecoded("/", "default");
+        ctxt.addServletMapping("/", "default");
         ctxt.addMimeMapping("html", "text/html");
         ErrorPage ep = new ErrorPage();
         ep.setErrorCode(404);
@@ -521,10 +237,9 @@ public class TestDefaultServlet extends TomcatBaseTest {
         if (!webInf.mkdirs() && !webInf.isDirectory()) {
             Assert.fail("Unable to create directory [" + webInf + "]");
         }
-
-        File webxml = new File(appDir, "WEB-INF/web.xml");
-        try (FileOutputStream fos = new FileOutputStream(webxml);
-                Writer w = new OutputStreamWriter(fos, "UTF-8")) {
+        Writer w = new OutputStreamWriter(new FileOutputStream(new File(appDir,
+                "WEB-INF/web.xml")), "UTF-8");
+        try {
             w.write("<?xml version='1.0' encoding='UTF-8'?>\n"
                     + "<web-app xmlns='http://java.sun.com/xml/ns/j2ee' "
                     + " xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'"
@@ -534,6 +249,9 @@ public class TestDefaultServlet extends TomcatBaseTest {
                     + "<error-page>\n<error-code>404</error-code>\n"
                     + "<location>/404-absent.html</location>\n</error-page>\n"
                     + "</web-app>\n");
+            w.flush();
+        } finally {
+            w.close();
         }
 
         Tomcat tomcat = getTomcatInstance();
@@ -559,9 +277,14 @@ public class TestDefaultServlet extends TomcatBaseTest {
      */
     @Test
     public void testBug57601() throws Exception {
-        Tomcat tomcat = getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
 
-        Map<String,List<String>> resHeaders= new HashMap<>();
+        File appDir = new File("test/webapp-3.0");
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
+
+        Map<String,List<String>> resHeaders= new HashMap<String,List<String>>();
         String path = "http://localhost:" + getPort() + "/test/bug5nnnn/bug57601.jsp";
         ByteChunk out = new ByteChunk();
 
@@ -588,18 +311,6 @@ public class TestDefaultServlet extends TomcatBaseTest {
     private static class TestCustomErrorClient extends SimpleHttpClient {
 
         public TestCustomErrorClient(int port) {
-            setPort(port);
-        }
-
-        @Override
-        public boolean isResponseBodyOK() {
-            return true;
-        }
-    }
-
-    private static class TestCompressedClient extends SimpleHttpClient {
-
-        public TestCompressedClient(int port) {
             setPort(port);
         }
 

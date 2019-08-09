@@ -14,6 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.tomcat.util.log;
 
 import java.io.ByteArrayOutputStream;
@@ -32,8 +33,8 @@ class CaptureLog {
         ps = new PrintStream(baos);
     }
 
-    private final ByteArrayOutputStream baos;
-    private final PrintStream ps;
+    private ByteArrayOutputStream baos;
+    private PrintStream ps;
 
     protected PrintStream getStream() {
         return ps;

@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.util;
 
 import java.io.File;
@@ -21,16 +22,21 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Locale;
+import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 
+import javax.naming.Binding;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.DirContext;
+
 import org.apache.catalina.Context;
-import org.apache.catalina.WebResource;
-import org.apache.catalina.WebResourceRoot;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
+import org.apache.naming.resources.Resource;
+import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.res.StringManager;
 
 
@@ -47,18 +53,19 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public final class ExtensionValidator {
 
-    private static final Log log = LogFactory.getLog(ExtensionValidator.class);
+    private static final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog(ExtensionValidator.class);
 
     /**
      * The string resources for this package.
      */
     private static final StringManager sm =
-            StringManager.getManager("org.apache.catalina.util");
+        StringManager.getManager("org.apache.catalina.util");
 
     private static volatile ArrayList<Extension> containerAvailableExtensions =
-            null;
-    private static final ArrayList<ManifestResource> containerManifestResources =
-            new ArrayList<>();
+        null;
+    private static ArrayList<ManifestResource> containerManifestResources =
+        new ArrayList<ManifestResource>();
 
 
     // ----------------------------------------------------- Static Initializer
@@ -112,48 +119,96 @@ public final class ExtensionValidator {
      * file in the /META-INF/ directory of the application and all
      * MANIFEST.MF files in each JAR file located in the WEB-INF/lib
      * directory and creates an <code>ArrayList</code> of
-     * <code>ManifestResource</code> objects. These objects are then passed
+     * <code>ManifestResource<code> objects. These objects are then passed
      * to the validateManifestResources method for validation.
      *
-     * @param resources The resources configured for this Web Application
-     * @param context   The context from which the Logger and path to the
-     *                  application
+     * @param dirContext The JNDI root of the Web Application
+     * @param context The context from which the Logger and path to the
+     *                application
      *
      * @return true if all required extensions satisfied
-     * @throws IOException Error reading resources needed for validation
      */
     public static synchronized boolean validateApplication(
-                                           WebResourceRoot resources,
+                                           DirContext dirContext,
                                            Context context)
                     throws IOException {
 
         String appName = context.getName();
-        ArrayList<ManifestResource> appManifestResources = new ArrayList<>();
-
-        // Web application manifest
-        WebResource resource = resources.getResource("/META-INF/MANIFEST.MF");
-        if (resource.isFile()) {
-            try (InputStream inputStream = resource.getInputStream()) {
+        ArrayList<ManifestResource> appManifestResources =
+            new ArrayList<ManifestResource>();
+        // If the application context is null it does not exist and
+        // therefore is not valid
+        if (dirContext == null) return false;
+        // Find the Manifest for the Web Application
+        InputStream inputStream = null;
+        try {
+            NamingEnumeration<Binding> wne =
+                dirContext.listBindings("/META-INF/");
+            Binding binding = wne.nextElement();
+            if (binding.getName().toUpperCase(Locale.ENGLISH).equals("MANIFEST.MF")) {
+                Resource resource = (Resource)dirContext.lookup
+                                    ("/META-INF/" + binding.getName());
+                inputStream = resource.streamContent();
                 Manifest manifest = new Manifest(inputStream);
+                inputStream.close();
+                inputStream = null;
                 ManifestResource mre = new ManifestResource
                     (sm.getString("extensionValidator.web-application-manifest"),
                     manifest, ManifestResource.WAR);
                 appManifestResources.add(mre);
             }
+        } catch (NamingException nex) {
+            // Application does not contain a MANIFEST.MF file
+        } catch (NoSuchElementException nse) {
+            // Application does not contain a MANIFEST.MF file
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
+                }
+            }
         }
 
-        // Web application library manifests
-        WebResource[] manifestResources =
-                resources.getClassLoaderResources("/META-INF/MANIFEST.MF");
-        for (WebResource manifestResource : manifestResources) {
-            if (manifestResource.isFile()) {
-                // Primarily used for error reporting
-                String jarName = manifestResource.getURL().toExternalForm();
-                Manifest jmanifest = manifestResource.getManifest();
+        // Locate the Manifests for all bundled JARs
+        NamingEnumeration<Binding> ne = null;
+        // Primarily used for error reporting
+        String jarName = null;
+        try {
+            ne = dirContext.listBindings("WEB-INF/lib/");
+            while ((ne != null) && ne.hasMoreElements()) {
+                Binding binding = ne.nextElement();
+                jarName = binding.getName();
+                if (!jarName.toLowerCase(Locale.ENGLISH).endsWith(".jar")) {
+                    continue;
+                }
+                Object obj =
+                    dirContext.lookup("/WEB-INF/lib/" + jarName);
+                if (!(obj instanceof Resource)) {
+                    // Probably a directory named xxx.jar - ignore it
+                    continue;
+                }
+                Resource resource = (Resource) obj;
+                inputStream = resource.streamContent();
+                Manifest jmanifest = getManifest(inputStream);
                 if (jmanifest != null) {
                     ManifestResource mre = new ManifestResource(jarName,
                             jmanifest, ManifestResource.APPLICATION);
                     appManifestResources.add(mre);
+                }
+            }
+        } catch (NamingException nex) {
+            // Jump out of the check for this application because it
+            // has no resources
+        } catch (IOException ioe) {
+            throw new IOException("Jar: " + jarName, ioe);
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
                 }
             }
         }
@@ -167,15 +222,23 @@ public final class ExtensionValidator {
      * it to the container's manifest resources.
      *
      * @param jarFile The system JAR whose manifest to add
-     * @throws IOException Error reading JAR file
      */
     public static void addSystemResource(File jarFile) throws IOException {
-        try (InputStream is = new FileInputStream(jarFile)) {
+        InputStream is = null;
+        try {
+            is = new FileInputStream(jarFile);
             Manifest manifest = getManifest(is);
             if (manifest != null) {
                 ManifestResource mre = new ManifestResource(jarFile.getAbsolutePath(), manifest,
                         ManifestResource.SYSTEM);
                 containerManifestResources.add(mre);
+            }
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                }
             }
         }
     }
@@ -209,7 +272,9 @@ public final class ExtensionValidator {
         int failureCount = 0;
         ArrayList<Extension> availableExtensions = null;
 
-        for (ManifestResource mre : resources) {
+        Iterator<ManifestResource> it = resources.iterator();
+        while (it.hasNext()) {
+            ManifestResource mre = it.next();
             ArrayList<Extension> requiredList = mre.getRequiredExtensions();
             if (requiredList == null) {
                 continue;
@@ -228,11 +293,15 @@ public final class ExtensionValidator {
             }
 
             // iterate through the list of required extensions
-            for (Extension requiredExt : requiredList) {
+            Iterator<Extension> rit = requiredList.iterator();
+            while (rit.hasNext()) {
                 boolean found = false;
+                Extension requiredExt = rit.next();
                 // check the application itself for the extension
                 if (availableExtensions != null) {
-                    for (Extension targetExt : availableExtensions) {
+                    Iterator<Extension> ait = availableExtensions.iterator();
+                    while (ait.hasNext()) {
+                        Extension targetExt = ait.next();
                         if (targetExt.isCompatibleWith(requiredExt)) {
                             requiredExt.setFulfilled(true);
                             found = true;
@@ -242,7 +311,10 @@ public final class ExtensionValidator {
                 }
                 // check the container level list for the extension
                 if (!found && containerAvailableExtensions != null) {
-                    for (Extension targetExt : containerAvailableExtensions) {
+                    Iterator<Extension> cit =
+                        containerAvailableExtensions.iterator();
+                    while (cit.hasNext()) {
+                        Extension targetExt = cit.next();
                         if (targetExt.isCompatibleWith(requiredExt)) {
                             requiredExt.setFulfilled(true);
                             found = true;
@@ -293,12 +365,16 @@ public final class ExtensionValidator {
 
         ArrayList<Extension> availableList = null;
 
-        for (ManifestResource mre : resources) {
+        Iterator<ManifestResource> it = resources.iterator();
+        while (it.hasNext()) {
+            ManifestResource mre = it.next();
             ArrayList<Extension> list = mre.getAvailableExtensions();
             if (list != null) {
-                for (Extension ext : list) {
+                Iterator<Extension> values = list.iterator();
+                while (values.hasNext()) {
+                    Extension ext = values.next();
                     if (availableList == null) {
-                        availableList = new ArrayList<>();
+                        availableList = new ArrayList<Extension>();
                         availableList.add(ext);
                     } else {
                         availableList.add(ext);
@@ -316,11 +392,27 @@ public final class ExtensionValidator {
      * @param inStream Input stream to a WAR or JAR file
      * @return The WAR's or JAR's manifest
      */
-    private static Manifest getManifest(InputStream inStream) throws IOException {
+    private static Manifest getManifest(InputStream inStream)
+            throws IOException {
+
         Manifest manifest = null;
-        try (JarInputStream jin = new JarInputStream(inStream)) {
+        JarInputStream jin = null;
+
+        try {
+            jin = new JarInputStream(inStream);
             manifest = jin.getManifest();
+            jin.close();
+            jin = null;
+        } finally {
+            if (jin != null) {
+                try {
+                    jin.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.handleThrowable(t);
+                }
+            }
         }
+
         return manifest;
     }
 

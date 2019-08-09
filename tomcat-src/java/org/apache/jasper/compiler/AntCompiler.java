@@ -90,7 +90,7 @@ public class AntCompiler extends Compiler {
 
     public static class JasperAntLogger extends DefaultLogger {
 
-        protected final StringBuilder reportBuf = new StringBuilder();
+        protected StringBuilder reportBuf = new StringBuilder();
 
         @Override
         protected void printMessage(final String message,
@@ -101,7 +101,7 @@ public class AntCompiler extends Compiler {
         @Override
         protected void log(String message) {
             reportBuf.append(message);
-            reportBuf.append(System.lineSeparator());
+            reportBuf.append(Constants.NEWLINE);
         }
 
         protected String getReport() {
@@ -244,7 +244,7 @@ public class AntCompiler extends Compiler {
         // Stop capturing the System.err output for this thread
         String errorCapture = SystemLogHandler.unsetThread();
         if (errorCapture != null) {
-            errorReport.append(System.lineSeparator());
+            errorReport.append(Constants.NEWLINE);
             errorReport.append(errorCapture);
         }
 
@@ -312,7 +312,6 @@ public class AntCompiler extends Compiler {
 
         /**
          * Construct the handler to capture the output of the given steam.
-         * @param wrapped The wrapped stream
          */
         public SystemLogHandler(PrintStream wrapped) {
             super(wrapped);
@@ -326,24 +325,33 @@ public class AntCompiler extends Compiler {
         /**
          * Wrapped PrintStream.
          */
-        protected final PrintStream wrapped;
+        protected PrintStream wrapped = null;
 
 
         /**
-         * Thread &lt;-&gt; PrintStream associations.
+         * Thread <-> PrintStream associations.
          */
-        protected static final ThreadLocal<PrintStream> streams =
-                new ThreadLocal<>();
+        protected static ThreadLocal<PrintStream> streams =
+            new ThreadLocal<PrintStream>();
 
 
         /**
-         * Thread &lt;-&gt; ByteArrayOutputStream associations.
+         * Thread <-> ByteArrayOutputStream associations.
          */
-        protected static final ThreadLocal<ByteArrayOutputStream> data =
-                new ThreadLocal<>();
+        protected static ThreadLocal<ByteArrayOutputStream> data =
+            new ThreadLocal<ByteArrayOutputStream>();
 
 
         // --------------------------------------------------------- Public Methods
+
+
+        /**
+         * @deprecated Unused. Will be removed in Tomcat 8.0.x.
+         */
+        @Deprecated
+        public PrintStream getWrapped() {
+          return wrapped;
+        }
 
         /**
          * Start capturing thread's output.
@@ -357,7 +365,6 @@ public class AntCompiler extends Compiler {
 
         /**
          * Stop capturing thread's output and return captured data as a String.
-         * @return the captured output
          */
         public static String unsetThread() {
             ByteArrayOutputStream baos = data.get();
@@ -375,7 +382,6 @@ public class AntCompiler extends Compiler {
 
         /**
          * Find PrintStream to which the output must be written to.
-         * @return the current stream
          */
         protected PrintStream findStream() {
             PrintStream ps = streams.get();

@@ -21,13 +21,10 @@ package org.apache.catalina.users;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.catalina.Role;
 import org.apache.catalina.User;
 import org.apache.catalina.UserDatabase;
-import org.apache.tomcat.util.buf.StringUtils;
-import org.apache.tomcat.util.buf.StringUtils.Function;
 
 
 /**
@@ -68,13 +65,13 @@ public class MemoryGroup extends AbstractGroup {
     /**
      * The {@link MemoryUserDatabase} that owns this group.
      */
-    protected final MemoryUserDatabase database;
+    protected MemoryUserDatabase database = null;
 
 
     /**
      * The set of {@link Role}s associated with this group.
      */
-    protected final ArrayList<Role> roles = new ArrayList<>();
+    protected ArrayList<Role> roles = new ArrayList<Role>();
 
 
     // ------------------------------------------------------------- Properties
@@ -85,9 +82,11 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public Iterator<Role> getRoles() {
+
         synchronized (roles) {
-            return roles.iterator();
+            return (roles.iterator());
         }
+
     }
 
 
@@ -96,7 +95,9 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public UserDatabase getUserDatabase() {
-        return this.database;
+
+        return (this.database);
+
     }
 
 
@@ -105,7 +106,8 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public Iterator<User> getUsers() {
-        List<User> results = new ArrayList<>();
+
+        ArrayList<User> results = new ArrayList<User>();
         Iterator<User> users = database.getUsers();
         while (users.hasNext()) {
             User user = users.next();
@@ -113,7 +115,8 @@ public class MemoryGroup extends AbstractGroup {
                 results.add(user);
             }
         }
-        return results.iterator();
+        return (results.iterator());
+
     }
 
 
@@ -127,11 +130,13 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public void addRole(Role role) {
+
         synchronized (roles) {
             if (!roles.contains(role)) {
                 roles.add(role);
             }
         }
+
     }
 
 
@@ -142,9 +147,11 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public boolean isInRole(Role role) {
+
         synchronized (roles) {
-            return roles.contains(role);
+            return (roles.contains(role));
         }
+
     }
 
 
@@ -155,9 +162,11 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public void removeRole(Role role) {
+
         synchronized (roles) {
             roles.remove(role);
         }
+
     }
 
 
@@ -166,9 +175,11 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public void removeRoles() {
+
         synchronized (roles) {
             roles.clear();
         }
+
     }
 
 
@@ -177,6 +188,7 @@ public class MemoryGroup extends AbstractGroup {
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("<group groupname=\"");
         sb.append(groupname);
         sb.append("\"");
@@ -188,12 +200,22 @@ public class MemoryGroup extends AbstractGroup {
         synchronized (roles) {
             if (roles.size() > 0) {
                 sb.append(" roles=\"");
-                StringUtils.join(roles, ',', new Function<Role>(){
-                    @Override public String apply(Role t) { return t.getRolename(); }}, sb);
+                int n = 0;
+                Iterator<Role> values = roles.iterator();
+                while (values.hasNext()) {
+                    if (n > 0) {
+                        sb.append(',');
+                    }
+                    n++;
+                    sb.append((values.next()).getRolename());
+                }
                 sb.append("\"");
             }
         }
         sb.append("/>");
-        return sb.toString();
+        return (sb.toString());
+
     }
+
+
 }

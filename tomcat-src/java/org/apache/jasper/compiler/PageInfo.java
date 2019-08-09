@@ -39,25 +39,25 @@ import org.apache.jasper.JasperException;
 
 class PageInfo {
 
-    private final Vector<String> imports;
-    private final Map<String,Long> dependants;
+    private Vector<String> imports;
+    private Map<String,Long> dependants;
 
-    private final BeanRepository beanRepository;
-    private final Set<String> varInfoNames;
-    private final HashMap<String,TagLibraryInfo> taglibsMap;
-    private final HashMap<String, String> jspPrefixMapper;
-    private final HashMap<String, LinkedList<String>> xmlPrefixMapper;
-    private final HashMap<String, Mark> nonCustomTagPrefixMap;
-    private final String jspFile;
-    private static final String defaultLanguage = "java";
+    private BeanRepository beanRepository;
+    private Set<String> varInfoNames;
+    private HashMap<String,TagLibraryInfo> taglibsMap;
+    private HashMap<String, String> jspPrefixMapper;
+    private HashMap<String, LinkedList<String>> xmlPrefixMapper;
+    private HashMap<String, Mark> nonCustomTagPrefixMap;
+    private String jspFile;
+    private String defaultLanguage = "java";
     private String language;
-    private final String defaultExtends = Constants.JSP_SERVLET_BASE;
+    private String defaultExtends = Constants.JSP_SERVLET_BASE;
     private String xtends;
     private String contentType = null;
     private String session;
     private boolean isSession = true;
     private String bufferValue;
-    private int buffer = 8*1024;
+    private int buffer = 8*1024;    // XXX confirm
     private String autoFlush;
     private boolean isAutoFlush = true;
     private String isThreadSafeValue;
@@ -76,7 +76,7 @@ class PageInfo {
     // JSP 2.1
     private String deferredSyntaxAllowedAsLiteralValue;
     private boolean deferredSyntaxAllowedAsLiteral = false;
-    private final ExpressionFactory expressionFactory =
+    private ExpressionFactory expressionFactory =
         ExpressionFactory.newInstance();
     private String trimDirectiveWhitespacesValue;
     private boolean trimDirectiveWhitespaces = false;
@@ -89,33 +89,33 @@ class PageInfo {
     private boolean isJspPrefixHijacked;
 
     // Set of all element and attribute prefixes used in this translation unit
-    private final HashSet<String> prefixes;
+    private HashSet<String> prefixes;
 
     private boolean hasJspRoot = false;
-    private Collection<String> includePrelude;
-    private Collection<String> includeCoda;
-    private final Vector<String> pluginDcls;  // Id's for tagplugin declarations
+    private Vector<String> includePrelude;
+    private Vector<String> includeCoda;
+    private Vector<String> pluginDcls;      // Id's for tagplugin declarations
 
     // JSP 2.2
     private boolean errorOnUndeclaredNamespace = false;
 
-    private final boolean isTagFile;
+    private boolean isTagFile = false;
 
     PageInfo(BeanRepository beanRepository, String jspFile, boolean isTagFile) {
         this.isTagFile = isTagFile;
         this.jspFile = jspFile;
         this.beanRepository = beanRepository;
-        this.varInfoNames = new HashSet<>();
-        this.taglibsMap = new HashMap<>();
-        this.jspPrefixMapper = new HashMap<>();
-        this.xmlPrefixMapper = new HashMap<>();
-        this.nonCustomTagPrefixMap = new HashMap<>();
-        this.imports = new Vector<>();
-        this.dependants = new HashMap<>();
-        this.includePrelude = new Vector<>();
-        this.includeCoda = new Vector<>();
-        this.pluginDcls = new Vector<>();
-        this.prefixes = new HashSet<>();
+        this.varInfoNames = new HashSet<String>();
+        this.taglibsMap = new HashMap<String, TagLibraryInfo>();
+        this.jspPrefixMapper = new HashMap<String, String>();
+        this.xmlPrefixMapper = new HashMap<String, LinkedList<String>>();
+        this.nonCustomTagPrefixMap = new HashMap<String, Mark>();
+        this.imports = new Vector<String>();
+        this.dependants = new HashMap<String,Long>();
+        this.includePrelude = new Vector<String>();
+        this.includeCoda = new Vector<String>();
+        this.pluginDcls = new Vector<String>();
+        this.prefixes = new HashSet<String>();
 
         // Enter standard imports
         imports.addAll(Constants.STANDARD_IMPORTS);
@@ -126,11 +126,8 @@ class PageInfo {
     }
 
     /**
-     * Check if the plugin ID has been previously declared.  Make a note
+     * Check if the plugin ID has been previously declared.  Make a not
      * that this Id is now declared.
-     *
-     * @param id The plugin ID to check
-     *
      * @return true if Id has been declared.
      */
     public boolean isPluginDeclared(String id) {
@@ -185,19 +182,19 @@ class PageInfo {
         return scriptingInvalid;
     }
 
-    public Collection<String> getIncludePrelude() {
+    public List<String> getIncludePrelude() {
         return includePrelude;
     }
 
-    public void setIncludePrelude(Collection<String> prelude) {
+    public void setIncludePrelude(Vector<String> prelude) {
         includePrelude = prelude;
     }
 
-    public Collection<String> getIncludeCoda() {
+    public List<String> getIncludeCoda() {
         return includeCoda;
     }
 
-    public void setIncludeCoda(Collection<String> coda) {
+    public void setIncludeCoda(Vector<String> coda) {
         includeCoda = coda;
     }
 
@@ -332,7 +329,7 @@ class PageInfo {
     public void pushPrefixMapping(String prefix, String uri) {
         LinkedList<String> stack = xmlPrefixMapper.get(prefix);
         if (stack == null) {
-            stack = new LinkedList<>();
+            stack = new LinkedList<String>();
             xmlPrefixMapper.put(prefix, stack);
         }
         stack.addFirst(uri);
@@ -394,10 +391,23 @@ class PageInfo {
         return (language == null && useDefault ? defaultLanguage : language);
     }
 
+    public String getLanguage() {
+        return getLanguage(true);
+    }
+
+
     /*
      * extends
      */
     public void setExtends(String value) {
+        xtends = value;
+    }
+
+    /**
+     * @deprecated Use {@link #setExtends(String)}
+     */
+    @Deprecated
+    public void setExtends(String value, @SuppressWarnings("unused") Node.PageDirective n) {
         xtends = value;
     }
 

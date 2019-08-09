@@ -231,7 +231,7 @@ public class FastRemovalDequeue<T> {
      * Moves the element to the back.
      *
      * Could also be implemented as remove() and
-     * unpop(), but explicitly coding might be a bit faster.
+     * unpop(), but explicitely coding might be a bit faster.
      *
      * @param element the entry to move to the back.
      * */

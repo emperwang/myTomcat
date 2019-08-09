@@ -40,6 +40,7 @@ import org.apache.tomcat.jdbc.pool.PoolProperties.InterceptorDefinition;
  * I could put in Java 6 methods of javax.sql.DataSource here, and compile it with JDK 1.5
  * and still be able to run under Java 6 without getting NoSuchMethodException.
  *
+ * @author Filip Hanik
  * @version 1.0
  */
 
@@ -55,7 +56,7 @@ public class DataSourceProxy implements PoolConfiguration {
     }
 
     public DataSourceProxy(PoolConfiguration poolProperties) {
-        if (poolProperties == null) throw new NullPointerException("PoolConfiguration cannot be null.");
+        if (poolProperties == null) throw new NullPointerException("PoolConfiguration can not be null.");
         this.poolProperties = poolProperties;
     }
 
@@ -74,12 +75,7 @@ public class DataSourceProxy implements PoolConfiguration {
     }
 
     /**
-     * Get a database connection.
      * {@link javax.sql.DataSource#getConnection()}
-     * @param username The user name
-     * @param password The password
-     * @return the connection
-     * @throws SQLException Connection error
      */
     public Connection getConnection(String username, String password) throws SQLException {
         if (this.getPoolProperties().isAlternateUsernameAllowed()) {
@@ -97,8 +93,8 @@ public class DataSourceProxy implements PoolConfiguration {
 
     /**
      * Sets up the connection pool, by creating a pooling driver.
-     * @return the connection pool
-     * @throws SQLException Error creating pool
+     * @return Driver
+     * @throws SQLException
      */
     public ConnectionPool createPool() throws SQLException {
         if (pool != null) {
@@ -110,6 +106,8 @@ public class DataSourceProxy implements PoolConfiguration {
 
     /**
      * Sets up the connection pool, by creating a pooling driver.
+     * @return Driver
+     * @throws SQLException
      */
     private synchronized ConnectionPool pCreatePool() throws SQLException {
         if (pool != null) {
@@ -121,11 +119,9 @@ public class DataSourceProxy implements PoolConfiguration {
     }
 
     /**
-     * Get a database connection.
      * {@link javax.sql.DataSource#getConnection()}
-     * @return the connection
-     * @throws SQLException Connection error
      */
+
     public Connection getConnection() throws SQLException {
         if (pool == null)
             return createPool().getConnection();
@@ -135,7 +131,7 @@ public class DataSourceProxy implements PoolConfiguration {
     /**
      * Invokes an sync operation to retrieve the connection.
      * @return a Future containing a reference to the connection when it becomes available
-     * @throws SQLException Connection error
+     * @throws SQLException
      */
     public Future<Connection> getConnectionAsync() throws SQLException {
         if (pool == null)
@@ -144,10 +140,7 @@ public class DataSourceProxy implements PoolConfiguration {
     }
 
     /**
-     * Get a database connection.
      * {@link javax.sql.XADataSource#getXAConnection()}
-     * @return the connection
-     * @throws SQLException Connection error
      */
     public XAConnection getXAConnection() throws SQLException {
         Connection con = getConnection();
@@ -164,12 +157,7 @@ public class DataSourceProxy implements PoolConfiguration {
     }
 
     /**
-     * Get a database connection.
      * {@link javax.sql.XADataSource#getXAConnection(String, String)}
-     * @param username The user name
-     * @param password The password
-     * @return the connection
-     * @throws SQLException Connection error
      */
     public XAConnection getXAConnection(String username, String password) throws SQLException {
         Connection con = getConnection(username, password);
@@ -187,22 +175,16 @@ public class DataSourceProxy implements PoolConfiguration {
 
 
     /**
-     * Get a database connection.
      * {@link javax.sql.DataSource#getConnection()}
-     * @return the connection
-     * @throws SQLException Connection error
      */
     public javax.sql.PooledConnection getPooledConnection() throws SQLException {
         return (javax.sql.PooledConnection) getConnection();
     }
 
     /**
-     * Get a database connection.
      * {@link javax.sql.DataSource#getConnection()}
      * @param username unused
      * @param password unused
-     * @return the connection
-     * @throws SQLException Connection error
      */
     public javax.sql.PooledConnection getPooledConnection(String username,
             String password) throws SQLException {
@@ -210,12 +192,7 @@ public class DataSourceProxy implements PoolConfiguration {
     }
 
     public ConnectionPool getPool() {
-        try {
-            return createPool();
-        }catch (SQLException x) {
-            log.error("Error during connection pool creation.", x);
-            return null;
-        }
+        return pool;
     }
 
 
@@ -232,7 +209,7 @@ public class DataSourceProxy implements PoolConfiguration {
                 }
             }
         }catch (Exception x) {
-            log.warn("Error during connection pool closure.", x);
+            log.warn("Error duing connection pool closure.", x);
         }
     }
 
@@ -582,8 +559,6 @@ public class DataSourceProxy implements PoolConfiguration {
     /**
      * no-op
      * {@link javax.sql.DataSource#getParentLogger}
-     * @return no return value
-     * @throws SQLFeatureNotSupportedException Unsupported
      */
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
         throw new SQLFeatureNotSupportedException();
@@ -592,9 +567,8 @@ public class DataSourceProxy implements PoolConfiguration {
     /**
      * no-op
      * {@link javax.sql.DataSource#getLogWriter}
-     * @return null
-     * @throws SQLException No exception
      */
+    @SuppressWarnings("unused") // Has to match signature in DataSource
     public PrintWriter getLogWriter() throws SQLException {
         return null;
     }
@@ -603,9 +577,8 @@ public class DataSourceProxy implements PoolConfiguration {
     /**
      * no-op
      * {@link javax.sql.DataSource#setLogWriter(PrintWriter)}
-     * @param out Ignored
-     * @throws SQLException No exception
      */
+    @SuppressWarnings("unused") // Has to match signature in DataSource
     public void setLogWriter(PrintWriter out) throws SQLException {
         // NOOP
     }
@@ -613,7 +586,6 @@ public class DataSourceProxy implements PoolConfiguration {
     /**
      * no-op
      * {@link javax.sql.DataSource#getLoginTimeout}
-     * @return the timeout
      */
     public int getLoginTimeout() {
         if (poolProperties == null) {
@@ -625,7 +597,6 @@ public class DataSourceProxy implements PoolConfiguration {
 
     /**
      * {@link javax.sql.DataSource#setLoginTimeout(int)}
-     * @param i The timeout value
      */
     public void setLoginTimeout(int i) {
         if (poolProperties == null) {
@@ -672,7 +643,6 @@ public class DataSourceProxy implements PoolConfiguration {
 
     /**
      * {@link #getIdle()}
-     * @return the number of established but idle connections
      */
     public int getNumIdle() {
         return getIdle();
@@ -1442,9 +1412,6 @@ public class DataSourceProxy implements PoolConfiguration {
         getPoolProperties().setPropagateInterruptState(propagateInterruptState);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isIgnoreExceptionOnPreLoad() {
         return getPoolProperties().isIgnoreExceptionOnPreLoad();

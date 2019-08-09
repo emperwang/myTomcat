@@ -30,10 +30,12 @@ import javax.management.ObjectName;
  * having to deal with synchronization ( since each thread will have it's own
  * RequestProcessorMX ).
  *
+ * TODO: Request notifications will be registered here.
+ *
  * @author Costin Manolache
  */
 public class RequestInfo  {
-    private RequestGroupInfo global=null;
+    RequestGroupInfo global=null;
 
     // ----------------------------------------------------------- Constructors
 
@@ -59,10 +61,10 @@ public class RequestInfo  {
 
 
     // ----------------------------------------------------- Instance Variables
-    private final Request req;
-    private int stage = Constants.STAGE_NEW;
-    private String workerThreadName;
-    private ObjectName rpName;
+    Request req;
+    int stage = Constants.STAGE_NEW;
+    String workerThreadName;
+    ObjectName rpName;
 
     // -------------------- Information about the current request  -----------
     // This is useful for long-running requests only
@@ -99,8 +101,6 @@ public class RequestInfo  {
     /**
      * Obtain the remote address for this connection as reported by an
      * intermediate proxy (if any).
-     *
-     * @return The remote address for the this connection
      */
     public String getRemoteAddrForwarded() {
         String remoteAddrProxy = (String) req.getAttribute(Constants.REMOTE_ADDR_ATTRIBUTE);

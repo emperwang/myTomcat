@@ -30,10 +30,8 @@ import java.util.Enumeration;
 public interface FilterConfig {
 
     /**
-     * Get the name of the filter.
-     *
-     * @return The filter-name of this filter as defined in the deployment
-     *         descriptor.
+     * Returns the filter-name of this filter as defined in the deployment
+     * descriptor.
      */
     public String getFilterName();
 

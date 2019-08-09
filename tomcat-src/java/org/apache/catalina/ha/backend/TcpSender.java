@@ -93,9 +93,9 @@ public class TcpSender
         for (int i = 0; i < connections.length; i++) {
             if (connections[i] == null) {
                 try {
-                    if (config.getHost() != null) {
+                    if (config.host != null) {
                         connections[i] = new Socket();
-                        InetAddress addr =  InetAddress.getByName(config.getHost());
+                        InetAddress addr =  InetAddress.getByName(config.host);
                         InetSocketAddress addrs = new InetSocketAddress(addr, 0);
                         connections[i].setReuseAddress(true);
                         connections[i].bind(addrs);
@@ -180,7 +180,6 @@ public class TcpSender
 
     /**
      * Close connection.
-     * @param i The index of the connection that will be closed
      */
     protected void close(int i) {
         try {

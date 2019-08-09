@@ -149,7 +149,7 @@ public class BeanFactory
 
                 /* Look for properties with explicitly configured setter */
                 RefAddr ra = ref.get("forceString");
-                Map<String, Method> forced = new HashMap<>();
+                Map<String, Method> forced = new HashMap<String, Method>();
                 String value;
 
                 if (ra != null) {
@@ -177,10 +177,14 @@ public class BeanFactory
                         try {
                             forced.put(param,
                                        beanClass.getMethod(setterName, paramTypes));
-                        } catch (NoSuchMethodException|SecurityException ex) {
+                        } catch (NoSuchMethodException ex) {
                             throw new NamingException
                                 ("Forced String setter " + setterName +
                                  " not found for property " + param);
+                        } catch (SecurityException ex) {
+                            throw new NamingException
+                                ("Forced String setter " + setterName +
+                                 " not allowed for property " + param);
                         }
                     }
                 }
@@ -209,12 +213,18 @@ public class BeanFactory
                         valueArray[0] = value;
                         try {
                             method.invoke(bean, valueArray);
-                        } catch (IllegalAccessException|
-                                 IllegalArgumentException|
-                                 InvocationTargetException ex) {
+                        } catch (IllegalAccessException ex) {
                             throw new NamingException
                                 ("Forced String setter " + method.getName() +
-                                 " threw exception for property " + propName);
+                                 " threw IllegalAccessException for property " + propName);
+                        } catch (IllegalArgumentException ex) {
+                            throw new NamingException
+                                ("Forced String setter " + method.getName() +
+                                 " threw IllegalArgumentException for property " + propName);
+                        } catch (InvocationTargetException ex) {
+                            throw new NamingException
+                                ("Forced String setter " + method.getName() +
+                                 " threw InvocationTargetException for property " + propName);
                         }
                         continue;
                     }
@@ -288,16 +298,36 @@ public class BeanFactory
                 NamingException ne = new NamingException(ie.getMessage());
                 ne.setRootCause(ie);
                 throw ne;
-            } catch (java.lang.ReflectiveOperationException e) {
-                Throwable cause = e.getCause();
+            } catch (java.lang.IllegalAccessException iae) {
+                NamingException ne = new NamingException(iae.getMessage());
+                ne.setRootCause(iae);
+                throw ne;
+            } catch (java.lang.InstantiationException ie2) {
+                NamingException ne = new NamingException(ie2.getMessage());
+                ne.setRootCause(ie2);
+                throw ne;
+            } catch (IllegalArgumentException e) {
+                NamingException ne = new NamingException(e.getMessage());
+                ne.setRootCause(e);
+                throw ne;
+            } catch (SecurityException e) {
+                NamingException ne = new NamingException(e.getMessage());
+                ne.setRootCause(e);
+                throw ne;
+            } catch (NoSuchMethodException e) {
+                NamingException ne = new NamingException(e.getMessage());
+                ne.setRootCause(e);
+                throw ne;
+            } catch (java.lang.reflect.InvocationTargetException ite) {
+                Throwable cause = ite.getCause();
                 if (cause instanceof ThreadDeath) {
                     throw (ThreadDeath) cause;
                 }
                 if (cause instanceof VirtualMachineError) {
                     throw (VirtualMachineError) cause;
                 }
-                NamingException ne = new NamingException(e.getMessage());
-                ne.setRootCause(e);
+                NamingException ne = new NamingException(ite.getMessage());
+                ne.setRootCause(ite);
                 throw ne;
             }
 

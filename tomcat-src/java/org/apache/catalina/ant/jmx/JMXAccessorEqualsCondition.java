@@ -14,24 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.ant.jmx;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.ProjectComponent;
+import org.apache.tools.ant.taskdefs.condition.Condition;
 
 /**
  *
  * Definition
  * <pre>
- *   &lt;path id="catalina_ant"&gt;
- *       &lt;fileset dir="${catalina.home}/server/lib"&gt;
- *           &lt;include name="catalina-ant.jar"/&gt;
- *       &lt;/fileset&gt;
- *   &lt;/path&gt;
+ *   &lt;path id="catalina_ant">
+ *       &lt;fileset dir="${catalina.home}/server/lib">
+ *           &lt;include name="catalina-ant.jar"/>
+ *       &lt;/fileset>
+ *   &lt;/path>
  *
  *   &lt;typedef
  *       name="jmxEquals"
  *       classname="org.apache.catalina.ant.jmx.JMXAccessorEqualsCondition"
- *       classpathref="catalina_ant"/&gt;
+ *       classpathref="catalina_ant"/>
  * </pre>
  *
  * usage: Wait for start backup node
@@ -57,24 +66,183 @@ import org.apache.tools.ant.BuildException;
  * @author Peter Rossbach
  * @since 5.5.10
  */
-public class JMXAccessorEqualsCondition extends JMXAccessorConditionBase {
+public class JMXAccessorEqualsCondition  extends ProjectComponent  implements Condition {
 
+    // ----------------------------------------------------- Instance Variables
+
+    private String url = null;
+    private String host = "localhost";
+    private String port = "8050";
+    private String password = null;
+    private String username = null;
+    private String name = null;
+    private String attribute;
+    private String value;
+    private String ref = "jmx.server" ;
+    // ----------------------------------------------------- Instance Info
+
+    /**
+     * Descriptive information describing this implementation.
+     */
+    private static final String info = "org.apache.catalina.ant.JMXAccessorEqualsCondition/1.1";
+
+    /**
+     * Return descriptive information about this implementation and the
+     * corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    public String getInfo() {
+
+        return (info);
+
+    }
+    // ----------------------------------------------------- Properties
+
+    /**
+     * @return Returns the attribute.
+     */
+    public String getAttribute() {
+        return attribute;
+    }
+    /**
+     * @param attribute The attribute to set.
+     */
+    public void setAttribute(String attribute) {
+        this.attribute = attribute;
+    }
+    /**
+     * @return Returns the host.
+     */
+    public String getHost() {
+        return host;
+    }
+    /**
+     * @param host The host to set.
+     */
+    public void setHost(String host) {
+        this.host = host;
+    }
+    /**
+     * @return Returns the name.
+     */
+    public String getName() {
+        return name;
+    }
+    /**
+     * @param objectName The name to set.
+     */
+    public void setName(String objectName) {
+        this.name = objectName;
+    }
+    /**
+     * @return Returns the password.
+     */
+    public String getPassword() {
+        return password;
+    }
+    /**
+     * @param password The password to set.
+     */
+    public void setPassword(String password) {
+        this.password = password;
+    }
+    /**
+     * @return Returns the port.
+     */
+    public String getPort() {
+        return port;
+    }
+    /**
+     * @param port The port to set.
+     */
+    public void setPort(String port) {
+        this.port = port;
+    }
+    /**
+     * @return Returns the url.
+     */
+    public String getUrl() {
+        return url;
+    }
+    /**
+     * @param url The url to set.
+     */
+    public void setUrl(String url) {
+        this.url = url;
+    }
+    /**
+     * @return Returns the username.
+     */
+    public String getUsername() {
+        return username;
+    }
+    /**
+     * @param username The username to set.
+     */
+    public void setUsername(String username) {
+        this.username = username;
+    }
+    /**
+     * @return Returns the value.
+     */
+    public String getValue() {
+        return value;
+    }
+    // The setter for the "value" attribute
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    /**
+     * @return Returns the ref.
+     */
+    public String getRef() {
+        return ref;
+    }
+    /**
+     * @param refId The ref to set.
+     */
+    public void setRef(String refId) {
+        this.ref = refId;
+    }
+
+    protected MBeanServerConnection getJMXConnection()
+            throws MalformedURLException, IOException {
+        return JMXAccessorTask.accessJMXConnection(
+                getProject(),
+                getUrl(), getHost(),
+                getPort(), getUsername(), getPassword(), ref);
+    }
+
+    /**
+     * @return The value
+     */
+    protected String accessJMXValue() {
+        try {
+            Object result = getJMXConnection().getAttribute(
+                    new ObjectName(name), attribute);
+            if(result != null)
+                return result.toString();
+        } catch (Exception e) {
+            // ignore access or connection open errors
+        }
+        return null;
+    }
+
+    // This method evaluates the condition
     @Override
     public boolean eval() {
-        String value = getValue();
-
         if (value == null) {
             throw new BuildException("value attribute is not set");
         }
-        if (getName() == null || getAttribute() == null) {
+        if ((name == null || attribute == null)) {
             throw new BuildException(
-                    "Must specify an MBean name and attribute for equals condition");
+                    "Must specify a 'attribute', name for equals condition");
         }
         //FIXME check url or host/parameter
         String jmxValue = accessJMXValue();
-        if (jmxValue != null) {
+        if(jmxValue != null)
             return jmxValue.equals(value);
-        }
         return false;
     }
 }

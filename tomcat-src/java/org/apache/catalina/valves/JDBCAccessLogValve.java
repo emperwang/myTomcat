@@ -41,7 +41,6 @@ import org.apache.tomcat.util.ExceptionUtils;
  * AccessLogValve.
  * To use, copy into the server/classes directory of the Tomcat installation
  * and configure in server.xml as:
- * </p>
  * <pre>
  *      &lt;Valve className="org.apache.catalina.valves.JDBCAccessLogValve"
  *          driverName="<i>your_jdbc_driver</i>"
@@ -49,6 +48,7 @@ import org.apache.tomcat.util.ExceptionUtils;
  *          pattern="combined" resolveHosts="false"
  *      /&gt;
  * </pre>
+ * </p>
  * <p>
  * Many parameters can be configured, such as the database connection (with
  * <code>driverName</code> and <code>connectionURL</code>),
@@ -59,8 +59,9 @@ import org.apache.tomcat.util.ExceptionUtils;
  * only).
  * </p>
  * <p>
- * When Tomcat is started, a database connection is created and used for all the
- * log activity. When Tomcat is shutdown, the database connection is closed.
+ * When Tomcat is started, a database connection (with autoReconnect option)
+ * is created and used for all the log activity. When Tomcat is shutdown, the
+ * database connection is closed.
  * This logger can be used at the level of the Engine context (being shared
  * by all the defined hosts) or the Host context (one instance of the logger
  * per host, possibly using different databases).
@@ -165,7 +166,7 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
     * Use long contentLength as you have more 4 GB output.
     * @since 6.0.15
     */
-    boolean useLongContentLength = false;
+    boolean useLongContentLength = false ;
 
    /**
      * The connection username to use when trying to connect to the database.
@@ -215,6 +216,12 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
      */
     boolean requestAttributesEnabled = true;
 
+    /**
+     * The descriptive information about this implementation.
+     */
+    static final String info =
+        "org.apache.catalina.valves.JDBCAccessLogValve/1.1";
+
 
     // ------------------------------------------------------------- Properties
 
@@ -236,7 +243,8 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
     }
 
     /**
-     * @return the username to use to connect to the database.
+     * Return the username to use to connect to the database.
+     *
      */
     public String getConnectionName() {
         return connectionName;
@@ -260,8 +268,9 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
         this.driverName = driverName;
     }
 
-    /**
-     * @return the password to use to connect to the database.
+   /**
+     * Return the password to use to connect to the database.
+     *
      */
     public String getConnectionPassword() {
         return connectionPassword;
@@ -358,11 +367,11 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
     }
 
 
-    /**
-     * Sets the name of the field containing the HTTP response status code.
-     *
-     * @param statusField The name of the HTTP response status code field.
-     */
+  /**
+   * Sets the name of the field containing the HTTP response status code.
+   *
+   * @param statusField The name of the HTTP response status code field.
+   */
     public void setStatusField(String statusField) {
         this.statusField = statusField;
     }
@@ -422,11 +431,10 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
     }
 
     /**
-     * @return <code>true</code> if content length should be considered a long
-     *  rather than an int, defaults to <code>false</code>
+     * get useLongContentLength
      */
-    public boolean getUseLongContentLength() {
-        return this.useLongContentLength;
+    public  boolean getUseLongContentLength() {
+        return this.useLongContentLength ;
     }
 
     /**
@@ -568,7 +576,7 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
         if (driver == null) {
             try {
                 Class<?> clazz = Class.forName(driverName);
-                driver = (Driver) clazz.getConstructor().newInstance();
+                driver = (Driver) clazz.newInstance();
             } catch (Throwable e) {
                 ExceptionUtils.handleThrowable(e);
                 throw new SQLException(e.getMessage(), e);
@@ -577,6 +585,7 @@ public final class JDBCAccessLogValve extends ValveBase implements AccessLog {
 
         // Open a new connection
         Properties props = new Properties();
+        props.put("autoReconnect", "true");
         if (connectionName != null) {
             props.put("user", connectionName);
         }

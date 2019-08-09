@@ -48,7 +48,7 @@ public class ResourceLinkFactory implements ObjectFactory {
     private static Context globalContext = null;
 
     private static Map<ClassLoader,Map<String,String>> globalResourceRegistrations =
-            new ConcurrentHashMap<>();
+            new ConcurrentHashMap<ClassLoader,Map<String,String>>();
 
     // --------------------------------------------------------- Public Methods
 
@@ -75,7 +75,7 @@ public class ResourceLinkFactory implements ObjectFactory {
         if (registrations == null) {
             // Web application initialization is single threaded so this is
             // safe.
-            registrations = new HashMap<>();
+            registrations = new HashMap<String,String>();
             globalResourceRegistrations.put(cl, registrations);
         }
         registrations.put(localName, globalName);

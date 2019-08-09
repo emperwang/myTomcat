@@ -28,7 +28,6 @@ import org.apache.catalina.tribes.io.ListenCallback;
 import org.apache.catalina.tribes.io.ObjectReader;
 import org.apache.catalina.tribes.transport.AbstractRxTask;
 import org.apache.catalina.tribes.transport.Constants;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -41,12 +40,13 @@ import org.apache.juli.logging.LogFactory;
  * serviceChannel() method stores the key reference in the thread object then
  * calls notify() to wake it up. When the channel has been drained, the worker
  * thread returns itself to its parent pool.
+ *
+ * @author Filip Hanik
  */
 public class BioReplicationTask extends AbstractRxTask {
 
-    private static final Log log = LogFactory.getLog(BioReplicationTask.class);
 
-    protected static final StringManager sm = StringManager.getManager(BioReplicationTask.class);
+    private static final Log log = LogFactory.getLog( BioReplicationTask.class );
 
     protected Socket socket;
     protected ObjectReader reader;
@@ -63,20 +63,20 @@ public class BioReplicationTask extends AbstractRxTask {
         try {
             drainSocket();
         } catch ( Exception x ) {
-            log.error(sm.getString("bioReplicationTask.unable.service"), x);
+            log.error("Unable to service bio socket", x);
         }finally {
             try {
                 socket.close();
             }catch (Exception e) {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("bioReplicationTask.socket.closeFailed"), e);
+                    log.debug("Failed to close socket", e);
                 }
             }
             try {
                 reader.close();
             }catch (Exception e) {
                 if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("bioReplicationTask.reader.closeFailed"), e);
+                    log.debug("Failed to close reader", e);
                 }
             }
             reader = null;
@@ -115,7 +115,7 @@ public class BioReplicationTask extends AbstractRxTask {
                     if (ChannelData.sendAckSync(msgs[i].getOptions())) sendAck(Constants.ACK_COMMAND);
                 }catch  ( Exception x ) {
                     if (ChannelData.sendAckSync(msgs[i].getOptions())) sendAck(Constants.FAIL_ACK_COMMAND);
-                    log.error(sm.getString("bioReplicationTask.messageDataReceived.error"),x);
+                    log.error("Error thrown from messageDataReceived.",x);
                 }
                 if ( getUseBufferPool() ) {
                     BufferPool.getBufferPool().returnBuffer(msgs[i].getMessage());
@@ -134,9 +134,8 @@ public class BioReplicationTask extends AbstractRxTask {
      * interest in OP_READ.  When this method completes it
      * re-enables OP_READ and calls wakeup() on the selector
      * so the selector will resume watching this channel.
-     * @throws Exception IO exception or execute exception
      */
-    protected void drainSocket() throws Exception {
+    protected void drainSocket () throws Exception {
         InputStream in = socket.getInputStream();
         // loop while data available, channel is non-blocking
         byte[] buf = new byte[1024];
@@ -150,8 +149,8 @@ public class BioReplicationTask extends AbstractRxTask {
 
 
     /**
-     * Send a reply-acknowledgment (6,2,3)
-     * @param command The command to write
+     * send a reply-acknowledgment (6,2,3)
+     * @param command
      */
     protected void sendAck(byte[] command) {
         try {
@@ -162,7 +161,7 @@ public class BioReplicationTask extends AbstractRxTask {
                 log.trace("ACK sent to " + socket.getPort());
             }
         } catch ( java.io.IOException x ) {
-            log.warn(sm.getString("bioReplicationTask.unable.sendAck", x.getMessage()));
+            log.warn("Unable to send ACK back through channel, channel disconnected?: "+x.getMessage());
         }
     }
 
@@ -173,14 +172,14 @@ public class BioReplicationTask extends AbstractRxTask {
             socket.close();
         }catch (Exception e) {
             if (log.isDebugEnabled()) {
-                log.debug(sm.getString("bioReplicationTask.socket.closeFailed"), e);
+                log.debug("Failed to close socket", e);
             }
         }
         try {
             reader.close();
         }catch (Exception e) {
             if (log.isDebugEnabled()) {
-                log.debug(sm.getString("bioReplicationTask.reader.closeFailed"), e);
+                log.debug("Failed to close reader", e);
             }
         }
         reader = null;

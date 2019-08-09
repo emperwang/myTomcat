@@ -34,7 +34,7 @@ public class TestAsyncQueue {
 
     @Before
     public void setUp() throws Exception {
-        this.queue = new FairBlockingQueue<>();
+        this.queue = new FairBlockingQueue<Object>();
     }
 
     @After

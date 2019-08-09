@@ -47,7 +47,7 @@ public final class TestNetMask {
 
     @Parameters(name="{index}: mask [{0}], input [{1}]")
     public static Collection<Object[]> inputs() {
-        List<Object[]> result = new ArrayList<>();
+        List<Object[]> result = new ArrayList<Object[]>();
 
         // Invalid IPv4 netmasks
         result.add(new Object[] { "260.1.1.1", null, Boolean.FALSE, null });

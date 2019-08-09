@@ -54,7 +54,7 @@ public class BaseNotificationBroadcaster implements NotificationBroadcaster {
      * entries.
      */
     protected ArrayList<BaseNotificationBroadcasterEntry> entries =
-            new ArrayList<>();
+        new ArrayList<BaseNotificationBroadcasterEntry>();
 
 
     // --------------------------------------------------------- Public Methods
@@ -82,7 +82,10 @@ public class BaseNotificationBroadcaster implements NotificationBroadcaster {
             // Optimization to coalesce attribute name filters
             if (filter instanceof BaseAttributeFilter) {
                 BaseAttributeFilter newFilter = (BaseAttributeFilter) filter;
-                for (BaseNotificationBroadcasterEntry item : entries) {
+                Iterator<BaseNotificationBroadcasterEntry> items =
+                    entries.iterator();
+                while (items.hasNext()) {
+                    BaseNotificationBroadcasterEntry item = items.next();
                     if ((item.listener == listener) &&
                         (item.filter != null) &&
                         (item.filter instanceof BaseAttributeFilter) &&
@@ -118,7 +121,9 @@ public class BaseNotificationBroadcaster implements NotificationBroadcaster {
      */
     @Override
     public MBeanNotificationInfo[] getNotificationInfo() {
-        return new MBeanNotificationInfo[0];
+
+        return (new MBeanNotificationInfo[0]);
+
     }
 
 
@@ -149,6 +154,49 @@ public class BaseNotificationBroadcaster implements NotificationBroadcaster {
 
 
     /**
+     * Remove a notification event listener from this MBean.
+     *
+     * @param listener The listener to be removed (any and all registrations
+     *  for this listener will be eliminated)
+     * @param handback Handback object to be sent along with event
+     *  notifications
+     *
+     * @exception ListenerNotFoundException if this listener is not
+     *  registered in the MBean
+     */
+    public void removeNotificationListener(NotificationListener listener,
+                                           Object handback)
+        throws ListenerNotFoundException {
+
+        removeNotificationListener(listener);
+
+    }
+
+
+    /**
+     * Remove a notification event listener from this MBean.
+     *
+     * @param listener The listener to be removed (any and all registrations
+     *  for this listener will be eliminated)
+     * @param filter Filter object used to filter event notifications
+     *  actually delivered, or <code>null</code> for no filtering
+     * @param handback Handback object to be sent along with event
+     *  notifications
+     *
+     * @exception ListenerNotFoundException if this listener is not
+     *  registered in the MBean
+     */
+    public void removeNotificationListener(NotificationListener listener,
+                                           NotificationFilter filter,
+                                           Object handback)
+        throws ListenerNotFoundException {
+
+        removeNotificationListener(listener);
+
+    }
+
+
+    /**
      * Send the specified notification to all interested listeners.
      *
      * @param notification The notification to be sent
@@ -156,7 +204,10 @@ public class BaseNotificationBroadcaster implements NotificationBroadcaster {
     public void sendNotification(Notification notification) {
 
         synchronized (entries) {
-            for (BaseNotificationBroadcasterEntry item : entries) {
+            Iterator<BaseNotificationBroadcasterEntry> items =
+                entries.iterator();
+            while (items.hasNext()) {
+                BaseNotificationBroadcasterEntry item = items.next();
                 if ((item.filter != null) &&
                     (!item.filter.isNotificationEnabled(notification)))
                     continue;

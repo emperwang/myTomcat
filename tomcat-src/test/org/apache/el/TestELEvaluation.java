@@ -164,8 +164,8 @@ public class TestELEvaluation {
     }
 
     private void compareBoth(String msg, int expected, Object o1, Object o2){
-        int i1 = ELSupport.compare(null, o1, o2);
-        int i2 = ELSupport.compare(null, o2, o1);
+        int i1 = ELSupport.compare(o1, o2);
+        int i2 = ELSupport.compare(o2, o1);
         Assert.assertEquals(msg,expected, i1);
         Assert.assertEquals(msg,expected, -i2);
     }
@@ -254,9 +254,9 @@ public class TestELEvaluation {
     // ************************************************************************
 
     private String evaluateExpression(String expression) {
-        ExpressionFactoryImpl exprFactory = new ExpressionFactoryImpl();
-        ELContextImpl ctx = new ELContextImpl(exprFactory);
+        ELContextImpl ctx = new ELContextImpl();
         ctx.setFunctionMapper(new TesterFunctions.FMapper());
+        ExpressionFactoryImpl exprFactory = new ExpressionFactoryImpl();
         ValueExpression ve = exprFactory.createValueExpression(ctx, expression,
                 String.class);
         return (String) ve.getValue(ctx);

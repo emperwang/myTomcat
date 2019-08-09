@@ -21,11 +21,10 @@ import java.io.File;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.catalina.webresources.StandardRoot;
+import org.apache.naming.resources.FileDirContext;
 
 public class TestVirtualWebappLoader extends TomcatBaseTest {
 
@@ -39,37 +38,31 @@ public class TestVirtualWebappLoader extends TomcatBaseTest {
     @Test
     public void testStartInternal() throws Exception {
         Tomcat tomcat = getTomcatInstance();
+        File appDir = new File("test/webapp-3.0");
+        // Must have a real docBase - just use temp
+        StandardContext ctx =
+            (StandardContext)tomcat.addContext("",  appDir.getAbsolutePath());
 
-        File appDir = new File("test/webapp");
-        StandardContext ctx = (StandardContext) tomcat.addContext("",
-                appDir.getAbsolutePath());
+        VirtualWebappLoader loader = new VirtualWebappLoader();
 
-
-        WebappLoader loader = new WebappLoader();
-
-        loader.setContext(ctx);
+        loader.setContainer(ctx);
         ctx.setLoader(loader);
-
-        ctx.setResources(new StandardRoot(ctx));
+        ctx.setResources(new FileDirContext());
         ctx.resourcesStart();
-
-        File f1 = new File("test/webapp-fragments/WEB-INF/lib");
-        ctx.getResources().createWebResourceSet(
-                WebResourceRoot.ResourceSetType.POST, "/WEB-INF/lib",
-                f1.getAbsolutePath(), null, "/");
-
+        File dir = new File("test/webapp-3.0-fragments/WEB-INF/lib");
+        loader.setVirtualClasspath(dir.getAbsolutePath() + "/*.jar");
         loader.start();
-        String[] repos = loader.getLoaderRepositories();
-        Assert.assertEquals(4,repos.length);
+        String[] repos = loader.getRepositories();
+        Assert.assertEquals(2,repos.length);
         loader.stop();
-
-        repos = loader.getLoaderRepositories();
-        Assert.assertEquals(0, repos.length);
+        // ToDo: Why doesn't remove repositories?
+        repos = loader.getRepositories();
+        Assert.assertEquals(2, repos.length);
 
         // no leak
         loader.start();
-        repos = loader.getLoaderRepositories();
-        Assert.assertEquals(4,repos.length);
+        repos = loader.getRepositories();
+        Assert.assertEquals(2,repos.length);
 
         // clear loader
         ctx.setLoader(null);

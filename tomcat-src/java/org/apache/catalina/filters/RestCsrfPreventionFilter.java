@@ -18,7 +18,6 @@ package org.apache.catalina.filters;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -81,18 +80,20 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
     private static final Pattern NON_MODIFYING_METHODS_PATTERN = Pattern
             .compile("GET|HEAD|OPTIONS");
 
-    private Set<String> pathsAcceptingParams = new HashSet<>();
+    private Set<String> pathsAcceptingParams = new HashSet<String>();
 
     private String pathsDelimiter = ",";
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
+    public void doFilter(ServletRequest request, ServletResponse response,
+            FilterChain chain) throws IOException, ServletException {
 
-        if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
+        if (request instanceof HttpServletRequest
+                && response instanceof HttpServletResponse) {
             MethodType mType = MethodType.MODIFYING_METHOD;
             String method = ((HttpServletRequest) request).getMethod();
-            if (method != null && NON_MODIFYING_METHODS_PATTERN.matcher(method).matches()) {
+            if (method != null
+                    && NON_MODIFYING_METHODS_PATTERN.matcher(method).matches()) {
                 mType = MethodType.NON_MODIFYING_METHOD;
             }
 
@@ -106,7 +107,8 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
                 break;
             }
 
-            if (!strategy.apply((HttpServletRequest) request, (HttpServletResponse) response)) {
+            if (!strategy.apply((HttpServletRequest) request,
+                    (HttpServletResponse) response)) {
                 return;
             }
         }
@@ -115,18 +117,21 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
 
     private abstract static class RestCsrfPreventionStrategy {
 
-        abstract boolean apply(HttpServletRequest request, HttpServletResponse response)
-                throws IOException;
+        abstract boolean apply(HttpServletRequest request,
+                HttpServletResponse response) throws IOException;
 
-        protected String extractNonceFromRequestHeader(HttpServletRequest request, String key) {
+        protected String extractNonceFromRequestHeader(
+                HttpServletRequest request, String key) {
             return request.getHeader(key);
         }
 
-        protected String[] extractNonceFromRequestParams(HttpServletRequest request, String key) {
+        protected String[] extractNonceFromRequestParams(
+                HttpServletRequest request, String key) {
             return request.getParameterValues(key);
         }
 
-        protected void storeNonceToResponse(HttpServletResponse response, String key, String value) {
+        protected void storeNonceToResponse(HttpServletResponse response,
+                String key, String value) {
             response.setHeader(key, value);
         }
 
@@ -134,7 +139,8 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
             return session == null ? null : (String) session.getAttribute(key);
         }
 
-        protected void storeNonceToSession(HttpSession session, String key, Object value) {
+        protected void storeNonceToSession(HttpSession session, String key,
+                Object value) {
             session.setAttribute(key, value);
         }
     }
@@ -142,8 +148,8 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
     private class StateChangingRequest extends RestCsrfPreventionStrategy {
 
         @Override
-        public boolean apply(HttpServletRequest request, HttpServletResponse response)
-                throws IOException {
+        public boolean apply(HttpServletRequest request,
+                HttpServletResponse response) throws IOException {
             if (isValidStateChangingRequest(
                     extractNonceFromRequest(request),
                     extractNonceFromSession(request.getSession(false),
@@ -151,24 +157,27 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
                 return true;
             }
 
-            storeNonceToResponse(response, Constants.CSRF_REST_NONCE_HEADER_NAME,
+            storeNonceToResponse(response,
+                    Constants.CSRF_REST_NONCE_HEADER_NAME,
                     Constants.CSRF_REST_NONCE_HEADER_REQUIRED_VALUE);
             response.sendError(getDenyStatus(),
                     sm.getString("restCsrfPreventionFilter.invalidNonce"));
             return false;
         }
 
-        private boolean isValidStateChangingRequest(String reqNonce, String sessionNonce) {
+        private boolean isValidStateChangingRequest(String reqNonce,
+                String sessionNonce) {
             return reqNonce != null && sessionNonce != null
-                    && Objects.equals(reqNonce, sessionNonce);
+                    && reqNonce.equals(sessionNonce);
         }
 
         private String extractNonceFromRequest(HttpServletRequest request) {
             String nonceFromRequest = extractNonceFromRequestHeader(request,
                     Constants.CSRF_REST_NONCE_HEADER_NAME);
-            if ((nonceFromRequest == null || Objects.equals("", nonceFromRequest))
+            if ((nonceFromRequest == null || "".equals(nonceFromRequest))
                     && !getPathsAcceptingParams().isEmpty()
-                    && getPathsAcceptingParams().contains(getRequestedPath(request))) {
+                    && getPathsAcceptingParams().contains(
+                            getRequestedPath(request))) {
                 nonceFromRequest = extractNonceFromRequestParams(request);
             }
             return nonceFromRequest;
@@ -180,7 +189,7 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
             if (params != null && params.length > 0) {
                 String nonce = params[0];
                 for (String param : params) {
-                    if (!Objects.equals(param, nonce)) {
+                    if (!param.equals(nonce)) {
                         return null;
                     }
                 }
@@ -193,18 +202,22 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
     private class FetchRequest extends RestCsrfPreventionStrategy {
 
         @Override
-        public boolean apply(HttpServletRequest request, HttpServletResponse response) {
+        public boolean apply(HttpServletRequest request,
+                HttpServletResponse response) {
             if (Constants.CSRF_REST_NONCE_HEADER_FETCH_VALUE
                     .equalsIgnoreCase(extractNonceFromRequestHeader(request,
                             Constants.CSRF_REST_NONCE_HEADER_NAME))) {
-                String nonceFromSessionStr = extractNonceFromSession(request.getSession(false),
+                String nonceFromSessionStr = extractNonceFromSession(
+                        request.getSession(false),
                         Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME);
                 if (nonceFromSessionStr == null) {
                     nonceFromSessionStr = generateNonce();
-                    storeNonceToSession(Objects.requireNonNull(request.getSession(true)),
-                            Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME, nonceFromSessionStr);
+                    storeNonceToSession(request.getSession(true),
+                            Constants.CSRF_REST_NONCE_SESSION_ATTR_NAME,
+                            nonceFromSessionStr);
                 }
-                storeNonceToResponse(response, Constants.CSRF_REST_NONCE_HEADER_NAME,
+                storeNonceToResponse(response,
+                        Constants.CSRF_REST_NONCE_HEADER_NAME,
                         nonceFromSessionStr);
             }
             return true;
@@ -227,7 +240,7 @@ public class RestCsrfPreventionFilter extends CsrfPreventionFilterBase {
     public void setPathsAcceptingParams(String pathsList) {
         if (pathsList != null) {
             for (String element : pathsList.split(pathsDelimiter)) {
-                    pathsAcceptingParams.add(element.trim());
+                pathsAcceptingParams.add(element.trim());
             }
         }
     }

@@ -16,7 +16,6 @@
  */
 package org.apache.catalina;
 
-import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.regex.Pattern;
 
@@ -67,7 +66,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the XML root for this Host.  This can be an absolute
+     * Return the XML root for this Host.  This can be an absolute
      * pathname, a relative pathname, or a URL.
      * If null, defaults to
      * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
@@ -84,24 +83,10 @@ public interface Host extends Container {
     public void setXmlBase(String xmlBase);
 
     /**
-     * @return a default configuration path of this Host. The file will be
-     * canonical if possible.
-     */
-    public File getConfigBaseFile();
-
-    /**
-     * @return the application root for this Host.  This can be an absolute
+     * Return the application root for this Host.  This can be an absolute
      * pathname, a relative pathname, or a URL.
      */
     public String getAppBase();
-
-
-    /**
-     * @return an absolute {@link File} for the appBase of this Host. The file
-     * will be canonical if possible. There is no guarantee that that the
-     * appBase exists.
-     */
-    public File getAppBaseFile();
 
 
     /**
@@ -114,7 +99,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the value of the auto deploy flag.  If true, it indicates that
+     * Return the value of the auto deploy flag.  If true, it indicates that
      * this host's child webapps should be discovered and automatically
      * deployed dynamically.
      */
@@ -130,7 +115,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the Java class name of the context configuration class
+     * Return the Java class name of the context configuration class
      * for new web applications.
      */
     public String getConfigClass();
@@ -146,7 +131,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the value of the deploy on startup flag.  If true, it indicates
+     * Return the value of the deploy on startup flag.  If true, it indicates
      * that this host's child webapps should be discovered and automatically
      * deployed.
      */
@@ -162,7 +147,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the regular expression that defines the files and directories in
+     * Return the regular expression that defines the files and directories in
      * the host's appBase that will be ignored by the automatic deployment
      * process.
      */
@@ -170,7 +155,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the compiled regular expression that defines the files and
+     * Return the compiled regular expression that defines the files and
      * directories in the host's appBase that will be ignored by the automatic
      * deployment process.
      */
@@ -181,14 +166,12 @@ public interface Host extends Container {
      * Set the regular expression that defines the files and directories in
      * the host's appBase that will be ignored by the automatic deployment
      * process.
-     *
-     * @param deployIgnore A regular expression matching file names
      */
     public void setDeployIgnore(String deployIgnore);
 
 
     /**
-     * @return the executor that is used for starting and stopping contexts. This
+     * Return the executor that is used for starting and stopping contexts. This
      * is primarily for use by components deploying contexts that want to do
      * this in a multi-threaded manner.
      */
@@ -196,36 +179,17 @@ public interface Host extends Container {
 
 
     /**
-     * Returns <code>true</code> if the Host will attempt to create directories for appBase and xmlBase
-     * unless they already exist.
-     * @return true if the Host will attempt to create directories
-     */
-    public boolean getCreateDirs();
-
-
-    /**
-     * Should the Host attempt to create directories for xmlBase and appBase
-     * upon startup.
-     *
-     * @param createDirs The new value for this flag
-     */
-    public void setCreateDirs(boolean createDirs);
-
-
-    /**
-     * @return <code>true</code> of the Host is configured to automatically undeploy old
+     * Returns true of the Host is configured to automatically undeploy old
      * versions of applications deployed using parallel deployment. This only
-     * takes effect is {@link #getAutoDeploy()} also returns <code>true</code>.
+     * takes effect is {@link #getAutoDeploy()} also returns true.
      */
     public boolean getUndeployOldVersions();
 
 
     /**
-     * Set to <code>true</code> if the Host should automatically undeploy old versions of
+     * Set to true if the Host should automatically undeploy old versions of
      * applications deployed using parallel deployment. This only takes effect
-     * if {@link #getAutoDeploy()} returns <code>true</code>.
-     *
-     * @param undeployOldVersions The new value for this flag
+     * if {@link #getAutoDeploy()} returns true.
      */
     public void setUndeployOldVersions(boolean undeployOldVersions);
 
@@ -241,7 +205,7 @@ public interface Host extends Container {
 
 
     /**
-     * @return the set of alias names for this Host.  If none are defined,
+     * Return the set of alias names for this Host.  If none are defined,
      * a zero length array is returned.
      */
     public String[] findAliases();
@@ -253,4 +217,17 @@ public interface Host extends Container {
      * @param alias Alias name to be removed
      */
     public void removeAlias(String alias);
+
+    /**
+     * Returns true if the Host will attempt to create directories for appBase and xmlBase
+     * unless they already exist.
+     * @return true if the Host will attempt to create directories
+     */
+    public boolean getCreateDirs();
+    /**
+     * Set to true if the Host should attempt to create directories for xmlBase and appBase upon startup
+     * @param createDirs
+     */
+    public void setCreateDirs(boolean createDirs);
+
 }

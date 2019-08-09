@@ -23,6 +23,8 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.apache.jasper.el.ELContextImpl;
+
 public class TestListELResolver {
 
     /**
@@ -49,10 +51,9 @@ public class TestListELResolver {
     @Test
     public void testGetValue03() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         Object result = resolver.getValue(context, list, Integer.valueOf(0));
 
@@ -66,10 +67,9 @@ public class TestListELResolver {
     @Test(expected = IllegalArgumentException.class)
     public void testGetValue04() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         resolver.getValue(context, list, "key");
     }
@@ -80,10 +80,9 @@ public class TestListELResolver {
     @Test
     public void testGetValue05() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         Object result = resolver.getValue(context, list, Integer.valueOf(1));
 
@@ -120,10 +119,9 @@ public class TestListELResolver {
     @Test
     public void testGetType03() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         Class<?> result = resolver.getType(context, list, Integer.valueOf(0));
 
@@ -137,10 +135,9 @@ public class TestListELResolver {
     @Test(expected = PropertyNotFoundException.class)
     public void testGetType04() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         resolver.getType(context, list, Integer.valueOf(1));
     }
@@ -169,10 +166,9 @@ public class TestListELResolver {
     @Test(expected = PropertyNotWritableException.class)
     public void testSetValue03() {
         ListELResolver resolver = new ListELResolver(true);
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        resolver.setValue(context, new ArrayList<>(), new Object(),
+        resolver.setValue(context, new ArrayList<Object>(), new Object(),
                 new Object());
     }
 
@@ -182,10 +178,9 @@ public class TestListELResolver {
     @Test
     public void testSetValue04() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("value");
         resolver.setValue(context, list, Integer.valueOf(0), "value");
 
@@ -200,10 +195,10 @@ public class TestListELResolver {
     @Test(expected = PropertyNotWritableException.class)
     public void testSetValue05() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<Object> list = Collections.unmodifiableList(new ArrayList<>());
+        List<Object> list = Collections
+                .unmodifiableList(new ArrayList<Object>());
         resolver.setValue(context, list, Integer.valueOf(0), "value");
     }
 
@@ -213,10 +208,9 @@ public class TestListELResolver {
     @Test(expected = IllegalArgumentException.class)
     public void testSetValue06() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         resolver.setValue(context, list, "key", "value");
     }
@@ -227,10 +221,9 @@ public class TestListELResolver {
     @Test(expected = PropertyNotFoundException.class)
     public void testSetValue07() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         resolver.setValue(context, list, Integer.valueOf(1), "value");
     }
@@ -250,8 +243,7 @@ public class TestListELResolver {
     @Test
     public void testIsReadOnly02() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         boolean result = resolver.isReadOnly(context, new Object(),
                 new Object());
@@ -274,10 +266,9 @@ public class TestListELResolver {
     @Test
     public void testIsReadOnly03() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         boolean result = resolver.isReadOnly(context, list, Integer.valueOf(0));
 
@@ -298,10 +289,9 @@ public class TestListELResolver {
     @Test
     public void testIsReadOnly04() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         List<String> unmodifiableList = Collections.unmodifiableList(list);
         boolean result = resolver.isReadOnly(context, unmodifiableList,
@@ -317,10 +307,9 @@ public class TestListELResolver {
     @Test(expected = PropertyNotFoundException.class)
     public void testIsReadOnly05() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         resolver.isReadOnly(context, list, Integer.valueOf(1));
     }
@@ -331,10 +320,9 @@ public class TestListELResolver {
     @Test
     public void testIsReadOnly06() {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        List<String> list = new ArrayList<>();
+        List<String> list = new ArrayList<String>();
         list.add("key");
         boolean result = resolver.isReadOnly(context, list, "key");
 
@@ -352,8 +340,7 @@ public class TestListELResolver {
     private void doNegativeTest(Object base, Object trigger,
             MethodUnderTest method, boolean checkResult) {
         ListELResolver resolver = new ListELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         Object result = null;
         switch (method) {
@@ -381,7 +368,7 @@ public class TestListELResolver {
         Assert.assertFalse(context.isPropertyResolved());
     }
 
-    private enum MethodUnderTest {
+    private static enum MethodUnderTest {
         GET_VALUE, SET_VALUE, GET_TYPE
     }
 

@@ -35,7 +35,7 @@ public interface UserDatabase {
 
 
     /**
-     * @return the UserConfig listener with which we are associated.
+     * Return the UserConfig listener with which we are associated.
      */
     public UserConfig getUserConfig();
 
@@ -52,7 +52,7 @@ public interface UserDatabase {
 
 
     /**
-     * @return an absolute pathname to the home directory for the specified user.
+     * Return an absolute pathname to the home directory for the specified user.
      *
      * @param user User for which a home directory should be retrieved
      */
@@ -60,7 +60,7 @@ public interface UserDatabase {
 
 
     /**
-     * @return an enumeration of the usernames defined on this server.
+     * Return an enumeration of the usernames defined on this server.
      */
     public Enumeration<String> getUsers();
 

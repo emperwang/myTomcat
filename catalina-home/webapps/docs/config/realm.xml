@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -140,6 +140,17 @@
         establishing a database connection.</p>
       </attribute>
 
+      <attribute name="digest" required="false">
+        <p>The name of the <code>MessageDigest</code> algorithm used
+        to encode user passwords stored in the database.  If not specified,
+        user passwords are assumed to be stored in clear-text.</p>
+      </attribute>
+
+      <attribute name="digestEncoding" required="false">
+        <p>The charset for encoding digests.  If not specified, the platform
+        default will be used.</p>
+      </attribute>
+
       <attribute name="driverName" required="true">
         <p>Fully qualified Java class name of the JDBC driver to be
         used to connect to the authentication database.</p>
@@ -168,8 +179,8 @@
 
       <attribute name="userCredCol" required="true">
         <p>Name of the column, in the "users" table, which contains
-        the user's credentials (i.e. password).  If a
-        <code>CredentialHandler</code> is specified, this component
+        the user's credentials (i.e. password).  If a value for the
+        <code>digest</code> attribute is specified, this component
         will assume that the passwords have been encoded with the
         specified algorithm.  Otherwise, they will be assumed to be
         in clear text.</p>
@@ -258,6 +269,12 @@
         <p>The name of the JNDI JDBC DataSource for this Realm.</p>
       </attribute>
 
+      <attribute name="digest" required="false">
+        <p>The name of the <code>MessageDigest</code> algorithm used
+        to encode user passwords stored in the database.  If not specified,
+        user passwords are assumed to be stored in clear-text.</p>
+      </attribute>
+
       <attribute name="localDataSource" required="false">
         <p>When the realm is nested inside a Context element, this allows the
         realm to use a DataSource defined for the Context rather than a global
@@ -288,8 +305,8 @@
 
       <attribute name="userCredCol" required="true">
         <p>Name of the column, in the "users" table, which contains
-        the user's credentials (i.e. password).  If a
-        <code>CredentialHandler</code> is specified, this component
+        the user's credentials (i.e. password).  If a value for the
+        <code>digest</code> attribute is specified, this component
         will assume that the passwords have been encoded with the
         specified algorithm.  Otherwise, they will be assumed to be
         in clear text.</p>
@@ -326,7 +343,7 @@
     </attributes>
 
     <p>See the <a href="../realm-howto.html#DataSourceRealm">
-    DataSource Realm How-To</a> for more information on setting up container
+    DataSource Realm HOW-TO</a> for more information on setting up container
     managed security using the DataSource Database Realm component.</p>
 
   </subsection>
@@ -393,7 +410,7 @@
       </attribute>
 
       <attribute name="alternateURL" required="false">
-        <p>If a socket connection cannot be made to the provider at
+        <p>If a socket connection can not be made to the provider at
         the <code>connectionURL</code> an attempt will be made to use the
         <code>alternateURL</code>.</p>
       </attribute>
@@ -454,6 +471,15 @@
         <p>A string specifying how aliases are to be dereferenced during
         search operations. The allowed values are "always", "never",
         "finding" and "searching". If not specified, "always" is used.</p>
+      </attribute>
+
+      <attribute name="digest" required="false">
+        <p>The digest algorithm to apply to the plaintext password offered
+        by the user before comparing it with the value retrieved from the
+        directory.  Valid values are those accepted for the algorithm name
+        by the <code>java.security.MessageDigest</code> class. If not
+        specified the plaintext password is assumed to be retrieved. Not
+        required unless <code>userPassword</code> is specified</p>
       </attribute>
 
       <attribute name="forceDnHexEscape" required="false">
@@ -821,6 +847,13 @@
         one of those roles.</p>
       </attribute>
 
+      <attribute name="digest" required="false">
+        <p>The digest algorithm used to store passwords in non-plaintext
+        formats. Valid values are those accepted for the algorithm name by the
+        <code>java.security.MessageDigest</code> class. If not specified,
+        passwords are stored in clear text.</p>
+      </attribute>
+
       <attribute name="pathname" required="false">
         <p>URL, absolute path or relative path (to $CATALINA_BASE) for the XML
         file containing our user information.  See below for details on the
@@ -1148,19 +1181,15 @@
 
 <section name="Nested Components">
 
-  <p>You can nest the following components by nesting the corresponding element
-  inside your <strong>Realm</strong> element:</p>
-  <ul>
-  <li><strong>CombinedRealm Implementation</strong> - If you are using the
-    <em>CombinedRealm Implementation</em> or a Realm
-    that extends the CombinedRealm, e.g. the LockOutRealm, one or more
-    <strong>&lt;Realm&gt;</strong> elements may be nested inside it.</li>
-  <li><a href="credentialhandler.html"><strong>CredentialHandler</strong></a> -
-      You may nest at most one instance of this element inside a Realm. This
-      configures the credential handler that will be used to validate provided
-      credentials with those stored by the Realm. If not specified a default
-      <em>MessageDigestCredentialHandler</em> will be configured.</li>
-  </ul>
+  <h3>CombinedRealm Implementation</h3>
+
+  <p>If you are using the <em>CombinedRealm Implementation</em> or a Realm
+  that extends the CombinedRealm, e.g. the LockOutRealm,
+  <strong>&lt;Realm&gt;</strong> elements may be nested inside it.</p>
+
+  <h3>Other Realm Implementations</h3>
+
+  <p>No other Realm implementation supports nested components.</p>
 
 </section>
 

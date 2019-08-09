@@ -37,6 +37,7 @@ import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.StringRefAddr;
 
+import org.apache.catalina.Container;
 import org.apache.catalina.ContainerEvent;
 import org.apache.catalina.ContainerListener;
 import org.apache.catalina.Context;
@@ -46,7 +47,18 @@ import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.Server;
-import org.apache.catalina.deploy.NamingResourcesImpl;
+import org.apache.catalina.deploy.ContextEjb;
+import org.apache.catalina.deploy.ContextEnvironment;
+import org.apache.catalina.deploy.ContextHandler;
+import org.apache.catalina.deploy.ContextLocalEjb;
+import org.apache.catalina.deploy.ContextResource;
+import org.apache.catalina.deploy.ContextResourceEnvRef;
+import org.apache.catalina.deploy.ContextResourceLink;
+import org.apache.catalina.deploy.ContextService;
+import org.apache.catalina.deploy.ContextTransaction;
+import org.apache.catalina.deploy.MessageDestinationRef;
+import org.apache.catalina.deploy.NamingResources;
+import org.apache.catalina.deploy.ResourceBase;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.naming.ContextAccessController;
@@ -60,19 +72,7 @@ import org.apache.naming.ResourceLinkRef;
 import org.apache.naming.ResourceRef;
 import org.apache.naming.ServiceRef;
 import org.apache.naming.TransactionRef;
-import org.apache.naming.factory.Constants;
 import org.apache.naming.factory.ResourceLinkFactory;
-import org.apache.tomcat.util.descriptor.web.ContextEjb;
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
-import org.apache.tomcat.util.descriptor.web.ContextHandler;
-import org.apache.tomcat.util.descriptor.web.ContextLocalEjb;
-import org.apache.tomcat.util.descriptor.web.ContextResource;
-import org.apache.tomcat.util.descriptor.web.ContextResourceEnvRef;
-import org.apache.tomcat.util.descriptor.web.ContextResourceLink;
-import org.apache.tomcat.util.descriptor.web.ContextService;
-import org.apache.tomcat.util.descriptor.web.ContextTransaction;
-import org.apache.tomcat.util.descriptor.web.MessageDestinationRef;
-import org.apache.tomcat.util.descriptor.web.ResourceBase;
 import org.apache.tomcat.util.modeler.Registry;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -91,6 +91,10 @@ public class NamingContextListener
 
     // ----------------------------------------------------- Instance Variables
 
+
+    protected Log logger = log;
+
+
     /**
      * Name of the associated naming context.
      */
@@ -102,10 +106,6 @@ public class NamingContextListener
      */
     protected Object container = null;
 
-    /**
-     * Token for configuring associated JNDI context.
-     */
-    private Object token = null;
 
     /**
      * Initialized flag.
@@ -116,7 +116,7 @@ public class NamingContextListener
     /**
      * Associated naming resources.
      */
-    protected NamingResourcesImpl namingResources = null;
+    protected NamingResources namingResources = null;
 
 
     /**
@@ -140,7 +140,8 @@ public class NamingContextListener
     /**
      * Objectnames hashtable.
      */
-    protected HashMap<String, ObjectName> objectNames = new HashMap<>();
+    protected HashMap<String, ObjectName> objectNames =
+        new HashMap<String, ObjectName>();
 
 
     /**
@@ -160,7 +161,7 @@ public class NamingContextListener
     // ------------------------------------------------------------- Properties
 
     /**
-     * @return whether or not an attempt to modify the JNDI context will trigger
+     * Returns whether or not an attempt to modify the JNDI context will trigger
      * an exception or if the request will be ignored.
      */
     public boolean getExceptionOnFailedWrite() {
@@ -180,10 +181,10 @@ public class NamingContextListener
 
 
     /**
-     * @return the "name" property.
+     * Return the "name" property.
      */
     public String getName() {
-        return this.name;
+        return (this.name);
     }
 
 
@@ -198,14 +199,33 @@ public class NamingContextListener
 
 
     /**
-     * @return the naming environment context.
+     * Return the comp context.
+     */
+    @Deprecated
+    public javax.naming.Context getCompContext() {
+        return this.compCtx;
+    }
+
+
+    /**
+     * Return the env context.
      */
     public javax.naming.Context getEnvContext() {
         return this.envCtx;
     }
 
 
+    /**
+     * Return the associated naming context.
+     */
+    @Deprecated
+    public NamingContext getNamingContext() {
+        return (this.namingContext);
+    }
+
+
     // ---------------------------------------------- LifecycleListener Methods
+
 
     /**
      * Acknowledge the occurrence of the specified event.
@@ -219,10 +239,9 @@ public class NamingContextListener
 
         if (container instanceof Context) {
             namingResources = ((Context) container).getNamingResources();
-            token = ((Context) container).getNamingToken();
+            logger = log;
         } else if (container instanceof Server) {
             namingResources = ((Server) container).getGlobalNamingResources();
-            token = ((Server) container).getNamingToken();
         } else {
             return;
         }
@@ -233,11 +252,15 @@ public class NamingContextListener
                 return;
 
             try {
-                Hashtable<String, Object> contextEnv = new Hashtable<>();
-                namingContext = new NamingContext(contextEnv, getName());
-                ContextAccessController.setSecurityToken(getName(), token);
-                ContextAccessController.setSecurityToken(container, token);
-                ContextBindings.bindContext(container, namingContext, token);
+                Hashtable<String, Object> contextEnv = new Hashtable<String, Object>();
+                try {
+                    namingContext = new NamingContext(contextEnv, getName());
+                } catch (NamingException e) {
+                    // Never happens
+                }
+                ContextAccessController.setSecurityToken(getName(), container);
+                ContextAccessController.setSecurityToken(container, container);
+                ContextBindings.bindContext(container, namingContext, container);
                 if( log.isDebugEnabled() ) {
                     log.debug("Bound " + container );
                 }
@@ -247,13 +270,13 @@ public class NamingContextListener
                         getExceptionOnFailedWrite());
 
                 // Setting the context in read/write mode
-                ContextAccessController.setWritable(getName(), token);
+                ContextAccessController.setWritable(getName(), container);
 
                 try {
                     createNamingContext();
                 } catch (NamingException e) {
-                    log.error
-                        (sm.getString("naming.namingContextCreationFailed", e));
+                    logger.error
+                    (sm.getString("naming.namingContextCreationFailed", e));
                 }
 
                 namingResources.addPropertyChangeListener(this);
@@ -263,25 +286,27 @@ public class NamingContextListener
                     // Setting the context in read only mode
                     ContextAccessController.setReadOnly(getName());
                     try {
-                        ContextBindings.bindClassLoader(container, token,
-                                ((Context) container).getLoader().getClassLoader());
+                        ContextBindings.bindClassLoader
+                        (container, container,
+                                ((Container) container).getLoader().getClassLoader());
                     } catch (NamingException e) {
-                        log.error(sm.getString("naming.bindFailed", e));
+                        logger.error(sm.getString("naming.bindFailed", e));
                     }
                 }
 
                 if (container instanceof Server) {
                     org.apache.naming.factory.ResourceLinkFactory.setGlobalContext
-                        (namingContext);
+                    (namingContext);
                     try {
-                        ContextBindings.bindClassLoader(container, token,
+                        ContextBindings.bindClassLoader
+                        (container, container,
                                 this.getClass().getClassLoader());
                     } catch (NamingException e) {
-                        log.error(sm.getString("naming.bindFailed", e));
+                        logger.error(sm.getString("naming.bindFailed", e));
                     }
                     if (container instanceof StandardServer) {
                         ((StandardServer) container).setGlobalNamingContext
-                            (namingContext);
+                        (namingContext);
                     }
                 }
 
@@ -297,23 +322,25 @@ public class NamingContextListener
 
             try {
                 // Setting the context in read/write mode
-                ContextAccessController.setWritable(getName(), token);
-                ContextBindings.unbindContext(container, token);
+                ContextAccessController.setWritable(getName(), container);
+                ContextBindings.unbindContext(container, container);
 
                 if (container instanceof Context) {
-                    ContextBindings.unbindClassLoader(container, token,
-                            ((Context) container).getLoader().getClassLoader());
+                    ContextBindings.unbindClassLoader
+                    (container, container,
+                            ((Container) container).getLoader().getClassLoader());
                 }
 
                 if (container instanceof Server) {
-                    ContextBindings.unbindClassLoader(container, token,
+                    ContextBindings.unbindClassLoader
+                    (container, container,
                             this.getClass().getClassLoader());
                 }
 
                 namingResources.removePropertyChangeListener(this);
 
-                ContextAccessController.unsetSecurityToken(getName(), token);
-                ContextAccessController.unsetSecurityToken(container, token);
+                ContextAccessController.unsetSecurityToken(getName(), container);
+                ContextAccessController.unsetSecurityToken(container, container);
 
                 // unregister mbeans.
                 if (!objectNames.isEmpty()) {
@@ -378,7 +405,7 @@ public class NamingContextListener
         if (source == namingResources) {
 
             // Setting the context in read/write mode
-            ContextAccessController.setWritable(getName(), token);
+            ContextAccessController.setWritable(getName(), container);
 
             processGlobalResourcesChange(event.getPropertyName(),
                                          event.getOldValue(),
@@ -540,7 +567,7 @@ public class NamingContextListener
             log.debug("Creating JNDI naming context");
 
         if (namingResources == null) {
-            namingResources = new NamingResourcesImpl();
+            namingResources = new NamingResources();
             namingResources.setContainer(container);
         }
 
@@ -607,7 +634,7 @@ public class NamingContextListener
                 // Ignore because UserTransaction was obviously
                 // added via ResourceLink
             } catch (NamingException e) {
-                log.error(sm.getString("naming.bindFailed", e));
+                logger.error(sm.getString("naming.bindFailed", e));
             }
         }
 
@@ -615,9 +642,9 @@ public class NamingContextListener
         if (container instanceof Context) {
             try {
                 compCtx.bind("Resources",
-                             ((Context) container).getResources());
+                             ((Container) container).getResources());
             } catch (NamingException e) {
-                log.error(sm.getString("naming.bindFailed", e));
+                logger.error(sm.getString("naming.bindFailed", e));
             }
         }
 
@@ -657,21 +684,19 @@ public class NamingContextListener
                 contextName = "/" + contextName;
             Host host = (Host) ((Context)container).getParent();
             name = new ObjectName(domain + ":type=DataSource" +
-                    ",host=" + host.getName() +
-                    ",context=" + contextName +
-                    ",class=" + resource.getType() +
-                    ",name=" + quotedResourceName);
+                        ",context=" + contextName +
+                        ",host=" + host.getName() +
+                        ",class=" + resource.getType() +
+                        ",name=" + quotedResourceName);
         }
 
-        return name;
+        return (name);
 
     }
 
 
     /**
      * Set the specified EJBs in the naming context.
-     *
-     * @param ejb the EJB descriptor
      */
     public void addEjb(ContextEjb ejb) {
 
@@ -694,15 +719,13 @@ public class NamingContextListener
             createSubcontexts(envCtx, ejb.getName());
             envCtx.bind(ejb.getName(), ref);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.bindFailed", e));
+            logger.error(sm.getString("naming.bindFailed", e));
         }
     }
 
 
     /**
      * Set the specified environment entries in the naming context.
-     *
-     * @param env the environment entry
      */
     public void addEnvironment(ContextEnvironment env) {
 
@@ -786,7 +809,7 @@ public class NamingContextListener
                 createSubcontexts(envCtx, env.getName());
                 envCtx.bind(env.getName(), value);
             } catch (NamingException e) {
-                log.error(sm.getString("naming.invalidEnvEntryValue", e));
+                logger.error(sm.getString("naming.invalidEnvEntryValue", e));
             }
         }
     }
@@ -824,7 +847,8 @@ public class NamingContextListener
      *
      * @param localEjb the local EJB descriptor (unused)
      */
-    public void addLocalEjb(ContextLocalEjb localEjb) {
+    public void addLocalEjb(
+            @SuppressWarnings("unused") ContextLocalEjb localEjb) {
         // NO-OP
         // No factory in org.apache.naming.factory
         // No reference in org.apache.naming
@@ -845,8 +869,6 @@ public class NamingContextListener
 
     /**
      * Set the specified web service in the naming context.
-     *
-     * @param service the web service descriptor
      */
     public void addService(ContextService service) {
 
@@ -970,15 +992,13 @@ public class NamingContextListener
             createSubcontexts(envCtx, service.getName());
             envCtx.bind(service.getName(), ref);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.bindFailed", e));
+            logger.error(sm.getString("naming.bindFailed", e));
         }
     }
 
 
     /**
      * Set the specified resources in the naming context.
-     *
-     * @param resource the resource descriptor
      */
     public void addResource(ContextResource resource) {
 
@@ -1005,34 +1025,27 @@ public class NamingContextListener
             createSubcontexts(envCtx, resource.getName());
             envCtx.bind(resource.getName(), ref);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.bindFailed", e));
+            logger.error(sm.getString("naming.bindFailed", e));
         }
 
         if (("javax.sql.DataSource".equals(ref.getClassName())  ||
             "javax.sql.XADataSource".equals(ref.getClassName())) &&
                 resource.getSingleton()) {
-            Object actualResource = null;
             try {
                 ObjectName on = createObjectName(resource);
-                actualResource = envCtx.lookup(resource.getName());
+                Object actualResource = envCtx.lookup(resource.getName());
                 Registry.getRegistry(null, null).registerComponent(actualResource, on, null);
                 objectNames.put(resource.getName(), on);
             } catch (Exception e) {
-                log.warn(sm.getString("naming.jmxRegistrationFailed", e));
-            }
-            // Bug 63210. DBCP2 DataSources require an explicit close. This goes
-            // further and cleans up and AutoCloseable DataSource by default.
-            if (actualResource instanceof AutoCloseable && !resource.getCloseMethodConfigured()) {
-                resource.setCloseMethod("close");
+                logger.warn(sm.getString("naming.jmxRegistrationFailed", e));
             }
         }
+
     }
 
 
     /**
      * Set the specified resources in the naming context.
-     *
-     * @param resourceEnvRef the resource reference
      */
     public void addResourceEnvRef(ContextResourceEnvRef resourceEnvRef) {
 
@@ -1058,15 +1071,13 @@ public class NamingContextListener
             createSubcontexts(envCtx, resourceEnvRef.getName());
             envCtx.bind(resourceEnvRef.getName(), ref);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.bindFailed", e));
+            logger.error(sm.getString("naming.bindFailed", e));
         }
     }
 
 
     /**
      * Set the specified resource link in the naming context.
-     *
-     * @param resourceLink the resource link
      */
     public void addResourceLink(ContextResourceLink resourceLink) {
 
@@ -1086,12 +1097,12 @@ public class NamingContextListener
             "UserTransaction".equals(resourceLink.getName())
             ? compCtx : envCtx;
         try {
-            if (log.isDebugEnabled())
+            if (logger.isDebugEnabled())
                 log.debug("  Adding resource link " + resourceLink.getName());
             createSubcontexts(envCtx, resourceLink.getName());
             ctx.bind(resourceLink.getName(), ref);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.bindFailed", e));
+            logger.error(sm.getString("naming.bindFailed", e));
         }
 
         ResourceLinkFactory.registerGlobalResourceAccess(
@@ -1110,15 +1121,13 @@ public class NamingContextListener
 
     /**
      * Remove the specified EJB from the naming context.
-     *
-     * @param name the name of the EJB which should be removed
      */
     public void removeEjb(String name) {
 
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1126,15 +1135,13 @@ public class NamingContextListener
 
     /**
      * Remove the specified environment entry from the naming context.
-     *
-     * @param name the name of the environment entry which should be removed
      */
     public void removeEnvironment(String name) {
 
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1142,15 +1149,13 @@ public class NamingContextListener
 
     /**
      * Remove the specified local EJB from the naming context.
-     *
-     * @param name the name of the EJB which should be removed
      */
     public void removeLocalEjb(String name) {
 
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1183,7 +1188,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1191,15 +1196,13 @@ public class NamingContextListener
 
     /**
      * Remove the specified resource from the naming context.
-     *
-     * @param name the name of the resource which should be removed
      */
     public void removeResource(String name) {
 
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
         ObjectName on = objectNames.get(name);
@@ -1222,7 +1225,7 @@ public class NamingContextListener
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
     }
@@ -1230,15 +1233,13 @@ public class NamingContextListener
 
     /**
      * Remove the specified resource link from the naming context.
-     *
-     * @param name the name of the resource link which should be removed
      */
     public void removeResourceLink(String name) {
 
         try {
             envCtx.unbind(name);
         } catch (NamingException e) {
-            log.error(sm.getString("naming.unbindFailed", e));
+            logger.error(sm.getString("naming.unbindFailed", e));
         }
 
         ResourceLinkFactory.deregisterGlobalResourceAccess(getGlobalNamingContext(), name);

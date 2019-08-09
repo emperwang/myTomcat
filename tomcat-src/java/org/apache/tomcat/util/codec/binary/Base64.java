@@ -27,13 +27,13 @@ import java.math.BigInteger;
  * </p>
  * <p>
  * The class can be parameterized in the following manner with various constructors:
- * </p>
  * <ul>
  * <li>URL-safe mode: Default off.</li>
  * <li>Line length: Default 76. Line length that aren't multiples of 4 will still essentially end up being multiples of
  * 4 in the encoded data.
  * <li>Line separator: Default is CRLF ("\r\n")</li>
  * </ul>
+ * </p>
  * <p>
  * The URL-safe parameter is only applied to encode operations. Decoding seamlessly handles both modes.
  * </p>
@@ -111,15 +111,13 @@ public class Base64 extends BaseNCodec {
      * https://svn.apache.org/repos/asf/webservices/commons/trunk/modules/util/
      */
     private static final byte[] DECODE_TABLE = {
-        //   0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 00-0f
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 10-1f
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, 62, -1, 63, // 20-2f + - /
-            52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, // 30-3f 0-9
-            -1,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, // 40-4f A-O
-            15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, 63, // 50-5f P-Z _
-            -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, // 60-6f a-o
-            41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51                      // 70-7a p-z
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, 62, -1, 63, 52, 53, 54,
+            55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, 4,
+            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, -1, -1, -1, -1, 63, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+            35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
     };
 
     /**
@@ -143,7 +141,7 @@ public class Base64 extends BaseNCodec {
     private final byte[] decodeTable = DECODE_TABLE;
 
     /**
-     * Line separator for encoding. Not used when decoding. Only used if lineLength &gt; 0.
+     * Line separator for encoding. Not used when decoding. Only used if lineLength > 0.
      */
     private final byte[] lineSeparator;
 
@@ -207,7 +205,7 @@ public class Base64 extends BaseNCodec {
      *
      * @param lineLength
      *            Each line of encoded data will be at most of the given length (rounded down to nearest multiple of
-     *            4). If lineLength &lt;= 0, then the output will not be divided into lines (chunks). Ignored when
+     *            4). If lineLength <= 0, then the output will not be divided into lines (chunks). Ignored when
      *            decoding.
      * @since 1.4
      */
@@ -230,7 +228,7 @@ public class Base64 extends BaseNCodec {
      *
      * @param lineLength
      *            Each line of encoded data will be at most of the given length (rounded down to nearest multiple of
-     *            4). If lineLength &lt;= 0, then the output will not be divided into lines (chunks). Ignored when
+     *            4). If lineLength <= 0, then the output will not be divided into lines (chunks). Ignored when
      *            decoding.
      * @param lineSeparator
      *            Each line of encoded data will end with this sequence of bytes.
@@ -257,7 +255,7 @@ public class Base64 extends BaseNCodec {
      *
      * @param lineLength
      *            Each line of encoded data will be at most of the given length (rounded down to nearest multiple of
-     *            4). If lineLength &lt;= 0, then the output will not be divided into lines (chunks). Ignored when
+     *            4). If lineLength <= 0, then the output will not be divided into lines (chunks). Ignored when
      *            decoding.
      * @param lineSeparator
      *            Each line of encoded data will end with this sequence of bytes.
@@ -278,7 +276,7 @@ public class Base64 extends BaseNCodec {
         if (lineSeparator != null) {
             if (containsAlphabetOrPad(lineSeparator)) {
                 final String sep = StringUtils.newStringUtf8(lineSeparator);
-                throw new IllegalArgumentException(sm.getString("base64.lineSeparator", sep));
+                throw new IllegalArgumentException("lineSeparator must not contain base64 characters: [" + sep + "]");
             }
             if (lineLength > 0){ // null line-sep forces no chunking rather than throwing IAE
                 this.encodeSize = BYTES_PER_ENCODED_BLOCK + lineSeparator.length;
@@ -351,8 +349,8 @@ public class Base64 extends BaseNCodec {
                     buffer[context.pos++] = encodeTable[(context.ibitWorkArea << 4) & MASK_6BITS];
                     // URL-SAFE skips the padding to further reduce size.
                     if (encodeTable == STANDARD_ENCODE_TABLE) {
-                        buffer[context.pos++] = pad;
-                        buffer[context.pos++] = pad;
+                        buffer[context.pos++] = PAD;
+                        buffer[context.pos++] = PAD;
                     }
                     break;
 
@@ -362,12 +360,11 @@ public class Base64 extends BaseNCodec {
                     buffer[context.pos++] = encodeTable[(context.ibitWorkArea << 2) & MASK_6BITS];
                     // URL-SAFE skips the padding to further reduce size.
                     if (encodeTable == STANDARD_ENCODE_TABLE) {
-                        buffer[context.pos++] = pad;
+                        buffer[context.pos++] = PAD;
                     }
                     break;
                 default:
-                    throw new IllegalStateException(sm.getString(
-                            "base64.impossibleModulus", Integer.valueOf(context.modulus)));
+                    throw new IllegalStateException("Impossible modulus "+context.modulus);
             }
             context.currentLinePos += context.pos - savedPos; // keep track of current line position
             // if currentPos == 0 we are at the start of a line, so don't add CRLF
@@ -436,20 +433,21 @@ public class Base64 extends BaseNCodec {
         for (int i = 0; i < inAvail; i++) {
             final byte[] buffer = ensureBufferSize(decodeSize, context);
             final byte b = in[inPos++];
-            if (b == pad) {
+            if (b == PAD) {
                 // We're done.
                 context.eof = true;
                 break;
-            }
-            if (b >= 0 && b < DECODE_TABLE.length) {
-                final int result = DECODE_TABLE[b];
-                if (result >= 0) {
-                    context.modulus = (context.modulus+1) % BYTES_PER_ENCODED_BLOCK;
-                    context.ibitWorkArea = (context.ibitWorkArea << BITS_PER_ENCODED_BYTE) + result;
-                    if (context.modulus == 0) {
-                        buffer[context.pos++] = (byte) ((context.ibitWorkArea >> 16) & MASK_8BITS);
-                        buffer[context.pos++] = (byte) ((context.ibitWorkArea >> 8) & MASK_8BITS);
-                        buffer[context.pos++] = (byte) (context.ibitWorkArea & MASK_8BITS);
+            } else {
+                if (b >= 0 && b < DECODE_TABLE.length) {
+                    final int result = DECODE_TABLE[b];
+                    if (result >= 0) {
+                        context.modulus = (context.modulus+1) % BYTES_PER_ENCODED_BLOCK;
+                        context.ibitWorkArea = (context.ibitWorkArea << BITS_PER_ENCODED_BYTE) + result;
+                        if (context.modulus == 0) {
+                            buffer[context.pos++] = (byte) ((context.ibitWorkArea >> 16) & MASK_8BITS);
+                            buffer[context.pos++] = (byte) ((context.ibitWorkArea >> 8) & MASK_8BITS);
+                            buffer[context.pos++] = (byte) (context.ibitWorkArea & MASK_8BITS);
+                        }
                     }
                 }
             }
@@ -478,10 +476,24 @@ public class Base64 extends BaseNCodec {
                     buffer[context.pos++] = (byte) ((context.ibitWorkArea) & MASK_8BITS);
                     break;
                 default:
-                    throw new IllegalStateException(sm.getString(
-                            "base64.impossibleModulus", Integer.valueOf(context.modulus)));
+                    throw new IllegalStateException("Impossible modulus "+context.modulus);
             }
         }
+    }
+
+    /**
+     * Tests a given byte array to see if it contains only valid characters within the Base64 alphabet. Currently the
+     * method treats whitespace as valid.
+     *
+     * @param arrayOctet
+     *            byte array to test
+     * @return {@code true} if all bytes are valid characters in the Base64 alphabet or if the byte array is empty;
+     *         {@code false}, otherwise
+     * @deprecated 1.5 Use {@link #isBase64(byte[])}, will be removed in 2.0.
+     */
+    @Deprecated
+    public static boolean isArrayByteBase64(final byte[] arrayOctet) {
+        return isBase64(arrayOctet);
     }
 
     /**
@@ -654,8 +666,10 @@ public class Base64 extends BaseNCodec {
         final Base64 b64 = isChunked ? new Base64(urlSafe) : new Base64(0, CHUNK_SEPARATOR, urlSafe);
         final long len = b64.getEncodedLength(binaryData);
         if (len > maxResultSize) {
-            throw new IllegalArgumentException(sm.getString(
-                    "base64.inputTooLarge", Long.valueOf(len), Integer.valueOf(maxResultSize)));
+            throw new IllegalArgumentException("Input array too big, the output array would be bigger (" +
+                len +
+                ") than the specified maximum size of " +
+                maxResultSize);
         }
 
         return b64.encode(binaryData);
@@ -722,7 +736,7 @@ public class Base64 extends BaseNCodec {
      */
     public static byte[] encodeInteger(final BigInteger bigInt) {
         if (bigInt == null) {
-            throw new NullPointerException(sm.getString("base64.nullEncodeParameter"));
+            throw new NullPointerException("encodeInteger called with null parameter");
         }
         return encodeBase64(toIntegerBytes(bigInt), false);
     }

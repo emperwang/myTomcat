@@ -34,7 +34,7 @@ public class TestDefaultServletOptions extends ServletOptionsBaseTest {
         String[] urls = new String[] { COLLECTION_NAME, FILE_NAME, UNKNOWN_NAME };
         String[] methods = new String[] { "GET", "POST", "HEAD", "TRACE", "PUT", "DELETE" };
 
-        List<Object[]> result = new ArrayList<>();
+        List<Object[]> result = new ArrayList<Object[]>();
 
         for (Boolean listingsValue : booleans) {
             for (Boolean readOnlyValue : booleans) {

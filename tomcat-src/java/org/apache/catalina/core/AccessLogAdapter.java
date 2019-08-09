@@ -17,7 +17,6 @@
 package org.apache.catalina.core;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.connector.Request;
@@ -31,12 +30,16 @@ public class AccessLogAdapter implements AccessLog {
     private AccessLog[] logs;
 
     public AccessLogAdapter(AccessLog log) {
-        Objects.requireNonNull(log);
+        if (log == null) {
+            throw new NullPointerException();
+        }
         logs = new AccessLog[] { log };
     }
 
     public void add(AccessLog log) {
-        Objects.requireNonNull(log);
+        if (log == null) {
+            throw new NullPointerException();
+        }
         AccessLog newArray[] = Arrays.copyOf(logs, logs.length + 1);
         newArray[newArray.length - 1] = log;
         logs = newArray;

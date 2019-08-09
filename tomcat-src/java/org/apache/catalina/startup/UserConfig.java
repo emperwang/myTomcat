@@ -32,8 +32,6 @@ import org.apache.catalina.Host;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
 
@@ -50,7 +48,8 @@ public final class UserConfig
     implements LifecycleListener {
 
 
-    private static final Log log = LogFactory.getLog(UserConfig.class);
+    private static final org.apache.juli.logging.Log log=
+        org.apache.juli.logging.LogFactory.getLog( UserConfig.class );
 
 
     // ----------------------------------------------------- Instance Variables
@@ -113,10 +112,12 @@ public final class UserConfig
 
 
     /**
-     * @return the Context configuration class name.
+     * Return the Context configuration class name.
      */
     public String getConfigClass() {
-        return this.configClass;
+
+        return (this.configClass);
+
     }
 
 
@@ -126,15 +127,19 @@ public final class UserConfig
      * @param configClass The new Context configuration class name.
      */
     public void setConfigClass(String configClass) {
+
         this.configClass = configClass;
+
     }
 
 
     /**
-     * @return the Context implementation class name.
+     * Return the Context implementation class name.
      */
     public String getContextClass() {
-        return this.contextClass;
+
+        return (this.contextClass);
+
     }
 
 
@@ -144,15 +149,19 @@ public final class UserConfig
      * @param contextClass The new Context implementation class name.
      */
     public void setContextClass(String contextClass) {
+
         this.contextClass = contextClass;
+
     }
 
 
     /**
-     * @return the directory name for user web applications.
+     * Return the directory name for user web applications.
      */
     public String getDirectoryName() {
-        return this.directoryName;
+
+        return (this.directoryName);
+
     }
 
 
@@ -162,15 +171,19 @@ public final class UserConfig
      * @param directoryName The new directory name
      */
     public void setDirectoryName(String directoryName) {
+
         this.directoryName = directoryName;
+
     }
 
 
     /**
-     * @return the base directory containing user home directories.
+     * Return the base directory containing user home directories.
      */
     public String getHomeBase() {
-        return this.homeBase;
+
+        return (this.homeBase);
+
     }
 
 
@@ -180,28 +193,33 @@ public final class UserConfig
      * @param homeBase The new base directory
      */
     public void setHomeBase(String homeBase) {
+
         this.homeBase = homeBase;
+
     }
 
 
     /**
-     * @return the user database class name for this component.
+     * Return the user database class name for this component.
      */
     public String getUserClass() {
-        return this.userClass;
+
+        return (this.userClass);
+
     }
 
 
     /**
      * Set the user database class name for this component.
-     * @param userClass The user database class name
      */
     public void setUserClass(String userClass) {
+
         this.userClass = userClass;
+
     }
 
     /**
-     * @return the regular expression used to test for user who deployment is allowed.
+     * Return the regular expression used to test for user who deployment is allowed.
      */
     public String getAllow() {
         if (allow == null) return null;
@@ -224,7 +242,7 @@ public final class UserConfig
 
 
     /**
-     * @return the regular expression used to test for user who deployment is denied.
+     * Return the regular expression used to test for user who deployment is denied.
      */
     public String getDeny() {
         if (deny == null) return null;
@@ -289,7 +307,7 @@ public final class UserConfig
         UserDatabase database = null;
         try {
             Class<?> clazz = Class.forName(userClass);
-            database = (UserDatabase) clazz.getConstructor().newInstance();
+            database = (UserDatabase) clazz.newInstance();
             database.setUserConfig(this);
         } catch (Exception e) {
             host.getLogger().error(sm.getString("userConfig.database"), e);
@@ -297,7 +315,7 @@ public final class UserConfig
         }
 
         ExecutorService executor = host.getStartStopExecutor();
-        List<Future<?>> results = new ArrayList<>();
+        List<Future<?>> results = new ArrayList<Future<?>>();
 
         // Deploy the web application (if any) for each defined user
         Enumeration<String> users = database.getUsers();
@@ -334,17 +352,23 @@ public final class UserConfig
         File app = new File(home, directoryName);
         if (!app.exists() || !app.isDirectory())
             return;
-
+        /*
+        File dd = new File(app, "/WEB-INF/web.xml");
+        if (!dd.exists() || !dd.isFile() || !dd.canRead())
+            return;
+        */
         host.getLogger().info(sm.getString("userConfig.deploy", user));
 
         // Deploy the web application for this user
         try {
             Class<?> clazz = Class.forName(contextClass);
-            Context context = (Context) clazz.getConstructor().newInstance();
+            Context context =
+              (Context) clazz.newInstance();
             context.setPath(contextPath);
             context.setDocBase(app.toString());
             clazz = Class.forName(configClass);
-            LifecycleListener listener = (LifecycleListener) clazz.getConstructor().newInstance();
+            LifecycleListener listener =
+                (LifecycleListener) clazz.newInstance();
             context.addLifecycleListener(listener);
             host.addChild(context);
         } catch (Exception e) {

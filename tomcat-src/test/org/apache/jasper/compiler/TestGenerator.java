@@ -17,6 +17,7 @@
 
 package org.apache.jasper.compiler;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
@@ -34,6 +35,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.LifecycleException;
+import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
 
@@ -41,7 +44,14 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testBug45015a() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir =
+            new File("test/webapp-3.0");
+        // app dir is relative to server home
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         ByteChunk res = getUrl("http://localhost:" + getPort() +
                 "/test/bug45nnn/bug45015a.jsp");
@@ -63,7 +73,14 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testBug45015b() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir =
+            new File("test/webapp-3.0");
+        // app dir is relative to server home
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         int rc = getUrl("http://localhost:" + getPort() +
                 "/test/bug45nnn/bug45015b.jsp", new ByteChunk(), null);
@@ -73,7 +90,14 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testBug45015c() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir =
+            new File("test/webapp-3.0");
+        // app dir is relative to server home
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         int rc = getUrl("http://localhost:" + getPort() +
                 "/test/bug45nnn/bug45015c.jsp", new ByteChunk(), null);
@@ -83,7 +107,19 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testBug48701Fail() throws Exception {
-        getTomcatInstanceTestWebapp(true, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir =
+            new File("test/webapp-3.0");
+        // app dir is relative to server home
+        StandardContext ctxt = (StandardContext) tomcat.addWebapp(null,
+                "/test", appDir.getAbsolutePath());
+
+        // This test needs the JSTL libraries
+        File lib = new File("webapps/examples/WEB-INF/lib");
+        ctxt.setAliases("/WEB-INF/lib=" + lib.getCanonicalPath());
+
+        tomcat.start();
 
         int rc = getUrl("http://localhost:" + getPort() +
                 "/test/bug48nnn/bug48701-fail.jsp", new ByteChunk(), null);
@@ -112,7 +148,14 @@ public class TestGenerator extends TomcatBaseTest {
     }
 
     private void testBug48701(String jsp) throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir =
+            new File("test/webapp-3.0");
+        // app dir is relative to server home
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         ByteChunk res = getUrl("http://localhost:" + getPort() +
                 "/test/" + jsp);
@@ -180,10 +223,14 @@ public class TestGenerator extends TomcatBaseTest {
                               "<p style=\"color:red\">04-Red</p>",
                               "<p>05-Not Red</p>"};
 
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir = new File("test/webapp-3.0");
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+        tomcat.start();
 
         ByteChunk res = new ByteChunk();
-        Map<String,List<String>> headers = new HashMap<>();
+        Map<String,List<String>> headers = new HashMap<String,List<String>>();
 
         getUrl("http://localhost:" + getPort() + "/test/bug49nnn/bug49799.jsp",
                 res, headers);
@@ -207,7 +254,13 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testBug56529() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir = new File("test/webapp-3.0");
+        // app dir is relative to server home
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         ByteChunk bc = new ByteChunk();
         int rc = getUrl("http://localhost:" + getPort() +
@@ -260,7 +313,14 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testBug56581() throws LifecycleException {
-        getTomcatInstanceTestWebapp(false, true);
+        Tomcat tomcat = getTomcatInstance();
+
+        File appDir =
+            new File("test/webapp-3.0");
+        // app dir is relative to server home
+        tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());
+
+        tomcat.start();
 
         ByteChunk res = new ByteChunk();
         try {
@@ -268,7 +328,7 @@ public class TestGenerator extends TomcatBaseTest {
                     + "/test/bug5nnnn/bug56581.jsp", res, null);
             Assert.fail("An IOException was expected.");
         } catch (IOException expected) {
-            // ErrorReportValve in Tomcat 8.0.9+ flushes and aborts the
+            // ErrorReportValve in Tomcat 7.0.55+, 8.0.9+ flushes and aborts the
             // connection when an unexpected error is encountered and response
             // has already been committed. It results in an exception here:
             // java.io.IOException: Premature EOF

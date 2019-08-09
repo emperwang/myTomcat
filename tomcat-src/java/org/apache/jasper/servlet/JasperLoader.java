@@ -32,16 +32,19 @@ import org.apache.jasper.Constants;
  *
  * @author Anil K. Vijendran
  * @author Harish Prabandham
+ * @author Jean-Francois Arcand
  */
 public class JasperLoader extends URLClassLoader {
 
-    private final PermissionCollection permissionCollection;
-    private final SecurityManager securityManager;
+    private PermissionCollection permissionCollection;
+    private ClassLoader parent;
+    private SecurityManager securityManager;
 
     public JasperLoader(URL[] urls, ClassLoader parent,
                         PermissionCollection permissionCollection) {
         super(urls, parent);
         this.permissionCollection = permissionCollection;
+        this.parent = parent;
         this.securityManager = System.getSecurityManager();
     }
 
@@ -56,7 +59,8 @@ public class JasperLoader extends URLClassLoader {
      */
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
-        return loadClass(name, false);
+
+        return (loadClass(name, false));
     }
 
     /**
@@ -95,7 +99,7 @@ public class JasperLoader extends URLClassLoader {
         if (clazz != null) {
             if (resolve)
                 resolveClass(clazz);
-            return clazz;
+            return (clazz);
         }
 
         // (.5) Permission to access this class when using a SecurityManager
@@ -119,7 +123,7 @@ public class JasperLoader extends URLClassLoader {
         if( !name.startsWith(Constants.JSP_PACKAGE_NAME + '.') ) {
             // Class is not in org.apache.jsp, therefore, have our
             // parent load it
-            clazz = getParent().loadClass(name);
+            clazz = parent.loadClass(name);
             if( resolve )
                 resolveClass(clazz);
             return clazz;
@@ -136,7 +140,7 @@ public class JasperLoader extends URLClassLoader {
      */
     @Override
     public InputStream getResourceAsStream(String name) {
-        InputStream is = getParent().getResourceAsStream(name);
+        InputStream is = parent.getResourceAsStream(name);
         if (is == null) {
             URL url = findResource(name);
             if (url != null) {

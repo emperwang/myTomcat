@@ -32,6 +32,7 @@ import java.io.InputStream;
  * This is an abstract class that a servlet container implements. Subclasses of
  * this class must implement the <code>java.io.InputStream.read()</code> method.
  *
+ * @author Various
  * @see ServletRequest
  */
 public abstract class ServletInputStream extends InputStream {
@@ -79,43 +80,4 @@ public abstract class ServletInputStream extends InputStream {
         }
         return count > 0 ? count : -1;
     }
-
-    /**
-     * Has the end of this InputStream been reached?
-     *
-     * @return <code>true</code> if all the data has been read from the stream,
-     * else <code>false</code>
-     *
-     * @since Servlet 3.1
-     */
-    public abstract boolean isFinished();
-
-    /**
-     * Can data be read from this InputStream without blocking?
-     * Returns  If this method is called and returns false, the container will
-     * invoke {@link ReadListener#onDataAvailable()} when data is available.
-     *
-     * @return <code>true</code> if data can be read without blocking, else
-     * <code>false</code>
-     *
-     * @since Servlet 3.1
-     */
-    public abstract boolean isReady();
-
-    /**
-     * Sets the {@link ReadListener} for this {@link ServletInputStream} and
-     * thereby switches to non-blocking IO. It is only valid to switch to
-     * non-blocking IO within async processing or HTTP upgrade processing.
-     *
-     * @param listener  The non-blocking IO read listener
-     *
-     * @throws IllegalStateException    If this method is called if neither
-     *                                  async nor HTTP upgrade is in progress or
-     *                                  if the {@link ReadListener} has already
-     *                                  been set
-     * @throws NullPointerException     If listener is null
-     *
-     * @since Servlet 3.1
-     */
-    public abstract void setReadListener(ReadListener listener);
 }

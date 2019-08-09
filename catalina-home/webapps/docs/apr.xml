@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -90,7 +90,7 @@
     </p>
     <ul>
       <li>APR 1.2+ development headers (libapr1-dev package)</li>
-      <li>OpenSSL 1.0.2+ development headers (libssl-dev package)</li>
+      <li>OpenSSL 0.9.7+ development headers (libssl-dev package)</li>
       <li>JNI headers from Java compatible JDK 1.4+</li>
       <li>GNU development environment (gcc, make)</li>
     </ul>
@@ -130,8 +130,23 @@
   </section>
 
   <section name="APR Lifecycle Listener Configuration">
-    <p>See <a href="config/listeners.html#APR_Lifecycle_Listener_-_org.apache.catalina.core.AprLifecycleListener">the
-    listener configuration</a>.</p>
+    <subsection name="AprLifecycleListener">
+    <attributes>
+    <attribute name="SSLEngine" required="false">
+    <p>
+      Name of the SSLEngine to use. off: Do not use SSL, on: Use SSL but no specific ENGINE.
+      The default value is <b>on</b>.
+      This initializes the native SSL engine, then enable the use of this engine in the connector
+      using the <code>SSLEnabled</code> attribute. Example:
+    </p>
+      <source><![CDATA[<Listener className="org.apache.catalina.core.AprLifecycleListener" SSLEngine="on" />]]></source>
+
+    <p>See the <a href="http://www.openssl.org">Official OpenSSL
+       website</a> for more details on SSL hardware engines and manufacturers.
+    </p>
+    </attribute>
+    </attributes>
+    </subsection>
   </section>
 
   <section name="APR Connectors Configuration">

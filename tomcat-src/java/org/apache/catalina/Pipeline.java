@@ -18,7 +18,6 @@
 
 package org.apache.catalina;
 
-import java.util.Set;
 
 /**
  * <p>Interface describing a collection of Valves that should be executed
@@ -45,7 +44,7 @@ public interface Pipeline {
 
 
     /**
-     * @return the Valve instance that has been distinguished as the basic
+     * <p>Return the Valve instance that has been distinguished as the basic
      * Valve for this Pipeline (if any).
      */
     public Valve getBasic();
@@ -96,7 +95,7 @@ public interface Pipeline {
 
 
     /**
-     * @return the set of Valves in the pipeline associated with this
+     * Return the set of Valves in the pipeline associated with this
      * Container, including the basic Valve (if any).  If there are no
      * such Valves, a zero-length array is returned.
      */
@@ -119,7 +118,7 @@ public interface Pipeline {
 
 
     /**
-     * @return the Valve instance that has been distinguished as the basic
+     * <p>Return the Valve instance that has been distinguished as the basic
      * Valve for this Pipeline (if any).
      */
     public Valve getFirst();
@@ -132,7 +131,7 @@ public interface Pipeline {
 
 
     /**
-     * @return the Container with which this Pipeline is associated.
+     * Return the Container with which this Pipeline is associated.
      */
     public Container getContainer();
 
@@ -144,14 +143,4 @@ public interface Pipeline {
      */
     public void setContainer(Container container);
 
-
-    /**
-     * Identifies the Valves, if any, in this Pipeline that do not support
-     * async.
-     *
-     * @param result The Set to which the fully qualified class names of each
-     *               Valve in this Pipeline that does not support async will be
-     *               added
-     */
-    public void findNonAsyncValves(Set<String> result);
 }

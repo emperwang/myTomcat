@@ -14,6 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.tomcat.util.http;
 
 import org.junit.Assert;
@@ -23,10 +24,10 @@ import org.apache.catalina.startup.Tomcat;
 import org.apache.tomcat.util.buf.ByteChunk;
 
 /**
- * Test case for {@link LegacyCookieProcessor}. <b>Note</b> because of the use
- * of <code>final static</code> constants in the cookie processing code, each of
- * these tests must be executed in a new JVM instance. The tests have been place
- * in separate classes to facilitate this when running the unit tests via Ant.
+ * Test case for {@link Cookies}. <b>Note</b> because of the use of <code>final
+ * static</code> constants in {@link Cookies}, each of these tests must be
+ * executed in a new JVM instance. The tests have been place in separate classes
+ * to facilitate this when running the unit tests via Ant.
  */
 public class TestCookiesNoFwdStrictSysProps extends CookiesBaseTest {
 

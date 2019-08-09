@@ -21,12 +21,8 @@ package org.apache.el.parser;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import javax.el.ELClass;
 import javax.el.ELException;
 import javax.el.FunctionMapper;
-import javax.el.LambdaExpression;
-import javax.el.ValueExpression;
-import javax.el.VariableMapper;
 
 import org.apache.el.lang.EvaluationContext;
 import org.apache.el.util.MessageFactory;
@@ -90,78 +86,15 @@ public final class AstFunction extends SimpleNode {
             throw new ELException(MessageFactory.get("error.fnMapper.null"));
         }
         Method m = fnMapper.resolveFunction(this.prefix, this.localName);
-
-        if (m == null && this.prefix.length() == 0) {
-            // TODO: Do we need to think about precedence of the various ways
-            //       a lambda expression may be obtained from something that
-            //       the parser thinks is a function?
-            Object obj = null;
-            if (ctx.isLambdaArgument(this.localName)) {
-                obj = ctx.getLambdaArgument(this.localName);
-            }
-            if (obj == null) {
-                VariableMapper varMapper = ctx.getVariableMapper();
-                if (varMapper != null) {
-                    obj = varMapper.resolveVariable(this.localName);
-                    if (obj instanceof ValueExpression) {
-                        // See if this returns a LambdaEXpression
-                        obj = ((ValueExpression) obj).getValue(ctx);
-                    }
-                }
-            }
-            if (obj == null) {
-                obj = ctx.getELResolver().getValue(ctx, null, this.localName);
-            }
-            if (obj instanceof LambdaExpression) {
-                // Build arguments
-                int i = 0;
-                while (obj instanceof LambdaExpression &&
-                        i < jjtGetNumChildren()) {
-                    Node args = jjtGetChild(i);
-                    obj = ((LambdaExpression) obj).invoke(
-                            ((AstMethodParameters) args).getParameters(ctx));
-                    i++;
-                }
-                if (i < jjtGetNumChildren()) {
-                    // Haven't consumed all the sets of parameters therefore
-                    // there were too many sets of parameters
-                    throw new ELException(MessageFactory.get(
-                            "error.lambda.tooManyMethodParameterSets"));
-                }
-                return obj;
-            }
-
-            // Call to a constructor or a static method
-            obj = ctx.getImportHandler().resolveClass(this.localName);
-            if (obj != null) {
-                return ctx.getELResolver().invoke(ctx, new ELClass((Class<?>) obj), "<init>", null,
-                        ((AstMethodParameters) this.children[0]).getParameters(ctx));
-            }
-            obj = ctx.getImportHandler().resolveStatic(this.localName);
-            if (obj != null) {
-                return ctx.getELResolver().invoke(ctx, new ELClass((Class<?>) obj), this.localName,
-                        null, ((AstMethodParameters) this.children[0]).getParameters(ctx));
-            }
-        }
-
         if (m == null) {
             throw new ELException(MessageFactory.get("error.fnMapper.method",
                     this.getOutputName()));
         }
 
-        // Not a lambda expression so must be a function. Check there is just a
-        // single set of method parameters
-        if (this.jjtGetNumChildren() != 1) {
-            throw new ELException(MessageFactory.get(
-                    "error.funciton.tooManyMethodParameterSets",
-                    getOutputName()));
-        }
-
-        Node parameters = jjtGetChild(0);
         Class<?>[] paramTypes = m.getParameterTypes();
         Object[] params = null;
         Object result = null;
-        int inputParameterCount = parameters.jjtGetNumChildren();
+        int inputParameterCount = this.jjtGetNumChildren();
         int methodParameterCount = paramTypes.length;
         if (inputParameterCount == 0 && methodParameterCount == 1 && m.isVarArgs()) {
             params = new Object[] { null };
@@ -174,21 +107,21 @@ public final class AstFunction extends SimpleNode {
                             params[i] = new Object[] { null };
                         } else if (inputParameterCount == methodParameterCount &&
                                 paramTypes[i].isArray()) {
-                            params[i] = parameters.jjtGetChild(i).getValue(ctx);
+                            params[i] = this.jjtGetChild(i).getValue(ctx);
                         } else {
                             Object[] varargs =
                                     new Object[inputParameterCount - methodParameterCount + 1];
                             Class<?> target = paramTypes[i].getComponentType();
                             for (int j = i; j < inputParameterCount; j++) {
-                                varargs[j-i] = parameters.jjtGetChild(j).getValue(ctx);
-                                varargs[j-i] = coerceToType(ctx, varargs[j-i], target);
+                                varargs[j-i] = this.jjtGetChild(j).getValue(ctx);
+                                varargs[j-i] = coerceToType(varargs[j-i], target);
                             }
                             params[i] = varargs;
                         }
                     } else {
-                        params[i] = parameters.jjtGetChild(i).getValue(ctx);
+                        params[i] = this.jjtGetChild(i).getValue(ctx);
                     }
-                    params[i] = coerceToType(ctx, params[i], paramTypes[i]);
+                    params[i] = coerceToType(params[i], paramTypes[i]);
                 }
             } catch (ELException ele) {
                 throw new ELException(MessageFactory.get("error.function", this

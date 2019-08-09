@@ -250,10 +250,22 @@ public abstract class ELArithmetic {
     private static final Long ZERO = Long.valueOf(0);
 
     public static final Number add(final Object obj0, final Object obj1) {
-        final ELArithmetic delegate = findDelegate(obj0, obj1);
-        if (delegate == null) {
+        if (obj0 == null && obj1 == null) {
             return Long.valueOf(0);
         }
+
+        final ELArithmetic delegate;
+        if (BIGDECIMAL.matches(obj0, obj1))
+            delegate = BIGDECIMAL;
+        else if (DOUBLE.matches(obj0, obj1)) {
+            if (BIGINTEGER.matches(obj0, obj1))
+                delegate = BIGDECIMAL;
+            else
+                delegate = DOUBLE;
+        } else if (BIGINTEGER.matches(obj0, obj1))
+            delegate = BIGINTEGER;
+        else
+            delegate = LONG;
 
         Number num0 = delegate.coerce(obj0);
         Number num1 = delegate.coerce(obj1);
@@ -283,10 +295,22 @@ public abstract class ELArithmetic {
     }
 
     public static final Number subtract(final Object obj0, final Object obj1) {
-        final ELArithmetic delegate = findDelegate(obj0, obj1);
-        if (delegate == null) {
+        if (obj0 == null && obj1 == null) {
             return Long.valueOf(0);
         }
+
+        final ELArithmetic delegate;
+        if (BIGDECIMAL.matches(obj0, obj1))
+            delegate = BIGDECIMAL;
+        else if (DOUBLE.matches(obj0, obj1)) {
+            if (BIGINTEGER.matches(obj0, obj1))
+                delegate = BIGDECIMAL;
+            else
+                delegate = DOUBLE;
+        } else if (BIGINTEGER.matches(obj0, obj1))
+            delegate = BIGINTEGER;
+        else
+            delegate = LONG;
 
         Number num0 = delegate.coerce(obj0);
         Number num1 = delegate.coerce(obj1);
@@ -314,35 +338,27 @@ public abstract class ELArithmetic {
     }
 
     public static final Number multiply(final Object obj0, final Object obj1) {
-        final ELArithmetic delegate = findDelegate(obj0, obj1);
-        if (delegate == null) {
+        if (obj0 == null && obj1 == null) {
             return Long.valueOf(0);
         }
+
+        final ELArithmetic delegate;
+        if (BIGDECIMAL.matches(obj0, obj1))
+            delegate = BIGDECIMAL;
+        else if (DOUBLE.matches(obj0, obj1)) {
+            if (BIGINTEGER.matches(obj0, obj1))
+                delegate = BIGDECIMAL;
+            else
+                delegate = DOUBLE;
+        } else if (BIGINTEGER.matches(obj0, obj1))
+            delegate = BIGINTEGER;
+        else
+            delegate = LONG;
 
         Number num0 = delegate.coerce(obj0);
         Number num1 = delegate.coerce(obj1);
 
         return delegate.multiply(num0, num1);
-    }
-
-    private static ELArithmetic findDelegate(final Object obj0, final Object obj1) {
-        if (obj0 == null && obj1 == null) {
-            return null;
-        }
-
-        if (BIGDECIMAL.matches(obj0, obj1)) {
-            return BIGDECIMAL;
-        } else if (DOUBLE.matches(obj0, obj1)) {
-            if (BIGINTEGER.matches(obj0, obj1)) {
-                return BIGDECIMAL;
-            } else {
-                return DOUBLE;
-            }
-        } else if (BIGINTEGER.matches(obj0, obj1)) {
-            return BIGINTEGER;
-        } else {
-            return LONG;
-        }
     }
 
     public static final boolean isNumber(final Object obj) {

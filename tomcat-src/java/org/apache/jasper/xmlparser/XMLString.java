@@ -46,38 +46,27 @@ package org.apache.jasper.xmlparser;
  *
  * @author Eric Ye, IBM
  * @author Andy Clark, IBM
- *
- * @deprecated Will be removed in Tomcat 9.0.x onwards
  */
-@Deprecated
 public class XMLString {
 
     //
     // Data
     //
 
-    /**
-     * The character array.
-     */
+    /** The character array. */
     public char[] ch;
 
-    /**
-     * The offset into the character array.
-     */
+    /** The offset into the character array. */
     public int offset;
 
-    /**
-     * The length of characters from the offset.
-     */
+    /** The length of characters from the offset. */
     public int length;
 
     //
     // Constructors
     //
 
-    /**
-     * Default constructor.
-     */
+    /** Default constructor. */
     public XMLString() {
     } // <init>()
 
@@ -106,15 +95,13 @@ public class XMLString {
      * <strong>Note:</strong> This does not copy the character array;
      * only the reference to the array is copied.
      *
-     * @param s The string
+     * @param s
      */
     public void setValues(XMLString s) {
         setValues(s.ch, s.offset, s.length);
     } // setValues(XMLString)
 
-    /**
-     * Resets all of the values to their defaults.
-     */
+    /** Resets all of the values to their defaults. */
     public void clear() {
         this.ch = null;
         this.offset = 0;
@@ -127,7 +114,6 @@ public class XMLString {
      * the specified string are equal.
      *
      * @param s The string to compare.
-     * @return <code>true</code> if equal
      */
     public boolean equals(String s) {
         if (s == null) {
@@ -153,6 +139,7 @@ public class XMLString {
     // Object methods
     //
 
+    /** Returns a string representation of this object. */
     @Override
     public String toString() {
         return length > 0 ? new String(ch, offset, length) : "";

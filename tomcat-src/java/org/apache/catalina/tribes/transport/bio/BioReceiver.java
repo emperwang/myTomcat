@@ -20,19 +20,21 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import org.apache.catalina.tribes.group.GroupChannel;
 import org.apache.catalina.tribes.io.ObjectReader;
 import org.apache.catalina.tribes.transport.AbstractRxTask;
 import org.apache.catalina.tribes.transport.ReceiverBase;
 import org.apache.catalina.tribes.transport.RxTaskPool;
-import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
+/**
+ *
+ * @author Filip Hanik
+ */
 public class BioReceiver extends ReceiverBase implements Runnable {
 
     private static final Log log = LogFactory.getLog(BioReceiver.class);
-
-    protected static final StringManager sm = StringManager.getManager(BioReceiver.class);
 
     protected ServerSocket serverSocket;
 
@@ -46,7 +48,7 @@ public class BioReceiver extends ReceiverBase implements Runnable {
         try {
             setPool(new RxTaskPool(getMaxThreads(),getMinThreads(),this));
         } catch (Exception x) {
-            log.fatal(sm.getString("bioReceiver.threadpool.fail"), x);
+            log.fatal("ThreadPool can initilzed. Listener not started", x);
             if ( x instanceof IOException ) throw (IOException)x;
             else throw new IOException(x.getMessage());
         }
@@ -54,12 +56,15 @@ public class BioReceiver extends ReceiverBase implements Runnable {
             getBind();
             bind();
             String channelName = "";
-            if (getChannel().getName() != null) channelName = "[" + getChannel().getName() + "]";
+            if (getChannel() instanceof GroupChannel
+                    && ((GroupChannel)getChannel()).getName() != null) {
+                channelName = "[" + ((GroupChannel)getChannel()).getName() + "]";
+            }
             Thread t = new Thread(this, "BioReceiver" + channelName);
             t.setDaemon(true);
             t.start();
         } catch (Exception x) {
-            log.fatal(sm.getString("bioReceiver.start.fail"), x);
+            log.fatal("Unable to start cluster receiver", x);
             if ( x instanceof IOException ) throw (IOException)x;
             else throw new IOException(x.getMessage());
         }
@@ -84,7 +89,7 @@ public class BioReceiver extends ReceiverBase implements Runnable {
             this.serverSocket.close();
         } catch (Exception x) {
             if (log.isDebugEnabled()) {
-                log.debug(sm.getString("bioReceiver.socket.closeFailed"), x);
+                log.debug("Failed to close socket", x);
             }
         }
         super.stop();
@@ -105,13 +110,13 @@ public class BioReceiver extends ReceiverBase implements Runnable {
         try {
             listen();
         } catch (Exception x) {
-            log.error(sm.getString("bioReceiver.run.fail"), x);
+            log.error("Unable to run replication listener.", x);
         }
     }
 
     public void listen() throws Exception {
         if (doListen()) {
-            log.warn(sm.getString("bioReceiver.already.started"));
+            log.warn("ServerSocket already started");
             return;
         }
         setListen(true);
@@ -120,7 +125,7 @@ public class BioReceiver extends ReceiverBase implements Runnable {
             Socket socket = null;
             if ( getTaskPool().available() < 1 ) {
                 if ( log.isWarnEnabled() )
-                    log.warn(sm.getString("bioReceiver.threads.busy"));
+                    log.warn("All BIO server replication threads are busy, unable to handle more requests until a thread is freed up.");
             }
             BioReplicationTask task = (BioReplicationTask)getTaskPool().getRxTask();
             if ( task == null ) continue; //should never happen

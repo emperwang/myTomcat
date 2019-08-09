@@ -79,22 +79,17 @@ public class DummyProxySession implements Session {
     }
 
     @Override
+    public String getInfo() {
+        return null;
+    }
+
+    @Override
     public long getLastAccessedTime() {
         return 0;
     }
 
     @Override
     public long getLastAccessedTimeInternal() {
-        return 0;
-    }
-
-    @Override
-    public long getIdleTime() {
-        return 0;
-    }
-
-    @Override
-    public long getIdleTimeInternal() {
         return 0;
     }
 
@@ -206,12 +201,6 @@ public class DummyProxySession implements Session {
 
     @Override
     public void setValid(boolean isValid) {
-        // NOOP
-    }
-
-    @Override
-    public void tellChangedSessionId(String newId, String oldId,
-            boolean notifySessionListeners, boolean notifyContainerListeners) {
         // NOOP
     }
 

@@ -31,8 +31,6 @@ import javax.naming.spi.ObjectFactory;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.jdbc.pool.ClassLoaderUtil;
-
 /**
  * Simple way of configuring generic resources by using reflection.
  * Example usage:
@@ -59,11 +57,7 @@ public class GenericNamingResourcesFactory implements ObjectFactory {
         Enumeration<RefAddr> refs = ref.getAll();
 
         String type = ref.getClassName();
-        Object o =
-            ClassLoaderUtil.loadClass(
-                type,
-                GenericNamingResourcesFactory.class.getClassLoader(),
-                Thread.currentThread().getContextClassLoader()).getConstructor().newInstance();
+        Object o = Class.forName(type).newInstance();
 
         while (refs.hasMoreElements()) {
             RefAddr addr = refs.nextElement();
@@ -72,7 +66,7 @@ public class GenericNamingResourcesFactory implements ObjectFactory {
             if (addr.getContent()!=null) {
                 value = addr.getContent().toString();
             }
-            if (setProperty(o, param, value)) {
+            if (setProperty(o, param, value,false)) {
 
             } else {
                 log.debug("Property not configured["+param+"]. No setter found on["+o+"].");
@@ -81,8 +75,7 @@ public class GenericNamingResourcesFactory implements ObjectFactory {
         return o;
     }
 
-    @SuppressWarnings("null") // setPropertyMethodVoid can't be null when used
-    private static boolean setProperty(Object o, String name, String value) {
+    public static boolean setProperty(Object o, String name, String value,boolean invokeSetProperty) {
         if (log.isDebugEnabled())
             log.debug("IntrospectionUtils: setProperty(" +
                     o.getClass() + " " + name + "=" + value + ")");

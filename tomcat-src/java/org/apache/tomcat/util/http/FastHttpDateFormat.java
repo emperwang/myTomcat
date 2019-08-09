@@ -41,13 +41,20 @@ public final class FastHttpDateFormat {
 
 
     /**
-     * The only date format permitted when generating HTTP headers.
+     * HTTP date format.
      */
-    public static final String RFC1123_DATE =
-            "EEE, dd MMM yyyy HH:mm:ss zzz";
-
     private static final SimpleDateFormat format =
-            new SimpleDateFormat(RFC1123_DATE, Locale.US);
+        new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
+
+
+    /**
+     * The set of SimpleDateFormat formats to use in getDateHeader().
+     */
+    private static final SimpleDateFormat formats[] = {
+        new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US),
+        new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.US),
+        new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.US)
+    };
 
 
     private static final TimeZone gmtZone = TimeZone.getTimeZone("GMT");
@@ -57,7 +64,13 @@ public final class FastHttpDateFormat {
      * GMT timezone - all HTTP dates are on GMT
      */
     static {
+
         format.setTimeZone(gmtZone);
+
+        formats[0].setTimeZone(gmtZone);
+        formats[1].setTimeZone(gmtZone);
+        formats[2].setTimeZone(gmtZone);
+
     }
 
 
@@ -76,13 +89,15 @@ public final class FastHttpDateFormat {
     /**
      * Formatter cache.
      */
-    private static final Map<Long, String> formatCache = new ConcurrentHashMap<>(CACHE_SIZE);
+    private static final Map<Long, String> formatCache =
+            new ConcurrentHashMap<Long, String>(CACHE_SIZE);
 
 
     /**
      * Parser cache.
      */
-    private static final Map<String, Long> parseCache = new ConcurrentHashMap<>(CACHE_SIZE);
+    private static final Map<String, Long> parseCache =
+            new ConcurrentHashMap<String, Long>(CACHE_SIZE);
 
 
     // --------------------------------------------------------- Public Methods
@@ -90,7 +105,6 @@ public final class FastHttpDateFormat {
 
     /**
      * Get the current date in HTTP format.
-     * @return the HTTP date
      */
     public static final String getCurrentDate() {
 
@@ -110,9 +124,6 @@ public final class FastHttpDateFormat {
 
     /**
      * Get the HTTP format of the specified date.
-     * @param value The date
-     * @param threadLocalformat Local format to avoid synchronization
-     * @return the HTTP date
      */
     public static final String formatDate
         (long value, DateFormat threadLocalformat) {
@@ -140,9 +151,6 @@ public final class FastHttpDateFormat {
 
     /**
      * Try to parse the given date as a HTTP date.
-     * @param value The HTTP date
-     * @param threadLocalformats Local format to avoid synchronization
-     * @return the date as a long
      */
     public static final long parseDate(String value,
                                        DateFormat[] threadLocalformats) {
@@ -157,7 +165,8 @@ public final class FastHttpDateFormat {
             date = internalParseDate(value, threadLocalformats);
             updateParseCache(value, date);
         } else {
-            throw new IllegalArgumentException();
+            date = internalParseDate(value, formats);
+            updateParseCache(value, date);
         }
         if (date == null) {
             return (-1L);

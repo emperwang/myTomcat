@@ -18,7 +18,8 @@ package org.apache.jasper.compiler;
 
 import java.io.CharArrayWriter;
 import java.io.FileNotFoundException;
-import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 import javax.servlet.jsp.tagext.TagAttributeInfo;
 import javax.servlet.jsp.tagext.TagFileInfo;
@@ -28,8 +29,6 @@ import javax.servlet.jsp.tagext.TagLibraryInfo;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
 import org.apache.jasper.util.UniqueAttributesImpl;
-import org.apache.tomcat.Jar;
-import org.apache.tomcat.util.descriptor.tld.TldResourcePath;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -45,25 +44,25 @@ import org.xml.sax.helpers.AttributesImpl;
 
 class Parser implements TagConstants {
 
-    private final ParserController parserController;
+    private ParserController parserController;
 
-    private final JspCompilationContext ctxt;
+    private JspCompilationContext ctxt;
 
-    private final JspReader reader;
+    private JspReader reader;
 
     private Mark start;
 
-    private final ErrorDispatcher err;
+    private ErrorDispatcher err;
 
     private int scriptlessCount;
 
-    private final boolean isTagFile;
+    private boolean isTagFile;
 
-    private final boolean directivesOnly;
+    private boolean directivesOnly;
 
-    private final Jar jar;
+    private JarResource jarResource;
 
-    private final PageInfo pageInfo;
+    private PageInfo pageInfo;
 
     // Virtual body content types, to make parsing a little easier.
     // These are not accessible from outside the parser.
@@ -87,7 +86,7 @@ class Parser implements TagConstants {
      * The constructor
      */
     private Parser(ParserController pc, JspReader reader, boolean isTagFile,
-            boolean directivesOnly, Jar jar) {
+            boolean directivesOnly, JarResource jarResource) {
         this.parserController = pc;
         this.ctxt = pc.getJspCompilationContext();
         this.pageInfo = pc.getCompiler().getPageInfo();
@@ -96,35 +95,30 @@ class Parser implements TagConstants {
         this.scriptlessCount = 0;
         this.isTagFile = isTagFile;
         this.directivesOnly = directivesOnly;
-        this.jar = jar;
+        this.jarResource = jarResource;
         start = reader.mark();
     }
 
     /**
      * The main entry for Parser
      *
-     * @param pc  The ParseController, use for getting other objects in compiler
+     * @param pc
+     *            The ParseController, use for getting other objects in compiler
      *            and for parsing included pages
-     * @param reader To read the page
-     * @param parent The parent node to this page, null for top level page
-     * @param isTagFile Is the page being parsed a tag file?
-     * @param directivesOnly Should only directives be parsed?
-     * @param jar JAR, if any, that this page was loaded from
-     * @param pageEnc The encoding of the source
-     * @param jspConfigPageEnc The encoding for the page
-     * @param isDefaultPageEncoding Is the page encoding the default?
-     * @param isBomPresent Is a BOM present in the source
+     * @param reader
+     *            To read the page
+     * @param parent
+     *            The parent node to this page, null for top level page
      * @return list of nodes representing the parsed page
-     *
-     * @throws JasperException If an error occurs during parsing
      */
     public static Node.Nodes parse(ParserController pc, JspReader reader,
             Node parent, boolean isTagFile, boolean directivesOnly,
-            Jar jar, String pageEnc, String jspConfigPageEnc,
+            JarResource jarResource, String pageEnc, String jspConfigPageEnc,
             boolean isDefaultPageEncoding, boolean isBomPresent)
             throws JasperException {
 
-        Parser parser = new Parser(pc, reader, isTagFile, directivesOnly, jar);
+        Parser parser = new Parser(pc, reader, isTagFile, directivesOnly,
+                jarResource);
 
         Node.Root root = new Node.Root(reader.mark(), parent, false);
         root.setPageEncoding(pageEnc);
@@ -182,13 +176,6 @@ class Parser implements TagConstants {
 
     /**
      * Parse Attributes for a reader, provided for external use
-     *
-     * @param pc The parser
-     * @param reader The source
-     *
-     * @return The parsed attributes
-     *
-     * @throws JasperException If an error occurs during parsing
      */
     public static Attributes parseAttributes(ParserController pc,
             JspReader reader) throws JasperException {
@@ -244,7 +231,7 @@ class Parser implements TagConstants {
         }
         watchString = watchString + quote;
 
-        String attrValue = parseAttributeValue(qName, watchString, ignoreEL);
+        String attrValue = parseAttributeValue(watchString, ignoreEL);
         attrs.addAttribute(uri, localName, qName, "CDATA", attrValue);
         return true;
     }
@@ -252,7 +239,7 @@ class Parser implements TagConstants {
     /**
      * Name ::= (Letter | '_' | ':') (Letter | Digit | '.' | '_' | '-' | ':')*
      */
-    private String parseName() {
+    private String parseName() throws JasperException {
         char ch = (char) reader.peekChar();
         if (Character.isLetter(ch) || ch == '_' || ch == ':') {
             StringBuilder buf = new StringBuilder();
@@ -275,14 +262,14 @@ class Parser implements TagConstants {
      * RTAttributeValueDouble ::= ((QuotedChar - '"')* - ((QuotedChar-'"')'%>"')
      * ('%>"' | TRANSLATION_ERROR)
      */
-    private String parseAttributeValue(String qName, String watch, boolean ignoreEL) throws JasperException {
+    private String parseAttributeValue(String watch, boolean ignoreEL) throws JasperException {
         boolean quoteAttributeEL = ctxt.getOptions().getQuoteAttributeEL();
         Mark start = reader.mark();
         // In terms of finding the end of the value, quoting EL is equivalent to
         // ignoring it.
         Mark stop = reader.skipUntilIgnoreEsc(watch, ignoreEL || quoteAttributeEL);
         if (stop == null) {
-            err.jspError(start, "jsp.error.attribute.unterminated", qName);
+            err.jspError(start, "jsp.error.attribute.unterminated", watch);
         }
 
         String ret = null;
@@ -297,7 +284,6 @@ class Parser implements TagConstants {
             ret = AttributeParser.getUnquoted(reader.getText(start, stop),
                     quote, isElIgnored,
                     pageInfo.isDeferredSyntaxAllowedAsLiteral(),
-                    ctxt.getOptions().getStrictQuoteEscaping(),
                     quoteAttributeEL);
         } catch (IllegalArgumentException iae) {
             err.jspError(start, iae.getMessage());
@@ -340,7 +326,7 @@ class Parser implements TagConstants {
         }
 
         try {
-            parserController.parse(file, parent, jar);
+            parserController.parse(file, parent, jarResource);
         } catch (FileNotFoundException ex) {
             err.jspError(start, "jsp.error.file.not.found", file);
         } catch (Exception ex) {
@@ -384,9 +370,11 @@ class Parser implements TagConstants {
      * Add a list of files. This is used for implementing include-prelude and
      * include-coda of jsp-config element in web.xml
      */
-    private void addInclude(Node parent, Collection<String> files) throws JasperException {
+    private void addInclude(Node parent, List<String> files) throws JasperException {
         if (files != null) {
-            for (String file : files) {
+            Iterator<String> iter = files.iterator();
+            while (iter.hasNext()) {
+                String file = iter.next();
                 AttributesImpl attrs = new AttributesImpl();
                 attrs.addAttribute("", "file", "file", "CDATA", file);
 
@@ -427,11 +415,19 @@ class Parser implements TagConstants {
                                 .getCache().get(uri);
                     }
                     if (impl == null) {
-                        TldResourcePath tldResourcePath = ctxt.getTldResourcePath(uri);
+                        TldLocation location = ctxt.getTldLocation(uri);
                         impl = new TagLibraryInfoImpl(ctxt, parserController,
-                                pageInfo, prefix, uri, tldResourcePath, err);
+                                pageInfo, prefix, uri, location, err,
+                                reader.mark());
                         if (ctxt.getOptions().isCaching()) {
                             ctxt.getOptions().getCache().put(uri, impl);
+                        }
+                    } else {
+                        // Current compilation context needs location of cached
+                        // tag files
+                        for (TagFileInfo info : impl.getTagFiles()) {
+                            ctxt.setTagFileJarResource(info.getPath(),
+                                    ctxt.getTagFileJarResource());
                         }
                     }
                     pageInfo.addTaglib(uri, impl);
@@ -452,8 +448,7 @@ class Parser implements TagConstants {
             }
         }
 
-        @SuppressWarnings("unused")
-        Node unused = new Node.TaglibDirective(attrs, start, parent);
+        new Node.TaglibDirective(attrs, start, parent);
     }
 
     /*
@@ -607,8 +602,7 @@ class Parser implements TagConstants {
      */
     private void parseAttributeDirective(Node parent) throws JasperException {
         Attributes attrs = parseAttributes();
-        @SuppressWarnings("unused")
-        Node unused = new Node.AttributeDirective(attrs, start, parent);
+        new Node.AttributeDirective(attrs, start, parent);
     }
 
     /*
@@ -617,8 +611,7 @@ class Parser implements TagConstants {
      */
     private void parseVariableDirective(Node parent) throws JasperException {
         Attributes attrs = parseAttributes();
-        @SuppressWarnings("unused")
-        Node unused = new Node.VariableDirective(attrs, start, parent);
+        new Node.VariableDirective(attrs, start, parent);
     }
 
     /*
@@ -631,9 +624,7 @@ class Parser implements TagConstants {
             err.jspError(start, "jsp.error.unterminated", "&lt;%--");
         }
 
-        @SuppressWarnings("unused")
-        Node unused =
-                new Node.Comment(reader.getText(start, stop), start, parent);
+        new Node.Comment(reader.getText(start, stop), start, parent);
     }
 
     /*
@@ -646,9 +637,8 @@ class Parser implements TagConstants {
             err.jspError(start, "jsp.error.unterminated", "&lt;%!");
         }
 
-        @SuppressWarnings("unused")
-        Node unused = new Node.Declaration(
-                parseScriptText(reader.getText(start, stop)), start, parent);
+        new Node.Declaration(parseScriptText(reader.getText(start, stop)),
+                start, parent);
     }
 
     /*
@@ -674,8 +664,7 @@ class Parser implements TagConstants {
                             "&lt;jsp:declaration&gt;");
                 }
                 text = parseScriptText(reader.getText(start, stop));
-                @SuppressWarnings("unused")
-                Node unused = new Node.Declaration(text, start, parent);
+                new Node.Declaration(text, start, parent);
                 if (reader.matches("![CDATA[")) {
                     start = reader.mark();
                     stop = reader.skipUntil("]]>");
@@ -683,8 +672,7 @@ class Parser implements TagConstants {
                         err.jspError(start, "jsp.error.unterminated", "CDATA");
                     }
                     text = parseScriptText(reader.getText(start, stop));
-                    @SuppressWarnings("unused")
-                    Node unused2 = new Node.Declaration(text, start, parent);
+                    new Node.Declaration(text, start, parent);
                 } else {
                     break;
                 }
@@ -707,9 +695,8 @@ class Parser implements TagConstants {
             err.jspError(start, "jsp.error.unterminated", "&lt;%=");
         }
 
-        @SuppressWarnings("unused")
-        Node unused = new Node.Expression(
-                parseScriptText(reader.getText(start, stop)), start, parent);
+        new Node.Expression(parseScriptText(reader.getText(start, stop)),
+                start, parent);
     }
 
     /*
@@ -733,8 +720,7 @@ class Parser implements TagConstants {
                             "&lt;jsp:expression&gt;");
                 }
                 text = parseScriptText(reader.getText(start, stop));
-                @SuppressWarnings("unused")
-                Node unused = new Node.Expression(text, start, parent);
+                new Node.Expression(text, start, parent);
                 if (reader.matches("![CDATA[")) {
                     start = reader.mark();
                     stop = reader.skipUntil("]]>");
@@ -742,8 +728,7 @@ class Parser implements TagConstants {
                         err.jspError(start, "jsp.error.unterminated", "CDATA");
                     }
                     text = parseScriptText(reader.getText(start, stop));
-                    @SuppressWarnings("unused")
-                    Node unused2 = new Node.Expression(text, start, parent);
+                    new Node.Expression(text, start, parent);
                 } else {
                     break;
                 }
@@ -756,8 +741,7 @@ class Parser implements TagConstants {
     }
 
     /*
-     * ELExpressionBody. Starts with "#{" or "${".  Ends with "}".
-     * See JspReader.skipELExpression().
+     * ELExpressionBody (following "${" to first unquoted "}")
      */
     private void parseELExpression(Node parent, char type)
             throws JasperException {
@@ -767,9 +751,7 @@ class Parser implements TagConstants {
             err.jspError(start, "jsp.error.unterminated", type + "{");
         }
 
-        @SuppressWarnings("unused")
-        Node unused = new Node.ELExpression(type, reader.getText(start, last),
-                start, parent);
+        new Node.ELExpression(type, reader.getText(start, last), start, parent);
     }
 
     /*
@@ -782,9 +764,8 @@ class Parser implements TagConstants {
             err.jspError(start, "jsp.error.unterminated", "&lt;%");
         }
 
-        @SuppressWarnings("unused")
-        Node unused = new Node.Scriptlet(
-                parseScriptText(reader.getText(start, stop)), start, parent);
+        new Node.Scriptlet(parseScriptText(reader.getText(start, stop)), start,
+                parent);
     }
 
     /*
@@ -808,8 +789,7 @@ class Parser implements TagConstants {
                             "&lt;jsp:scriptlet&gt;");
                 }
                 text = parseScriptText(reader.getText(start, stop));
-                @SuppressWarnings("unused")
-                Node unused = new Node.Scriptlet(text, start, parent);
+                new Node.Scriptlet(text, start, parent);
                 if (reader.matches("![CDATA[")) {
                     start = reader.mark();
                     stop = reader.skipUntil("]]>");
@@ -817,8 +797,7 @@ class Parser implements TagConstants {
                         err.jspError(start, "jsp.error.unterminated", "CDATA");
                     }
                     text = parseScriptText(reader.getText(start, stop));
-                    @SuppressWarnings("unused")
-                    Node unused2 = new Node.Scriptlet(text, start, parent);
+                    new Node.Scriptlet(text, start, parent);
                 } else {
                     break;
                 }
@@ -1191,7 +1170,6 @@ class Parser implements TagConstants {
      *
      * CustomActionScriptlessContent ::= ScriptlessOptionalBody
      */
-    @SuppressWarnings("null") // tagFileInfo can't be null after initial test
     private boolean parseCustomTag(Node parent) throws JasperException {
 
         if (reader.peekChar() != '<') {
@@ -1254,13 +1232,11 @@ class Parser implements TagConstants {
         // Parse 'CustomActionEnd' production:
         if (reader.matches("/>")) {
             if (tagInfo != null) {
-                @SuppressWarnings("unused")
-                Node unused = new Node.CustomTag(tagName, prefix, shortTagName,
-                        uri, attrs, start, parent, tagInfo, tagHandlerClass);
+                new Node.CustomTag(tagName, prefix, shortTagName, uri, attrs,
+                        start, parent, tagInfo, tagHandlerClass);
             } else {
-                @SuppressWarnings("unused")
-                Node unused = new Node.CustomTag(tagName, prefix, shortTagName,
-                        uri, attrs, start, parent, tagFileInfo);
+                new Node.CustomTag(tagName, prefix, shortTagName, uri, attrs,
+                        start, parent, tagFileInfo);
             }
             return true;
         }
@@ -1301,7 +1277,7 @@ class Parser implements TagConstants {
      *       '\${' for '${' and '\#{' for '#{'. We are processing JSP template
      *       test here so the JSP escapes apply.
      */
-    private void parseTemplateText(Node parent) {
+    private void parseTemplateText(Node parent) throws JasperException {
 
         if (!reader.hasMoreInput())
             return;
@@ -1378,14 +1354,14 @@ class Parser implements TagConstants {
                     String text = reader.getText(start, stop);
                     ttext.write(text, 0, text.length());
                 } else if (ch == '\\') {
-                    int next = reader.peekChar(0);
+                    int next = reader.peekChar();
                     if (next == '$' || next =='#') {
                         ttext.write(reader.nextChar());
                     } else {
                         ttext.write('\\');
                     }
                 } else if (ch == '$' || ch == '#') {
-                    if (reader.peekChar(0) == '{') {
+                    if (reader.peekChar() == '{') {
                         // Swallow the '{'
                         reader.nextChar();
 
@@ -1616,9 +1592,8 @@ class Parser implements TagConstants {
         if (bodyEnd == null) {
             err.jspError(start, "jsp.error.unterminated", "&lt;" + tag);
         }
-        @SuppressWarnings("unused")
-        Node unused = new Node.TemplateText(reader.getText(bodyStart, bodyEnd),
-                bodyStart, parent);
+        new Node.TemplateText(reader.getText(bodyStart, bodyEnd), bodyStart,
+                parent);
     }
 
     /*
@@ -1787,6 +1762,7 @@ class Parser implements TagConstants {
     }
 
     private void parseFileDirectives(Node parent) throws JasperException {
+        reader.setSingleFile(true);
         reader.skipUntil("<");
         while (reader.hasMoreInput()) {
             start = reader.mark();

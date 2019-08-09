@@ -21,6 +21,8 @@ import java.io.StringReader;
 import java.util.Locale;
 import java.util.Set;
 
+import org.apache.tomcat.util.http.parser.HttpParser.SkipResult;
+
 public class Vary {
 
     private Vary() {

@@ -110,11 +110,12 @@ public class WebdavFixFilter implements Filter {
         } else if (ua.startsWith(UA_MINIDIR_5_2_3790)) {
             // XP 64-bit SP2
             if (!"".equals(httpRequest.getContextPath())) {
-                log(httpRequest, "XP-x64-SP2 clients only work with the root context");
+                log(request,
+                        "XP-x64-SP2 clients only work with the root context");
             }
             // Namespace issue maybe
             // see http://greenbytes.de/tech/webdav/webdav-redirector-list.html
-            log(httpRequest, "XP-x64-SP2 is known not to work with WebDAV Servlet");
+            log(request, "XP-x64-SP2 is known not to work with WebDAV Servlet");
 
             chain.doFilter(request, response);
         } else {

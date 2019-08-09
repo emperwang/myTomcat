@@ -14,6 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+
 package org.apache.coyote.http11.filters;
 
 import java.io.IOException;
@@ -104,7 +105,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
 
         EchoHeaderServlet servlet = new EchoHeaderServlet(expectPass);
         Tomcat.addServlet(ctx, "servlet", servlet);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -166,7 +167,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new EchoHeaderServlet(false));
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         // Limit the size of the trailing header
         tomcat.getConnector().setProperty("maxTrailerSize", "10");
@@ -229,7 +230,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new EchoHeaderServlet(ok));
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -277,7 +278,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "servlet", new EchoHeaderServlet(true));
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -377,7 +378,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
 
         BodyReadServlet servlet = new BodyReadServlet(expectPass, readLimit);
         Tomcat.addServlet(ctx, "servlet", servlet);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         tomcat.start();
 
@@ -460,7 +461,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
                 throw ioe;
             }
 
-            pw.write(Integer.toString(count));
+            pw.write(Integer.valueOf(count).toString());
 
             // Headers should be visible now
             dumpHeader("x-trailer1", req, pw);
@@ -516,7 +517,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
                 throw ioe;
             }
 
-            pw.write(Integer.toString(countRead));
+            pw.write(Integer.valueOf(countRead).toString());
         }
 
         public boolean getExceptionDuringRead() {

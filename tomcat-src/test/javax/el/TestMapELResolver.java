@@ -25,6 +25,8 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.apache.jasper.el.ELContextImpl;
+
 public class TestMapELResolver {
 
     /**
@@ -51,11 +53,10 @@ public class TestMapELResolver {
     @Test
     public void testGetType03() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        Class<?> result = mapELResolver.getType(context, new HashMap<>(),
-                "test");
+        Class<?> result = mapELResolver.getType(context,
+                new HashMap<Object, Object>(), "test");
 
         Assert.assertEquals(Object.class, result);
         Assert.assertTrue(context.isPropertyResolved());
@@ -85,10 +86,9 @@ public class TestMapELResolver {
     @Test
     public void testGetValue03() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> map = new HashMap<String, String>();
         map.put("key", "value");
         Object result = mapELResolver.getValue(context, map, "key");
 
@@ -125,11 +125,10 @@ public class TestMapELResolver {
     @Test(expected = PropertyNotWritableException.class)
     public void testSetValue03() {
         MapELResolver mapELResolver = new MapELResolver(true);
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        mapELResolver.setValue(context, new HashMap<>(), new Object(),
-                new Object());
+        mapELResolver.setValue(context, new HashMap<Object, Object>(),
+                new Object(), new Object());
     }
 
     /**
@@ -138,10 +137,9 @@ public class TestMapELResolver {
     @Test
     public void testSetValue04() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> map = new HashMap<String, String>();
         mapELResolver.setValue(context, map, "key", "value");
 
         Assert.assertEquals("value",
@@ -155,10 +153,10 @@ public class TestMapELResolver {
     @Test(expected = PropertyNotWritableException.class)
     public void testSetValue05() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        Map<Object, Object> map = Collections.unmodifiableMap(new HashMap<>());
+        Map<Object, Object> map = Collections
+                .unmodifiableMap(new HashMap<Object, Object>());
         mapELResolver.setValue(context, map, "key", "value");
     }
 
@@ -177,8 +175,7 @@ public class TestMapELResolver {
     @Test
     public void testIsReadOnly02() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         boolean result = mapELResolver.isReadOnly(context, new Object(),
                 new Object());
@@ -201,19 +198,18 @@ public class TestMapELResolver {
     @Test
     public void testIsReadOnly03() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        boolean result = mapELResolver.isReadOnly(context, new HashMap<>(),
-                new Object());
+        boolean result = mapELResolver.isReadOnly(context,
+                new HashMap<Object, Object>(), new Object());
 
         Assert.assertFalse(result);
         Assert.assertTrue(context.isPropertyResolved());
 
         mapELResolver = new MapELResolver(true);
 
-        result = mapELResolver.isReadOnly(context, new HashMap<>(),
-                new Object());
+        result = mapELResolver.isReadOnly(context,
+                new HashMap<Object, Object>(), new Object());
 
         Assert.assertTrue(result);
         Assert.assertTrue(context.isPropertyResolved());
@@ -225,10 +221,10 @@ public class TestMapELResolver {
     @Test
     public void testIsReadOnly04() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        Map<Object, Object> map = Collections.unmodifiableMap(new HashMap<>());
+        Map<Object, Object> map = Collections
+                .unmodifiableMap(new HashMap<Object, Object>());
         boolean result = mapELResolver.isReadOnly(context, map, new Object());
 
         Assert.assertTrue(result);
@@ -242,8 +238,7 @@ public class TestMapELResolver {
     @Test
     public void testGetFeatureDescriptors01() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         Iterator<FeatureDescriptor> result = mapELResolver
                 .getFeatureDescriptors(context, new Object());
@@ -257,10 +252,9 @@ public class TestMapELResolver {
     @Test
     public void testGetFeatureDescriptors02() {
         MapELResolver mapELResolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> map = new HashMap<String, String>();
         map.put("key", "value");
         Iterator<FeatureDescriptor> result = mapELResolver
                 .getFeatureDescriptors(context, map);
@@ -283,8 +277,7 @@ public class TestMapELResolver {
     private void doNegativeTest(Object base, Object trigger,
             MethodUnderTest method, boolean checkResult) {
         MapELResolver resolver = new MapELResolver();
-        ELContext context = new StandardELContext(
-                ELManager.getExpressionFactory());
+        ELContext context = new ELContextImpl();
 
         Object result = null;
         switch (method) {
@@ -312,7 +305,7 @@ public class TestMapELResolver {
         Assert.assertFalse(context.isPropertyResolved());
     }
 
-    private enum MethodUnderTest {
+    private static enum MethodUnderTest {
         GET_VALUE, SET_VALUE, GET_TYPE
     }
 }

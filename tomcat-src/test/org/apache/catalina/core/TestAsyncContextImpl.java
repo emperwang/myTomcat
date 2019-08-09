@@ -50,15 +50,15 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.Loader;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import org.apache.catalina.deploy.ErrorPage;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.catalina.valves.TesterAccessLogValve;
-import org.apache.tomcat.unittest.TesterContext;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
 import org.easymock.EasyMock;
 
 public class TestAsyncContextImpl extends TomcatBaseTest {
@@ -68,7 +68,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
     // Timeout thread (where used) checks for timeout every second
     private static final long TIMEOUT_MARGIN = 1000;
     // Default timeout for these tests
-    private static final long TIMEOUT = 5000;
+    private static final long TIMEOUT = 3000;
 
     private static StringBuilder tracker;
 
@@ -96,7 +96,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         Wrapper wrapper = Tomcat.addServlet(ctx, "servlet", servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -133,7 +133,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         Wrapper wrapper = Tomcat.addServlet(ctx, "servlet", servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -176,7 +176,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         Wrapper wrapper = Tomcat.addServlet(ctx, "servlet", servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -215,7 +215,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         Wrapper wrapper = Tomcat.addServlet(ctx, "servlet", servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -224,7 +224,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         // Call the servlet once
         ByteChunk bc = new ByteChunk();
-        Map<String,List<String>> headers = new HashMap<>();
+        Map<String,List<String>> headers = new HashMap<String,List<String>>();
         getUrl("http://localhost:" + getPort() + "/", bc, headers);
 
         Assert.assertEquals("OK", bc.toString());
@@ -471,7 +471,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         Wrapper wrapper = Tomcat.addServlet(ctx, "time", timeout);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/start", "time");
+        ctx.addServletMapping("/start", "time");
 
         if (asyncDispatch != null) {
             if (asyncDispatch.booleanValue()) {
@@ -480,11 +480,11 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
                 Wrapper async =
                         Tomcat.addServlet(ctx, "async", asyncStartRunnable);
                 async.setAsyncSupported(true);
-                ctx.addServletMappingDecoded(dispatchUrl, "async");
+                ctx.addServletMapping(dispatchUrl, "async");
             } else {
                 NonAsyncServlet nonAsync = new NonAsyncServlet();
                 Tomcat.addServlet(ctx, "nonasync", nonAsync);
-                ctx.addServletMappingDecoded(dispatchUrl, "nonasync");
+                ctx.addServletMapping(dispatchUrl, "nonasync");
             }
          }
 
@@ -544,8 +544,8 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
             long timeoutDelay = TimeoutServlet.ASYNC_TIMEOUT;
             if (asyncDispatch != null && asyncDispatch.booleanValue() &&
                     !completeOnTimeout.booleanValue()) {
-                // The async dispatch includes a sleep
-                timeoutDelay += AsyncStartRunnable.THREAD_SLEEP_TIME;
+                // Extra timeout in this case
+                timeoutDelay += TimeoutServlet.ASYNC_TIMEOUT;
             }
             alvGlobal.validateAccessLog(1, 200, timeoutDelay,
                     timeoutDelay + TIMEOUT_MARGIN + REQUEST_TIME);
@@ -560,7 +560,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         private final Boolean completeOnTimeout;
         private final String dispatchUrl;
 
-        public static final long ASYNC_TIMEOUT = 100;
+        public static final long ASYNC_TIMEOUT = 3000;
 
         public TimeoutServlet(Boolean completeOnTimeout, String dispatchUrl) {
             this.completeOnTimeout = completeOnTimeout;
@@ -626,12 +626,12 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         DispatchingServlet dispatch = new DispatchingServlet(false, false);
         Wrapper wrapper = Tomcat.addServlet(ctx, "dispatch", dispatch);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage1", "dispatch");
+        ctx.addServletMapping("/stage1", "dispatch");
 
         NonAsyncServlet nonasync = new NonAsyncServlet();
         Wrapper wrapper2 = Tomcat.addServlet(ctx, "nonasync", nonasync);
         wrapper2.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage2", "nonasync");
+        ctx.addServletMapping("/stage2", "nonasync");
 
         ctx.addApplicationListener(TrackingRequestListener.class.getName());
 
@@ -745,12 +745,12 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         TrackingServlet tracking = new TrackingServlet();
         Wrapper wrapper = Tomcat.addServlet(ctx, "tracking", tracking);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage1", "tracking");
+        ctx.addServletMapping("/stage1", "tracking");
 
         TimeoutServlet timeout = new TimeoutServlet(Boolean.TRUE, null);
         Wrapper wrapper2 = Tomcat.addServlet(ctx, "timeout", timeout);
         wrapper2.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage2", "timeout");
+        ctx.addServletMapping("/stage2", "timeout");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -968,11 +968,11 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
             new DispatchingServlet(true, completeOnError);
         Wrapper wrapper = Tomcat.addServlet(ctx, "dispatch", dispatch);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage1", "dispatch");
+        ctx.addServletMapping("/stage1", "dispatch");
 
         ErrorServlet error = new ErrorServlet();
         Tomcat.addServlet(ctx, "error", error);
-        ctx.addServletMappingDecoded("/stage2", "error");
+        ctx.addServletMapping("/stage2", "error");
 
         ctx.addApplicationListener(TrackingRequestListener.class.getName());
 
@@ -1030,7 +1030,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
             } catch (InterruptedException e) {
                 throw new ServletException(e);
             }
-            throw new ServletException("Oops.");
+            throw new ServletException("Opps.");
         }
     }
 
@@ -1046,7 +1046,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         AsyncStartRunnable servlet = new AsyncStartRunnable();
         Wrapper wrapper = Tomcat.addServlet(ctx, "servlet", servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -1114,7 +1114,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         Wrapper wrapper = Tomcat.addServlet(ctx, "servlet", servlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "servlet");
+        ctx.addServletMapping("/", "servlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -1122,7 +1122,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         tomcat.start();
 
         // Call the servlet once
-        Map<String,List<String>> headers = new LinkedHashMap<>();
+        Map<String,List<String>> headers = new LinkedHashMap<String,List<String>>();
         ByteChunk bc = new ByteChunk();
         int rc = getUrl("http://localhost:" + getPort() + "/", bc, headers);
         Assert.assertEquals(200, rc);
@@ -1177,7 +1177,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         ErrorServlet error = new ErrorServlet();
         Tomcat.addServlet(ctx, "error", error);
-        ctx.addServletMappingDecoded("/error", "error");
+        ctx.addServletMapping("/error", "error");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -1214,7 +1214,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Wrapper wrapper =
             Tomcat.addServlet(ctx, "asyncStatusServlet", asyncStatusServlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/asyncStatusServlet", "asyncStatusServlet");
+        ctx.addServletMapping("/asyncStatusServlet", "asyncStatusServlet");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -1292,12 +1292,12 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Wrapper wrapper =
             Tomcat.addServlet(ctx, "asyncErrorServlet", asyncErrorServlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/asyncErrorServlet", "asyncErrorServlet");
+        ctx.addServletMapping("/asyncErrorServlet", "asyncErrorServlet");
 
         if (customError) {
             CustomErrorServlet customErrorServlet = new CustomErrorServlet();
             Tomcat.addServlet(ctx, "customErrorServlet", customErrorServlet);
-            ctx.addServletMappingDecoded("/customErrorServlet", "customErrorServlet");
+            ctx.addServletMapping("/customErrorServlet", "customErrorServlet");
 
             ErrorPage ep = new ErrorPage();
             ep.setLocation("/customErrorServlet");
@@ -1403,15 +1403,14 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
-
         Wrapper a = Tomcat.addServlet(ctx, "ServletA", new Bug53337ServletA());
         a.setAsyncSupported(true);
         Wrapper b = Tomcat.addServlet(ctx, "ServletB", new Bug53337ServletB());
         b.setAsyncSupported(true);
         Tomcat.addServlet(ctx, "ServletC", new Bug53337ServletC());
-        ctx.addServletMappingDecoded("/ServletA", "ServletA");
-        ctx.addServletMappingDecoded("/ServletB", "ServletB");
-        ctx.addServletMappingDecoded("/ServletC", "ServletC");
+        ctx.addServletMapping("/ServletA", "ServletA");
+        ctx.addServletMapping("/ServletB", "ServletB");
+        ctx.addServletMapping("/ServletC", "ServletC");
 
         tomcat.start();
 
@@ -1483,14 +1482,13 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
 
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
-
         Bug53843ServletA servletA = new Bug53843ServletA();
         Wrapper a = Tomcat.addServlet(ctx, "ServletA", servletA);
         a.setAsyncSupported(true);
         Tomcat.addServlet(ctx, "ServletB", new Bug53843ServletB());
 
-        ctx.addServletMappingDecoded("/ServletA", "ServletA");
-        ctx.addServletMappingDecoded("/ServletB", "ServletB");
+        ctx.addServletMapping("/ServletA", "ServletA");
+        ctx.addServletMapping("/ServletB", "ServletB");
 
         tomcat.start();
 
@@ -1600,17 +1598,17 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         TimeoutServlet timeout = new TimeoutServlet(null, null);
         Wrapper w1 = Tomcat.addServlet(ctx, "time", timeout);
         w1.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/async", "time");
+        ctx.addServletMapping("/async", "time");
 
         NonAsyncServlet nonAsync = new NonAsyncServlet();
         Wrapper w2 = Tomcat.addServlet(ctx, "nonAsync", nonAsync);
         w2.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/error/nonasync", "nonAsync");
+        ctx.addServletMapping("/error/nonasync", "nonAsync");
 
         AsyncErrorPage asyncErrorPage = new AsyncErrorPage(mode);
         Wrapper w3 = Tomcat.addServlet(ctx, "asyncErrorPage", asyncErrorPage);
         w3.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/error/async", "asyncErrorPage");
+        ctx.addServletMapping("/error/async", "asyncErrorPage");
 
         if (asyncError != null) {
             ErrorPage ep = new ErrorPage();
@@ -1730,11 +1728,11 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Wrapper wrapper =
             Tomcat.addServlet(ctx, "bug54178ServletA", bug54178ServletA);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/bug54178ServletA", "bug54178ServletA");
+        ctx.addServletMapping("/bug54178ServletA", "bug54178ServletA");
 
         Bug54178ServletB bug54178ServletB = new Bug54178ServletB();
         Tomcat.addServlet(ctx, "bug54178ServletB", bug54178ServletB);
-        ctx.addServletMappingDecoded("/bug54178ServletB", "bug54178ServletB");
+        ctx.addServletMapping("/bug54178ServletB", "bug54178ServletB");
 
         tomcat.start();
 
@@ -1840,7 +1838,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
         Wrapper w = tomcat.addServlet("", "async", new Bug59219Servlet());
         w.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/async", "async");
+        ctx.addServletMapping("/async", "async");
 
         tomcat.start();
 
@@ -1903,13 +1901,13 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Wrapper wrapper = Tomcat.addServlet(ctx, "nonAsyncServlet",
                 nonAsyncServlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/target", "nonAsyncServlet");
+        ctx.addServletMapping("/target", "nonAsyncServlet");
 
         DispatchingGenericServlet forbiddenDispatchingServlet = new DispatchingGenericServlet();
         Wrapper wrapper1 = Tomcat.addServlet(ctx,
                 "forbiddenDispatchingServlet", forbiddenDispatchingServlet);
         wrapper1.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/forbiddenDispatchingServlet",
+        ctx.addServletMapping("/forbiddenDispatchingServlet",
                 "forbiddenDispatchingServlet");
 
         tomcat.start();
@@ -1967,85 +1965,8 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
                 TestAsyncContextImpl.track("DispatchingGenericServletGet-");
             }
         }
+
     }
-
-
-    @Test
-    public void testGetRequestISE() throws Exception {
-        doTestAsyncISE(true);
-    }
-
-
-    @Test
-    public void testGetResponseISE() throws Exception {
-        doTestAsyncISE(false);
-    }
-
-
-    private void doTestAsyncISE(boolean useGetRequest) throws Exception {
-        // Setup Tomcat instance
-        Tomcat tomcat = getTomcatInstance();
-
-        // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
-
-        AsyncISEServlet servlet = new AsyncISEServlet();
-
-        Wrapper w = Tomcat.addServlet(ctx, "AsyncISEServlet", servlet);
-        w.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/test", "AsyncISEServlet");
-
-        tomcat.start();
-
-        ByteChunk response = new ByteChunk();
-        int rc = getUrl("http://localhost:" + getPort() +"/test", response,
-                null);
-
-        Assert.assertEquals(HttpServletResponse.SC_OK, rc);
-
-        boolean hasIse = false;
-        try {
-            if (useGetRequest) {
-                servlet.getAsyncContext().getRequest();
-            } else {
-                servlet.getAsyncContext().getResponse();
-                }
-        } catch (IllegalStateException ise) {
-            hasIse = true;
-        }
-
-        Assert.assertTrue(hasIse);
-    }
-
-
-    /**
-     * Accessing the AsyncContext in this way is an ugly hack that should never
-     * be used in a real application since it is not thread safe. That said, it
-     * is this sort of hack that the ISE is meant to be preventing.
-     *
-     */
-    private static class AsyncISEServlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-
-        private transient AsyncContext asyncContext;
-
-        @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-
-            resp.setContentType("text/plain;UTF-8");
-
-            asyncContext = req.startAsync();
-            // This will commit the response
-            asyncContext.complete();
-        }
-
-        public AsyncContext getAsyncContext() {
-            return asyncContext;
-        }
-    }
-
 
     @Test
     public void testDispatchWithCustomRequestResponse() throws Exception {
@@ -2130,13 +2051,13 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         DispatchingGenericServlet dispatch = new DispatchingGenericServlet();
         Wrapper wrapper = Tomcat.addServlet(ctx, "dispatch", dispatch);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/dispatch", "dispatch");
+        ctx.addServletMapping("/dispatch", "dispatch");
 
         CustomGenericServlet customGeneric = new CustomGenericServlet();
         Wrapper wrapper2 = Tomcat.addServlet(ctx, "customGeneric",
                 customGeneric);
         wrapper2.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/target", "customGeneric");
+        ctx.addServletMapping("/target", "customGeneric");
 
         tomcat.start();
     }
@@ -2158,6 +2079,83 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
     }
 
 
+    @Test
+    public void testGetRequestISE() throws Exception {
+        doTestAsyncISE(true);
+    }
+
+
+    @Test
+    public void testGetResponseISE() throws Exception {
+        doTestAsyncISE(false);
+    }
+
+
+    private void doTestAsyncISE(boolean useGetRequest) throws Exception {
+        // Setup Tomcat instance
+        Tomcat tomcat = getTomcatInstance();
+
+        // No file system docBase required
+        Context ctx = tomcat.addContext("", null);
+
+        AsyncISEServlet servlet = new AsyncISEServlet();
+
+        Wrapper w = Tomcat.addServlet(ctx, "AsyncISEServlet", servlet);
+        w.setAsyncSupported(true);
+        ctx.addServletMapping("/test", "AsyncISEServlet");
+
+        tomcat.start();
+
+        ByteChunk response = new ByteChunk();
+        int rc = getUrl("http://localhost:" + getPort() +"/test", response,
+                null);
+
+        Assert.assertEquals(HttpServletResponse.SC_OK, rc);
+
+        boolean hasIse = false;
+        try {
+            if (useGetRequest) {
+                servlet.getAsyncContext().getRequest();
+            } else {
+                servlet.getAsyncContext().getResponse();
+                }
+        } catch (IllegalStateException ise) {
+            hasIse = true;
+        }
+
+        Assert.assertTrue(hasIse);
+    }
+
+
+    /**
+     * Accessing the AsyncContext in this way is an ugly hack that should never
+     * be used in a real application since it is not thread safe. That said, it
+     * is this sort of hack that the ISE is meant to be preventing.
+     *
+     */
+    private static class AsyncISEServlet extends HttpServlet {
+
+        private static final long serialVersionUID = 1L;
+
+        private AsyncContext asyncContext;
+
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+                throws ServletException, IOException {
+
+            resp.setContentType("text/plain;UTF-8");
+
+            asyncContext = req.startAsync();
+            // This will commit the response
+            asyncContext.complete();
+        }
+
+        public AsyncContext getAsyncContext() {
+            return asyncContext;
+        }
+    }
+
+
     // https://bz.apache.org/bugzilla/show_bug.cgi?id=57326
     @Test
     public void testAsyncContextListenerClearing() throws Exception {
@@ -2172,16 +2170,16 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Servlet stage1 = new DispatchingServletTracking("/stage2", true);
         Wrapper wrapper1 = Tomcat.addServlet(ctx, "stage1", stage1);
         wrapper1.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage1", "stage1");
+        ctx.addServletMapping("/stage1", "stage1");
 
         Servlet stage2 = new DispatchingServletTracking("/stage3", false);
         Wrapper wrapper2 = Tomcat.addServlet(ctx, "stage2", stage2);
         wrapper2.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/stage2", "stage2");
+        ctx.addServletMapping("/stage2", "stage2");
 
         Servlet stage3 = new NonAsyncServlet();
         Tomcat.addServlet(ctx, "stage3", stage3);
-        ctx.addServletMappingDecoded("/stage3", "stage3");
+        ctx.addServletMapping("/stage3", "stage3");
 
         TesterAccessLogValve alv = new TesterAccessLogValve();
         ctx.getPipeline().addValve(alv);
@@ -2220,7 +2218,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
          }
     }
 
-    // https://bz.apache.org/bugzilla/show_bug.cgi?id=57559
+
     @Test
     public void testAsyncRequestURI_24() throws Exception {
         // '$' is permitted in a path
@@ -2245,7 +2243,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         Servlet servlet = new AsyncRequestUriServlet();
         Wrapper wrapper1 = Tomcat.addServlet(ctx, "bug57559", servlet);
         wrapper1.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/", "bug57559");
+        ctx.addServletMapping("/", "bug57559");
 
         tomcat.start();
 
@@ -2272,108 +2270,6 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         }
     }
 
-    @Test
-    public void testDispatchFromOtherContainerThread() throws Exception {
-        resetTracker();
-        // Setup Tomcat instance
-        Tomcat tomcat = getTomcatInstance();
-
-        // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
-
-        NonAsyncServlet nonAsyncServlet = new NonAsyncServlet();
-        Tomcat.addServlet(ctx, "nonAsyncServlet", nonAsyncServlet);
-        ctx.addServletMappingDecoded("/target", "nonAsyncServlet");
-
-        AsyncStashServlet asyncStashServlet = new AsyncStashServlet();
-        Wrapper w1 = Tomcat.addServlet(ctx, "asyncStashServlet", asyncStashServlet);
-        w1.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/asyncStashServlet", "asyncStashServlet");
-
-        AsyncRetrieveServlet asyncRetrieveServlet = new AsyncRetrieveServlet();
-        Wrapper w2 = Tomcat.addServlet(ctx, "asyncRetrieveServlet", asyncRetrieveServlet);
-        w2.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/asyncRetrieveServlet", "asyncRetrieveServlet");
-
-        tomcat.start();
-
-        // First request in separate thread because the response won't be
-        // written until after the second request has been made.
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    getUrl("http://localhost:" + getPort() + "/asyncStashServlet");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        t.start();
-
-        // Wait for first request to get as far as it can
-        int count = 0;
-        while (count < 100 && getTrack() != null &&
-                !getTrack().startsWith("AsyncStashServletGet-")) {
-            count++;
-            Thread.sleep(100);
-        }
-
-        getUrl("http://localhost:" + getPort() + "/asyncRetrieveServlet");
-
-        // Wait for second request to release first and allow it to complete
-        String expectedTrack = "AsyncStashServletGet-AsyncRetrieveServletGet-NonAsyncServletGet-";
-        count = 0;
-        while (count < 100 && !getTrack().equals(expectedTrack)) {
-            count++;
-            Thread.sleep(100);
-        }
-
-        Assert.assertEquals(expectedTrack, getTrack());
-    }
-
-    private static class AsyncStashServlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-        private static final String DEFAULT_KEY = "DEFAULT";
-
-        @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-
-            String key = req.getParameter("key");
-            if (key == null) {
-                key = DEFAULT_KEY;
-            }
-
-            req.getServletContext().setAttribute(key, req.startAsync());
-            TestAsyncContextImpl.track("AsyncStashServletGet-");
-        }
-    }
-
-    private static class AsyncRetrieveServlet extends HttpServlet {
-        private static final long serialVersionUID = 1L;
-        private static final String DEFAULT_KEY = "DEFAULT";
-
-        @Override
-        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-                throws ServletException, IOException {
-
-            String key = req.getParameter("key");
-            if (key == null) {
-                key = DEFAULT_KEY;
-            }
-
-            AsyncContext ac = (AsyncContext) req.getServletContext().getAttribute(key);
-            if (ac == null) {
-                TestAsyncContextImpl.track("FAIL:nullAsyncContext-");
-            } else {
-                TestAsyncContextImpl.track("AsyncRetrieveServletGet-");
-                ac.dispatch("/target");
-            }
-        }
-    }
-
 
     /*
      * See https://bz.apache.org/bugzilla/show_bug.cgi?id=58751 comment 1
@@ -2386,8 +2282,8 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
                 .setAsyncSupported(true);
         CustomErrorServlet customErrorServlet = new CustomErrorServlet();
         Tomcat.addServlet(context, "customErrorServlet", customErrorServlet);
-        context.addServletMappingDecoded("/timeout", "timeout");
-        context.addServletMappingDecoded("/error", "customErrorServlet");
+        context.addServletMapping("/timeout", "timeout");
+        context.addServletMapping("/error", "customErrorServlet");
         ErrorPage errorPage = new ErrorPage();
         errorPage.setLocation("/error");
         context.addErrorPage(errorPage);
@@ -2476,17 +2372,30 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
                 Assert.assertEquals(servletResponse, event.getSuppliedResponse());
             }
         };
-        final Context context = new TesterContext();
+        final Context context = EasyMock.createMock(Context.class);
+        final Loader loader = EasyMock.createMock(Loader.class);
         final Response response = new Response();
         final Request request = new Request();
         request.setCoyoteRequest(new org.apache.coyote.Request());
-        request.getMappingData().context = context;
+        request.setContext(context);
         final AsyncContextImpl ac = new AsyncContextImpl(request);
+        context.incrementInProgressAsyncCount();
+        EasyMock.expect(context.getApplicationEventListeners()).andReturn(null);
+        EasyMock.expect(context.getLoader()).andReturn(loader);
+        EasyMock.expect(loader.getClassLoader()).andReturn(null);
+        EasyMock.expect(Boolean.valueOf(
+                context.fireRequestDestroyEvent(request.getRequest()))).andReturn(Boolean.TRUE);
+        context.decrementInProgressAsyncCount();
+
+        EasyMock.replay(context, loader);
+
         ac.addListener(listener, servletRequest, servletResponse);
         ac.setStarted(context, request, response, true);
         ac.addListener(listener, servletRequest, servletResponse);
         ac.setErrorState(new Exception(), true);
         ac.fireOnComplete();
+
+        EasyMock.verify(context, loader);
     }
 
 
@@ -2515,7 +2424,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         } else {
             Tomcat.addServlet(context, "space", new ForwardDispatchUrlWithSpacesServlet());
         }
-        context.addServletMappingDecoded("/space/*", "space");
+        context.addServletMapping("/space/*", "space");
         tomcat.start();
 
         ByteChunk responseBody = new ByteChunk();
@@ -2620,7 +2529,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         EncodedDispatchServlet encodedDispatchServlet = new EncodedDispatchServlet();
         Wrapper wrapper = Tomcat.addServlet(ctx, "encodedDispatchServlet", encodedDispatchServlet);
         wrapper.setAsyncSupported(true);
-        ctx.addServletMappingDecoded("/*", "encodedDispatchServlet");
+        ctx.addServletMapping("/*", "encodedDispatchServlet");
 
         tomcat.start();
 

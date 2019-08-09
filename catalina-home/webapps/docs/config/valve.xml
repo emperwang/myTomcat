@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -173,9 +173,9 @@
       <attribute name="fileDateFormat" required="false">
         <p>Allows a customized timestamp in the access log file name.
            The file is rotated whenever the formatted timestamp changes.
-           The default value is <code>.yyyy-MM-dd</code>.
+           The default value is <code>yyyy-MM-dd</code>.
            If you wish to rotate every hour, then set this value
-           to <code>.yyyy-MM-dd.HH</code>.
+           to <code>yyyy-MM-dd.HH</code>.
            The date format will always be localized
            using the locale <code>en_US</code>.
         </p>
@@ -198,13 +198,6 @@
         <p>The maximum number of days rotated access logs will be retained for
            before being deleted. If not specified, the default value of
            <code>-1</code> will be used which means never delete old files.</p>
-      </attribute>
-
-      <attribute name="maxLogMessageBufferSize" required="false">
-        <p>Log message buffers are usually recycled and re-used. To prevent
-           excessive memory usage, if a buffer grows beyond this size it will be
-           discarded. The default is <code>256</code> characters. This should be
-           set to larger than the typical access log message size.</p>
       </attribute>
 
       <attribute name="pattern" required="false">
@@ -303,13 +296,6 @@
                     in Tomcat 10 onwards.</li>
     <li><b>%F</b> - Time taken to commit the response, in millis</li>
     <li><b>%I</b> - Current request thread name (can compare later with stacktraces)</li>
-    <li><b>%X</b> - Connection status when response is completed:
-      <ul>
-      <li><code>X</code> = Connection aborted before the response completed.</li>
-      <li><code>+</code> = Connection may be kept alive after the response is sent.</li>
-      <li><code>-</code> = Connection will be closed after the response is sent.</li>
-      </ul>
-    </li>
     </ul>
 
     <p>
@@ -812,81 +798,6 @@
 
 
 <section name="Proxies Support">
-  <subsection name="Load Balancer Draining Valve">
-    <subsection name="Introduction">
-      <p>
-        When using mod_jk or mod_proxy_ajp, the client's session id is used to
-        determine which back-end server will be used to serve the request. If the
-        target node is being "drained" (in mod_jk, this is the <i>DISABLED</i>
-        state; in mod_proxy_ajp, this is the <i>Drain (N)</i> state), requests
-        for expired sessions can actually cause the draining node to fail to
-        drain.
-      </p>
-      <p>
-        Unfortunately, AJP-based load-balancers cannot prove whether the
-        client-provided session id is valid or not and therefore will send any
-        requests for a session that appears to be targeted to that node to the
-        disabled (or "draining") node, causing the "draining" process to take
-        longer than necessary.
-      </p>
-      <p>
-        This Valve detects requests for invalid sessions, strips the session
-        information from the request, and redirects back to the same URL, where
-        the load-balancer should choose a different (active)  node to handle the
-        request. This will accelerate the "draining" process for the disabled
-        node(s).
-      </p>
-
-      <p>
-        The activation state of the node is sent by the load-balancer in the
-        request, so no state change on the node being disabled is necessary. Simply
-        configure this Valve in your valve pipeline and it will take action when
-        the activation state is set to "disabled".
-      </p>
-
-      <p>
-        You should take care to register this Valve earlier in the Valve pipeline
-        than any authentication Valves, because this Valve should be able to
-        redirect a request before any authentication Valve saves a request to a
-        protected resource. If this happens, a new session will be created and
-        the draining process will stall because a new, valid session will be
-        established.
-      </p>
-    </subsection><!-- / Introduction -->
-
-    <subsection name="Attributes">
-      <p>The <strong>Load Balancer Draining Valve</strong> supports the
-      following configuration attributes:</p>
-
-      <attributes>
-        <attribute name="className" required="true">
-          <p>Java class name of the implementation to use. This MUST be set to
-          <strong>org.apache.catalina.valves.LoadBalancerDrainingValve</strong>.
-          </p>
-        </attribute>
-
-        <attribute name="redirectStatusCode" required="false">
-          <p>Allows setting a custom redirect code to be used when the client
-          is redirected to be re-balanced by the load-balancer. The default is
-          307 TEMPORARY_REDIRECT.</p>
-        </attribute>
-
-        <attribute name="ignoreCookieName" required="false">
-          <p>When used with <code>ignoreCookieValue</code>, a client can present
-          this cookie (and accompanying value) that will cause this Valve to
-          do nothing. This will allow you to probe your <i>disabled</i> node
-          before re-enabling it to make sure that it is working as expected.</p>
-        </attribute>
-
-        <attribute name="ignoreCookieValue" required="false">
-          <p>When used with <code>ignoreCookieName</code>, a client can present
-          a cookie (and accompanying value) that will cause this Valve to
-          do nothing. This will allow you to probe your <i>disabled</i> node
-          before re-enabling it to make sure that it is working as expected.</p>
-        </attribute>
-      </attributes>
-    </subsection><!-- /Attributes -->
-  </subsection><!-- /Load Balancer Draining Valve -->
 
 <subsection name="Remote IP Valve">
 
@@ -959,7 +870,7 @@
         Internal proxies that appear in the <strong>remoteIpHeader</strong> will
         be trusted and will not appear in the <strong>proxiesHeader</strong>
         value. If not specified the default value of <code>
-        10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.1[6-9]{1}\.\d{1,3}\.\d{1,3}|172\.2[0-9]{1}\.\d{1,3}\.\d{1,3}|172\.3[0-1]{1}\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1
+        10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|169\.254\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1
         </code> will be used.</p>
       </attribute>
 
@@ -1266,20 +1177,6 @@
         specified, the platform default provider will be used.</p>
       </attribute>
 
-      <attribute name="trimCredentials" required="false">
-        <p>Controls whether leading and/or trailing whitespace is removed from
-        the parsed credentials. If not specified, the default value is
-        <code>true</code>.</p>
-      </attribute>
-
-      <attribute name="jaspicCallbackHandlerClass" required="false">
-        <p>Name of the Java class of the
-        <code>javax.security.auth.callback.CallbackHandler</code> implementation
-        which should be used by JASPIC. If none is specified the default
-        <code>org.apache.catalina.authenticator.jaspic.CallbackHandlerImpl</code>
-        will be used.</p>
-      </attribute>
-
     </attributes>
 
   </subsection>
@@ -1426,14 +1323,6 @@
         authentication always fails.</p>
       </attribute>
 
-      <attribute name="jaspicCallbackHandlerClass" required="false">
-        <p>Name of the Java class of the
-        <code>javax.security.auth.callback.CallbackHandler</code> implementation
-        which should be used by JASPIC. If none is specified the default
-        <code>org.apache.catalina.authenticator.jaspic.CallbackHandlerImpl</code>
-        will be used.</p>
-      </attribute>
-
     </attributes>
 
   </subsection>
@@ -1539,14 +1428,6 @@
         specified, the platform default provider will be used.</p>
       </attribute>
 
-      <attribute name="jaspicCallbackHandlerClass" required="false">
-        <p>Name of the Java class of the
-        <code>javax.security.auth.callback.CallbackHandler</code> implementation
-        which should be used by JASPIC. If none is specified the default
-        <code>org.apache.catalina.authenticator.jaspic.CallbackHandlerImpl</code>
-        will be used.</p>
-      </attribute>
-
     </attributes>
 
   </subsection>
@@ -1637,14 +1518,6 @@
         session IDs. If an invalid algorithm and/or provider is specified, the
         platform default provider and the default algorithm will be used. If not
         specified, the platform default provider will be used.</p>
-      </attribute>
-
-      <attribute name="jaspicCallbackHandlerClass" required="false">
-        <p>Name of the Java class of the
-        <code>javax.security.auth.callback.CallbackHandler</code> implementation
-        which should be used by JASPIC. If none is specified the default
-        <code>org.apache.catalina.authenticator.jaspic.CallbackHandlerImpl</code>
-        will be used.</p>
       </attribute>
 
     </attributes>
@@ -1794,14 +1667,6 @@
         available to applications (e.g. for onward authentication to external
         services) via the <code>org.apache.catalina.realm.GSS_CREDENTIAL</code>
         request attribute. If not set, the default value of <code>true</code>
-        will be used.</p>
-      </attribute>
-
-      <attribute name="jaspicCallbackHandlerClass" required="false">
-        <p>Name of the Java class of the
-        <code>javax.security.auth.callback.CallbackHandler</code> implementation
-        which should be used by JASPIC. If none is specified the default
-        <code>org.apache.catalina.authenticator.jaspic.CallbackHandlerImpl</code>
         will be used.</p>
       </attribute>
 

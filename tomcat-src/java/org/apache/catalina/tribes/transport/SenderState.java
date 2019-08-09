@@ -14,12 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.catalina.tribes.transport;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.HashMap;
 
 import org.apache.catalina.tribes.Member;
+
+
+/**
+ *
+ * @author Filip Hanik
+ * @version 1.0
+ * @since 5.5.16
+ */
 
 public class SenderState {
 
@@ -27,32 +35,36 @@ public class SenderState {
     public static final int SUSPECT = 1;
     public static final int FAILING = 2;
 
-    protected static final ConcurrentMap<Member, SenderState> memberStates = new ConcurrentHashMap<>();
+    protected static HashMap<Member, SenderState> memberStates = new HashMap<Member, SenderState>();
 
     public static SenderState getSenderState(Member member) {
-        return getSenderState(member, true);
+        return getSenderState(member,true);
     }
 
     public static SenderState getSenderState(Member member, boolean create) {
         SenderState state = memberStates.get(member);
-        if (state == null && create) {
-            state = new SenderState();
-            SenderState current = memberStates.putIfAbsent(member, state);
-            if (current != null) {
-                state = current;
+        if ( state == null && create) {
+            synchronized ( memberStates ) {
+                state = memberStates.get(member);
+                if ( state == null ) {
+                    state = new SenderState();
+                    memberStates.put(member,state);
+                }
             }
         }
         return state;
     }
 
     public static void removeSenderState(Member member) {
-        memberStates.remove(member);
+        synchronized ( memberStates ) {
+            memberStates.remove(member);
+        }
     }
 
 
     // ----------------------------------------------------- Instance Variables
 
-    private volatile int state = READY;
+    private int state = READY;
 
     //  ----------------------------------------------------- Constructor
 

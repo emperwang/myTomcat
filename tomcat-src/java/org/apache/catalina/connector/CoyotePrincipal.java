@@ -45,11 +45,11 @@ public class CoyotePrincipal implements Principal, Serializable {
     /**
      * The username of the user represented by this Principal.
      */
-    protected final String name;
+    protected String name = null;
 
     @Override
     public String getName() {
-        return this.name;
+        return (this.name);
     }
 
 
@@ -62,10 +62,12 @@ public class CoyotePrincipal implements Principal, Serializable {
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("CoyotePrincipal[");
         sb.append(this.name);
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 

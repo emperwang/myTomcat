@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina;
 
 /**
@@ -42,8 +44,12 @@ package org.apache.catalina;
  */
 public interface Engine extends Container {
 
+
+    // ------------------------------------------------------------- Properties
+
+
     /**
-     * @return the default host name for this Engine.
+     * Return the default hostname for this Engine.
      */
     public String getDefaultHost();
 
@@ -57,7 +63,7 @@ public interface Engine extends Container {
 
 
     /**
-     * @return the JvmRouteId for this engine.
+     * Retrieve the JvmRouteId for this engine.
      */
     public String getJvmRoute();
 
@@ -72,7 +78,7 @@ public interface Engine extends Container {
 
 
     /**
-     * @return the <code>Service</code> with which we are associated (if any).
+     * Return the <code>Service</code> with which we are associated (if any).
      */
     public Service getService();
 
@@ -83,4 +89,6 @@ public interface Engine extends Container {
      * @param service The service that owns this Engine
      */
     public void setService(Service service);
+
+
 }

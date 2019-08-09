@@ -53,7 +53,7 @@ public abstract class Authenticator {
     public Map<String, String> parseWWWAuthenticateHeader(String WWWAuthenticate) {
 
         Matcher m = pattern.matcher(WWWAuthenticate);
-        Map<String, String> challenge = new HashMap<>();
+        Map<String, String> challenge = new HashMap<String, String>();
 
         while (m.find()) {
             String key = m.group(1);

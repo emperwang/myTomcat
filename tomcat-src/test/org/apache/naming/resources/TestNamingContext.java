@@ -17,7 +17,9 @@
 package org.apache.naming.resources;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 
 import javax.naming.Binding;
@@ -35,11 +37,12 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.deploy.ContextEnvironment;
+import org.apache.catalina.deploy.ContextResource;
+import org.apache.catalina.startup.ExpandWar;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
-import org.apache.tomcat.util.descriptor.web.ContextResource;
 
 public class TestNamingContext extends TomcatBaseTest {
 
@@ -58,7 +61,7 @@ public class TestNamingContext extends TomcatBaseTest {
         tomcat.enableNaming();
 
         // No file system docBase required
-        org.apache.catalina.Context ctx = tomcat.addContext("", null);
+        StandardContext ctx = (StandardContext) tomcat.addContext("", null);
 
         // Create the resource
         ContextResource cr = new ContextResource();
@@ -71,7 +74,7 @@ public class TestNamingContext extends TomcatBaseTest {
         // Map the test Servlet
         Bug49994Servlet bug49994Servlet = new Bug49994Servlet();
         Tomcat.addServlet(ctx, "bug49994Servlet", bug49994Servlet);
-        ctx.addServletMappingDecoded("/", "bug49994Servlet");
+        ctx.addServletMapping("/", "bug49994Servlet");
 
         tomcat.start();
 
@@ -85,6 +88,137 @@ public class TestNamingContext extends TomcatBaseTest {
         }
         Assert.assertEquals(expected, bc.toString());
 
+    }
+
+    @Test
+    public void testAliases() throws Exception {
+        // Some sample text
+        String foxText = "The quick brown fox jumps over the lazy dog";
+        String loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+
+        // Set up a temporary docBase and some alternates that we can
+        // set up as aliases.
+        File tmpDir = new File(getTemporaryDirectory(),
+                               "tomcat-unit-test." + TestNamingContext.class.getName());
+
+        // Make sure we've got a clean slate
+        ExpandWar.delete(tmpDir);
+
+        File docBase = new File(tmpDir, "docBase");
+        File alternate1 = new File(tmpDir, "alternate1");
+        File alternate2 = new File(tmpDir, "alternate2");
+
+        // Register for clean-up
+        addDeleteOnTearDown(tmpDir);
+
+        if(!tmpDir.mkdirs())
+            throw new IOException("Could not create temp directory " + tmpDir);
+        if(!docBase.mkdir())
+            throw new IOException("Could not create temp directory " + docBase);
+        if(!alternate1.mkdir())
+            throw new IOException("Could not create temp directory " + alternate1);
+        if(!alternate2.mkdir())
+            throw new IOException("Could not create temp directory " + alternate2);
+
+        // Create a file in each alternate directory that we can attempt to access
+        FileOutputStream fos = new FileOutputStream(new File(alternate1, "test1.txt"));
+        try {
+            fos.write(foxText.getBytes("UTF-8"));
+            fos.flush();
+        } finally {
+            fos.close();
+        }
+
+        fos = new FileOutputStream(new File(alternate2, "test2.txt"));
+        try {
+            fos.write(loremIpsum.getBytes("UTF-8"));
+            fos.flush();
+        } finally {
+            fos.close();
+        }
+
+        // Finally, create the Context
+        FileDirContext ctx = new FileDirContext();
+        ctx.setDocBase(docBase.getCanonicalPath());
+        ctx.setAliases("/a1=" + alternate1.getCanonicalPath()
+                       +",/a2=" + alternate2.getCanonicalPath());
+
+        // Check first alias
+        Object file = ctx.lookup("/a1/test1.txt");
+
+        Assert.assertNotNull(file);
+        Assert.assertTrue(file instanceof Resource);
+
+        byte[] buffer = new byte[4096];
+        Resource res = (Resource)file;
+
+        InputStream is = res.streamContent();
+        int len;
+        try {
+            len = is.read(buffer);
+        } finally {
+            is.close();
+        }
+        String contents = new String(buffer, 0, len, "UTF-8");
+
+        Assert.assertEquals(foxText, contents);
+
+        // Check second alias
+        file = ctx.lookup("/a2/test2.txt");
+
+        Assert.assertNotNull(file);
+        Assert.assertTrue(file instanceof Resource);
+
+        res = (Resource)file;
+        is = res.streamContent();
+        try {
+            len = is.read(buffer);
+        } finally {
+            is.close();
+        }
+        contents = new String(buffer, 0, len, "UTF-8");
+
+        Assert.assertEquals(loremIpsum, contents);
+
+        // Test aliases with spaces around the separators
+        ctx.setAliases("   /a1= " + alternate1.getCanonicalPath()
+                       + "\n\n"
+                       +", /a2 =\n" + alternate2.getCanonicalPath()
+                       + ",");
+
+        // Check first alias
+        file = ctx.lookup("/a1/test1.txt");
+
+        Assert.assertNotNull(file);
+        Assert.assertTrue(file instanceof Resource);
+
+        res = (Resource)file;
+        is = res.streamContent();
+        try {
+            len = is.read(buffer);
+        } finally {
+            is.close();
+        }
+        contents = new String(buffer, 0, len, "UTF-8");
+
+        Assert.assertEquals(foxText, contents);
+
+        // Check second alias
+        file = ctx.lookup("/a2/test2.txt");
+
+        Assert.assertNotNull(file);
+        Assert.assertTrue(file instanceof Resource);
+
+        res = (Resource)file;
+        is = res.streamContent();
+        try {
+            len = is.read(buffer);
+        } finally {
+            is.close();
+        }
+        contents = new String(buffer, 0, len, "UTF-8");
+
+        Assert.assertEquals(loremIpsum, contents);
     }
 
     public static final class Bug49994Servlet extends HttpServlet {
@@ -119,7 +253,7 @@ public class TestNamingContext extends TomcatBaseTest {
         tomcat.enableNaming();
 
         // No file system docBase required
-        org.apache.catalina.Context ctx = tomcat.addContext("", null);
+        StandardContext ctx = (StandardContext) tomcat.addContext("", null);
 
         // Create the resource
         ContextResource cr = new ContextResource();
@@ -131,7 +265,7 @@ public class TestNamingContext extends TomcatBaseTest {
         // Map the test Servlet
         Bug23950Servlet bug23950Servlet = new Bug23950Servlet();
         Tomcat.addServlet(ctx, "bug23950Servlet", bug23950Servlet);
-        ctx.addServletMappingDecoded("/", "bug23950Servlet");
+        ctx.addServletMapping("/", "bug23950Servlet");
 
         tomcat.start();
 
@@ -170,7 +304,7 @@ public class TestNamingContext extends TomcatBaseTest {
         tomcat.enableNaming();
 
         // No file system docBase required
-        org.apache.catalina.Context ctx = tomcat.addContext("", null);
+        StandardContext ctx = (StandardContext) tomcat.addContext("", null);
 
         // Create the resource
         ContextResource cr = new ContextResource();
@@ -183,7 +317,7 @@ public class TestNamingContext extends TomcatBaseTest {
         // Map the test Servlet
         Bug50351Servlet bug50351Servlet = new Bug50351Servlet();
         Tomcat.addServlet(ctx, "bug50351Servlet", bug50351Servlet);
-        ctx.addServletMappingDecoded("/", "bug50351Servlet");
+        ctx.addServletMapping("/", "bug50351Servlet");
 
         tomcat.start();
 
@@ -236,7 +370,7 @@ public class TestNamingContext extends TomcatBaseTest {
         // Map the test Servlet
         Bug51744Servlet bug51744Servlet = new Bug51744Servlet();
         Tomcat.addServlet(ctx, "bug51744Servlet", bug51744Servlet);
-        ctx.addServletMappingDecoded("/", "bug51744Servlet");
+        ctx.addServletMapping("/", "bug51744Servlet");
 
         tomcat.start();
 
@@ -287,7 +421,7 @@ public class TestNamingContext extends TomcatBaseTest {
         tomcat.enableNaming();
 
         // No file system docBase required
-        org.apache.catalina.Context ctx = tomcat.addContext("", null);
+        StandardContext ctx = (StandardContext) tomcat.addContext("", null);
 
         // Create the resource
         ContextEnvironment env = new ContextEnvironment();
@@ -299,7 +433,7 @@ public class TestNamingContext extends TomcatBaseTest {
         // Map the test Servlet
         Bug52830Servlet bug52830Servlet = new Bug52830Servlet();
         Tomcat.addServlet(ctx, "bug52830Servlet", bug52830Servlet);
-        ctx.addServletMappingDecoded("/", "bug52830Servlet");
+        ctx.addServletMapping("/", "bug52830Servlet");
 
         tomcat.start();
 
@@ -344,7 +478,7 @@ public class TestNamingContext extends TomcatBaseTest {
         tomcat.enableNaming();
 
         File appDir =
-            new File("test/webapp");
+            new File("test/webapp-3.0");
         // app dir is relative to server home
         org.apache.catalina.Context ctxt =
                 tomcat.addWebapp(null, "/test", appDir.getAbsolutePath());

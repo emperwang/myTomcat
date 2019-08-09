@@ -30,12 +30,22 @@ import org.apache.catalina.tribes.io.XByteBuffer;
 import org.apache.catalina.tribes.transport.AbstractSender;
 import org.apache.catalina.tribes.transport.MultiPointSender;
 
+/**
+ *
+ * @author Filip Hanik
+ */
 public class MultipointBioSender extends AbstractSender implements MultiPointSender {
     public MultipointBioSender() {
         // NO-OP
     }
 
-    protected final HashMap<Member, BioSender> bioSenders = new HashMap<>();
+    /**
+     * @deprecated  Unused - will be removed in Tomcat 8.0.x
+     */
+    @Deprecated
+    protected final long selectTimeout = 1000;
+    protected HashMap<Member, BioSender> bioSenders =
+        new HashMap<Member, BioSender>();
 
     @Override
     public synchronized void sendMessage(Member[] destination, ChannelMessage msg) throws ChannelException {
@@ -133,8 +143,9 @@ public class MultipointBioSender extends AbstractSender implements MultiPointSen
 
     @Override
     public boolean keepalive() {
+        //throw new UnsupportedOperationException("Method ParallelBioSender.checkKeepAlive() not implemented");
         boolean result = false;
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings("unchecked") // bioSenders is of type HashMap<Member, BioSender>
         Map.Entry<Member,BioSender>[] entries = bioSenders.entrySet().toArray(new Map.Entry[bioSenders.size()]);
         for ( int i=0; i<entries.length; i++ ) {
             BioSender sender = entries[i].getValue();

@@ -41,12 +41,10 @@ public class HelloWorldExample extends HttpServlet {
         ResourceBundle rb =
             ResourceBundle.getBundle("LocalStrings",request.getLocale());
         response.setContentType("text/html");
-        response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        out.println("<!DOCTYPE html><html>");
+        out.println("<html>");
         out.println("<head>");
-        out.println("<meta charset=\"UTF-8\" />");
 
         String title = rb.getString("helloworld.title");
 

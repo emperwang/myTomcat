@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -35,24 +35,15 @@
 <section name="Introduction">
 
   <p>The <strong>Jar Scanner</strong> element represents the component that is
-  used to scan the web application for JAR files and directories of class files.
-  It is typically used during web application start to identify configuration
-  files such as TLDs or web-fragment.xml files that must be processed as part of
-  the web application initialisation.</p>
+  used to scan the web application for JAR files. It is typically used during
+  web application start to identify configuration files such as TLDs or
+  web-fragment.xml files that must be processed as part of the web application
+  initialisation.</p>
 
   <p>A Jar Scanner element MAY be nested inside a
-  <a href="context.html">Context</a> component.</p>
-
-  <p>For example you can include the bootstrap classpath when scanning for jar
-  files:</p>
-<source><![CDATA[<Context>
-  ...
-  <JarScanner scanBootstrapClassPath="true"/>
-  ...
-</Context>]]></source>
-
-  <p>If a Jar Scanner element is not included, a default Jar Scanner configuration
-  will be created automatically, which is sufficient for most requirements.</p>
+  <a href="context.html">Context</a> component.  If it is not included,
+  a default Jar Scanner configuration will be created automatically, which
+  is sufficient for most requirements.</p>
 
 </section>
 
@@ -81,8 +72,21 @@
 
     <p>The standard implementation of <strong>Jar Scanner</strong> is
     <strong>org.apache.tomcat.util.scan.StandardJarScanner</strong>.
-    It supports the following additional attributes (in addition to the
-    common attributes listed above):</p>
+    Additional attributes that it supports (in addition to the common attributes
+    listed above) are listed in the table.</p>
+
+    <p>There are several
+    <a href="systemprops.html#JAR_Scanning">system properties</a>
+    that control what JAR files are skipped by JarScanner.
+    Those properties are lists of file name pattern. The
+    patterns are separated by comma (','). The leading and trailing whitespace
+    characters in a pattern are ignored. The patterns are matched
+    case-sensitively. The following two special characters are supported:</p>
+
+    <ul>
+      <li>'*' &#151; means zero or more characters,</li>
+      <li>'?' &#151; means one and only one character.</li>
+    </ul>
 
     <attributes>
 
@@ -92,10 +96,7 @@
        The default is <code>false</code>.</p>
        <p>Tomcat determines if a directory is an expanded JAR file by looking
        for a META-INF sub-directory. Only if the META-INF sub-directory exists,
-       the directory is assumed to be an expanded JAR file. Note that for scans
-       for matches to <code>@HandlesTypes</code> annotations, all directories
-       will be scanned irrespective of the presence or not of a META-INF
-       sub-directory.</p>
+       the directory is assumed to be an expanded JAR file.</p>
       </attribute>
 
       <attribute name="scanAllFiles" required="false">
@@ -108,19 +109,13 @@
        <p>If <code>true</code>, the full web application classpath, including
        the shared and common classloaders and the system classpath (but not the
        bootstrap classpath) will be scanned for Jar files in addition to the web
-       application. The default is <code>true</code>.</p>
+       application. The default is <code>true</code>. </p>
       </attribute>
 
       <attribute name="scanBootstrapClassPath" required="false">
        <p>If <strong>scanClassPath</strong> is <code>true</code> and this is
        <code>true</code> the bootstrap classpath will also be scanned for Jar
        files. The default is <code>false</code>.</p>
-      </attribute>
-
-      <attribute name="scanManifest" required="false">
-       <p>If <code>true</code>, the Manifest files of any JARs found will be
-       scanned for additional class path entries and those entries will be added
-       to the URLs to scan. The default is <code>true</code>.</p>
       </attribute>
 
     </attributes>
@@ -132,8 +127,8 @@
 
 
 <section name="Nested Components">
-  <p>Only a <a href="jar-scan-filter.html">Jar Scan Filter</a> may be nested
-  inside a <strong>Jar Scanner</strong> element.</p>
+  <p>No components may be nested inside a <strong>Jar Scanner</strong> element.
+  </p>
 </section>
 
 

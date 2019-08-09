@@ -28,9 +28,11 @@ public abstract class AbstractCatalinaCommandTask extends AbstractCatalinaTask {
      */
     protected String path = null;
 
+
     public String getPath() {
-        return this.path;
+        return (this.path);
     }
+
 
     public void setPath(String path) {
         this.path = path;
@@ -41,9 +43,11 @@ public abstract class AbstractCatalinaCommandTask extends AbstractCatalinaTask {
      */
     protected String version = null;
 
+
     public String getVersion() {
-        return this.version;
+        return (this.version);
     }
+
 
     public void setVersion(String version) {
         this.version = version;
@@ -51,7 +55,6 @@ public abstract class AbstractCatalinaCommandTask extends AbstractCatalinaTask {
 
 
     // --------------------------------------------------------- Public Methods
-
     /**
      * Create query string for the specified command.
      *
@@ -63,7 +66,6 @@ public abstract class AbstractCatalinaCommandTask extends AbstractCatalinaTask {
      */
     public StringBuilder createQueryString(String command) throws BuildException {
         StringBuilder buffer = new StringBuilder();
-
         try {
             buffer.append(command);
             if (path == null) {

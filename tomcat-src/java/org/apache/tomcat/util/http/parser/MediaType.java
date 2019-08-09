@@ -16,8 +16,6 @@
  */
 package org.apache.tomcat.util.http.parser;
 
-import java.io.IOException;
-import java.io.StringReader;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -31,13 +29,15 @@ public class MediaType {
     private volatile String noCharset;
     private volatile String withCharset;
 
-    protected MediaType(String type, String subtype, LinkedHashMap<String,String> parameters) {
+    protected MediaType(String type, String subtype,
+            LinkedHashMap<String,String> parameters) {
         this.type = type;
         this.subtype = subtype;
         this.parameters = parameters;
 
         String cs = parameters.get("charset");
-        if (cs != null && cs.length() > 0 && cs.charAt(0) == '"') {
+        if (cs != null && cs.length() > 0 &&
+                cs.charAt(0) == '"') {
             cs = HttpParser.unquote(cs);
         }
         this.charset = cs;
@@ -122,57 +122,4 @@ public class MediaType {
         }
         return noCharset;
     }
-
-    /**
-     * Parses a MediaType value, either from a HTTP header or from an application.
-     *
-     * @param input a reader over the header text
-     * @return a MediaType parsed from the input, or null if not valid
-     * @throws IOException if there was a problem reading the input
-     */
-    public static MediaType parseMediaType(StringReader input) throws IOException {
-
-        // Type (required)
-        String type = HttpParser.readToken(input);
-        if (type == null || type.length() == 0) {
-            return null;
-        }
-
-        if (HttpParser.skipConstant(input, "/") == SkipResult.NOT_FOUND) {
-            return null;
-        }
-
-        // Subtype (required)
-        String subtype = HttpParser.readToken(input);
-        if (subtype == null || subtype.length() == 0) {
-            return null;
-        }
-
-        LinkedHashMap<String,String> parameters = new LinkedHashMap<>();
-
-        SkipResult lookForSemiColon = HttpParser.skipConstant(input, ";");
-        if (lookForSemiColon == SkipResult.NOT_FOUND) {
-            return null;
-        }
-        while (lookForSemiColon == SkipResult.FOUND) {
-            String attribute = HttpParser.readToken(input);
-
-            String value = "";
-            if (HttpParser.skipConstant(input, "=") == SkipResult.FOUND) {
-                value = HttpParser.readTokenOrQuotedString(input, true);
-            }
-
-            if (attribute != null) {
-                parameters.put(attribute.toLowerCase(Locale.ENGLISH), value);
-            }
-
-            lookForSemiColon = HttpParser.skipConstant(input, ";");
-            if (lookForSemiColon == SkipResult.NOT_FOUND) {
-                return null;
-            }
-        }
-
-        return new MediaType(type, subtype, parameters);
-    }
-
 }

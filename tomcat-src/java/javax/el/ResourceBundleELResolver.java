@@ -23,7 +23,6 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.MissingResourceException;
-import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class ResourceBundleELResolver extends ELResolver {
@@ -34,10 +33,12 @@ public class ResourceBundleELResolver extends ELResolver {
 
     @Override
     public Object getValue(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof ResourceBundle) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
 
             if (property != null) {
                 try {
@@ -54,10 +55,12 @@ public class ResourceBundleELResolver extends ELResolver {
 
     @Override
     public Class<?> getType(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof ResourceBundle) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
         }
 
         return null;
@@ -66,10 +69,12 @@ public class ResourceBundleELResolver extends ELResolver {
     @Override
     public void setValue(ELContext context, Object base, Object property,
             Object value) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof ResourceBundle) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             throw new PropertyNotWritableException(Util.message(context,
                     "resolverNotWriteable", base.getClass().getName()));
         }
@@ -77,10 +82,12 @@ public class ResourceBundleELResolver extends ELResolver {
 
     @Override
     public boolean isReadOnly(ELContext context, Object base, Object property) {
-        Objects.requireNonNull(context);
+        if (context == null) {
+            throw new NullPointerException();
+        }
 
         if (base instanceof ResourceBundle) {
-            context.setPropertyResolved(base, property);
+            context.setPropertyResolved(true);
             return true;
         }
 
@@ -88,10 +95,13 @@ public class ResourceBundleELResolver extends ELResolver {
     }
 
     @Override
-    public Iterator<FeatureDescriptor> getFeatureDescriptors(
+    // Can't use Iterator<FeatureDescriptor> because API needs to match
+    // specification
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public Iterator getFeatureDescriptors(
             ELContext context, Object base) {
         if (base instanceof ResourceBundle) {
-            List<FeatureDescriptor> feats = new ArrayList<>();
+            List<FeatureDescriptor> feats = new ArrayList<FeatureDescriptor>();
             Enumeration<String> e = ((ResourceBundle) base).getKeys();
             FeatureDescriptor feat;
             String key;

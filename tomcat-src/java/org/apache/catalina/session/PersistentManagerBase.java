@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.session;
 
 import java.io.IOException;
@@ -25,12 +27,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.catalina.DistributedManager;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Session;
 import org.apache.catalina.Store;
-import org.apache.catalina.StoreManager;
 import org.apache.catalina.security.SecurityUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -45,9 +47,10 @@ import org.apache.juli.logging.LogFactory;
  * at the correct times.
  *
  * @author Craig R. McClanahan
+ * @author Jean-Francois Arcand
  */
 public abstract class PersistentManagerBase extends ManagerBase
-        implements StoreManager {
+        implements DistributedManager {
 
     private final Log log = LogFactory.getLog(PersistentManagerBase.class); // must not be static
 
@@ -129,10 +132,17 @@ public abstract class PersistentManagerBase extends ManagerBase
 
     // ----------------------------------------------------- Instance Variables
 
+
+    /**
+     * The descriptive information about this implementation.
+     */
+    private static final String info = "PersistentManagerBase/1.1";
+
+
     /**
      * The descriptive name of this Manager implementation (for logging).
      */
-    private static final String name = "PersistentManagerBase";
+    private static String name = "PersistentManagerBase";
 
     /**
      * Key of the note of a session in which the timestamp of last backup is stored.
@@ -181,13 +191,14 @@ public abstract class PersistentManagerBase extends ManagerBase
     /**
      * Sessions currently being swapped in and the associated locks
      */
-    private final Map<String,Object> sessionSwapInLocks = new HashMap<>();
+    private final Map<String,Object> sessionSwapInLocks =
+        new HashMap<String,Object>();
 
     /*
      * Session that is currently getting swapped in to prevent loading it more
      * than once concurrently
      */
-    private final ThreadLocal<Session> sessionToSwapIn = new ThreadLocal<>();
+    private final ThreadLocal<Session> sessionToSwapIn = new ThreadLocal<Session>();
 
 
     // ------------------------------------------------------------- Properties
@@ -303,6 +314,19 @@ public abstract class PersistentManagerBase extends ManagerBase
 
 
     /**
+     * @return descriptive information about this Manager implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    @Override
+    public String getInfo() {
+
+        return info;
+
+    }
+
+
+    /**
      * Check, whether a session is loaded in memory
      *
      * @param id The session id for the session to be searched for
@@ -342,7 +366,6 @@ public abstract class PersistentManagerBase extends ManagerBase
      * @return the Store object which manages persistent Session
      * storage for this Manager.
      */
-    @Override
     public Store getStore() {
         return this.store;
     }
@@ -435,7 +458,7 @@ public abstract class PersistentManagerBase extends ManagerBase
             }
         }
         processPersistenceChecks();
-        if (getStore() instanceof StoreBase) {
+        if ((getStore() != null) && (getStore() instanceof StoreBase)) {
             ((StoreBase) getStore()).processExpires();
         }
 
@@ -501,7 +524,6 @@ public abstract class PersistentManagerBase extends ManagerBase
      *
      * @param session Session to be removed
      */
-    @Override
     public void removeSuper(Session session) {
         super.remove(session, false);
     }
@@ -652,7 +674,7 @@ public abstract class PersistentManagerBase extends ManagerBase
 
     @Override
     public Set<String> getSessionIdsFull() {
-        Set<String> sessionIds = new HashSet<>();
+        Set<String> sessionIds = new HashSet<String>();
         // In memory session ID list
         sessionIds.addAll(sessions.keySet());
         // Store session ID list
@@ -678,9 +700,7 @@ public abstract class PersistentManagerBase extends ManagerBase
      * in, but will not be added to the active session list if it
      * is invalid or past its expiration.
      *
-     * @param id The id of the session that should be swapped in
      * @return restored session, or {@code null}, if none is found
-     * @throws IOException an IO error occurred
      */
     protected Session swapIn(String id) throws IOException {
 
@@ -802,8 +822,7 @@ public abstract class PersistentManagerBase extends ManagerBase
      * is past its expiration or invalid, this method does
      * nothing.
      *
-     * @param session The Session to write out
-     * @throws IOException an IO error occurred
+     * @param session The Session to write out.
      */
     protected void swapOut(Session session) throws IOException {
 
@@ -823,8 +842,6 @@ public abstract class PersistentManagerBase extends ManagerBase
      * Write the provided session to the Store without modifying
      * the copy in memory or triggering passivation events. Does
      * nothing if the session is invalid or past its expiration.
-     * @param session The session that should be written
-     * @throws IOException an IO error occurred
      */
     protected void writeSession(Session session) throws IOException {
 
@@ -905,9 +922,8 @@ public abstract class PersistentManagerBase extends ManagerBase
             }
         }
 
-        if (getStore() instanceof Lifecycle) {
+        if (getStore() != null && getStore() instanceof Lifecycle)
             ((Lifecycle)getStore()).stop();
-        }
 
         // Require a new random number generator if we are restarted
         super.stopInternal();
@@ -926,6 +942,7 @@ public abstract class PersistentManagerBase extends ManagerBase
             return;
 
         Session sessions[] = findSessions();
+        long timeNow = System.currentTimeMillis();
 
         // Swap out all sessions idle longer than maxIdleSwap
         if (maxIdleSwap >= 0) {
@@ -934,7 +951,12 @@ public abstract class PersistentManagerBase extends ManagerBase
                 synchronized (session) {
                     if (!session.isValid())
                         continue;
-                    int timeIdle = (int) (session.getIdleTimeInternal() / 1000L);
+                    int timeIdle;
+                    if (StandardSession.LAST_ACCESS_AT_START) {
+                        timeIdle = (int) ((timeNow - session.getLastAccessedTimeInternal()) / 1000L);
+                    } else {
+                        timeIdle = (int) ((timeNow - session.getThisAccessedTimeInternal()) / 1000L);
+                    }
                     if (timeIdle >= maxIdleSwap && timeIdle >= minIdleSwap) {
                         if (session.accessCount != null &&
                                 session.accessCount.get() > 0) {
@@ -982,11 +1004,17 @@ public abstract class PersistentManagerBase extends ManagerBase
                  Integer.valueOf(sessions.length)));
 
         int toswap = sessions.length - limit;
+        long timeNow = System.currentTimeMillis();
 
         for (int i = 0; i < sessions.length && toswap > 0; i++) {
             StandardSession session =  (StandardSession) sessions[i];
             synchronized (session) {
-                int timeIdle = (int) (session.getIdleTimeInternal() / 1000L);
+                int timeIdle;
+                if (StandardSession.LAST_ACCESS_AT_START) {
+                    timeIdle = (int) ((timeNow - session.getLastAccessedTimeInternal()) / 1000L);
+                } else {
+                    timeIdle = (int) ((timeNow - session.getThisAccessedTimeInternal()) / 1000L);
+                }
                 if (timeIdle >= minIdleSwap) {
                     if (session.accessCount != null &&
                             session.accessCount.get() > 0) {
@@ -1020,6 +1048,7 @@ public abstract class PersistentManagerBase extends ManagerBase
             return;
 
         Session sessions[] = findSessions();
+        long timeNow = System.currentTimeMillis();
 
         // Back up all sessions idle longer than maxIdleBackup
         if (maxIdleBackup >= 0) {
@@ -1034,7 +1063,12 @@ public abstract class PersistentManagerBase extends ManagerBase
                     if (persistedLastAccessedTime != null &&
                             lastAccessedTime == persistedLastAccessedTime.longValue())
                         continue;
-                    int timeIdle = (int) (session.getIdleTimeInternal() / 1000L);
+                    int timeIdle;
+                    if (StandardSession.LAST_ACCESS_AT_START) {
+                        timeIdle = (int) ((timeNow - session.getLastAccessedTimeInternal()) / 1000L);
+                    } else {
+                        timeIdle = (int) ((timeNow - session.getThisAccessedTimeInternal()) / 1000L);
+                    }
                     if (timeIdle >= maxIdleBackup) {
                         if (log.isDebugEnabled())
                             log.debug(sm.getString

@@ -18,7 +18,7 @@ package org.apache.catalina.valves;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.security.NoSuchProviderException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -133,7 +133,7 @@ public class SSLValve extends ValveBase {
          * '-----BEGIN CERTIFICATE-----' and ends with
          * '-----END CERTIFICATE-----'.
          *
-         * Note: For Java 7, the the BEGIN and END markers must be on separate
+         * Note: For Java 6, the the BEGIN and END markers must be on separate
          *       lines as must each of the original content lines. The
          *       CertificateFactory is tolerant of any additional whitespace
          *       such as leading and trailing spaces and new lines as long as
@@ -150,7 +150,7 @@ public class SSLValve extends ValveBase {
                 String footer = "\n-----END CERTIFICATE-----\n";
                 String strcerts = header.concat(body).concat(footer);
                 ByteArrayInputStream bais = new ByteArrayInputStream(
-                        strcerts.getBytes(StandardCharsets.ISO_8859_1));
+                        strcerts.getBytes(Charset.defaultCharset()));
                 X509Certificate jsseCerts[] = null;
                 String providerName = (String) request.getConnector().getProperty(
                         "clientCertProvider");
@@ -180,6 +180,7 @@ public class SSLValve extends ValveBase {
         headerValue = mygetHeader(request, sslSessionIdHeader);
         if (headerValue != null) {
             request.setAttribute(Globals.SSL_SESSION_ID_ATTR, headerValue);
+            request.setAttribute(Globals.SSL_SESSION_ID_TOMCAT_ATTR, headerValue);
         }
         headerValue = mygetHeader(request, sslCipherUserKeySizeHeader);
         if (headerValue != null) {

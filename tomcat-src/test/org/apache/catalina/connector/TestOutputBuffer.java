@@ -19,7 +19,6 @@ package org.apache.catalina.connector;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -32,26 +31,22 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
+import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
 
 public class TestOutputBuffer extends TomcatBaseTest{
 
-    /*
-     * Expect that the buffered results are slightly slower since Tomcat now has
-     * an internal buffer so an extra one just adds overhead.
-     *
-     * @see "https://bz.apache.org/bugzilla/show_bug.cgi?id=52328"
-     */
     @Test
     public void testWriteSpeed() throws Exception {
         Tomcat tomcat = getTomcatInstance();
 
-        Context root = tomcat.addContext("", TEMP_DIR);
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
 
         for (int i = 1; i <= WritingServlet.EXPECTED_CONTENT_LENGTH; i*=10) {
             WritingServlet servlet = new WritingServlet(i);
             Tomcat.addServlet(root, "servlet" + i, servlet);
-            root.addServletMappingDecoded("/servlet" + i, "servlet" + i);
+            root.addServletMapping("/servlet" + i, "servlet" + i);
         }
 
         tomcat.start();
@@ -81,11 +76,12 @@ public class TestOutputBuffer extends TomcatBaseTest{
     public void testBug52577() throws Exception {
         Tomcat tomcat = getTomcatInstance();
 
-        Context root = tomcat.addContext("", TEMP_DIR);
+        // No file system docBase required
+        Context root = tomcat.addContext("", null);
 
         Bug52577Servlet bug52577 = new Bug52577Servlet();
         Tomcat.addServlet(root, "bug52577", bug52577);
-        root.addServletMappingDecoded("/", "bug52577");
+        root.addServletMapping("/", "bug52577");
 
         tomcat.start();
 
@@ -175,14 +171,14 @@ public class TestOutputBuffer extends TomcatBaseTest{
         Tomcat tomcat = getTomcatInstance();
         Context root = tomcat.addContext("", TEMP_DIR);
         Tomcat.addServlet(root, "Test", new Utf8WriteChars(data));
-        root.addServletMappingDecoded("/test", "Test");
+        root.addServletMapping("/test", "Test");
 
         tomcat.start();
 
         ByteChunk bc = new ByteChunk();
         getUrl("http://localhost:" + getPort() + "/test", bc, null);
 
-        bc.setCharset(StandardCharsets.UTF_8);
+        bc.setCharset(B2CConverter.UTF_8);
         Assert.assertEquals(data, bc.toString());
     }
 

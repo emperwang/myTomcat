@@ -55,7 +55,9 @@ public abstract class AbstractRole implements Role {
      */
     @Override
     public String getDescription() {
-        return this.description;
+
+        return (this.description);
+
     }
 
 
@@ -66,7 +68,9 @@ public abstract class AbstractRole implements Role {
      */
     @Override
     public void setDescription(String description) {
+
         this.description = description;
+
     }
 
 
@@ -76,7 +80,9 @@ public abstract class AbstractRole implements Role {
      */
     @Override
     public String getRolename() {
-        return this.rolename;
+
+        return (this.rolename);
+
     }
 
 
@@ -88,7 +94,9 @@ public abstract class AbstractRole implements Role {
      */
     @Override
     public void setRolename(String rolename) {
+
         this.rolename = rolename;
+
     }
 
 
@@ -110,7 +118,9 @@ public abstract class AbstractRole implements Role {
      */
     @Override
     public String getName() {
-        return getRolename();
+
+        return (getRolename());
+
     }
 
 

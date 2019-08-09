@@ -17,6 +17,7 @@
 
 package org.apache.jasper.compiler;
 
+import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 
 /**
@@ -76,28 +77,28 @@ class DefaultErrorHandler implements ErrorHandler {
                 args = new Object[] {
                         Integer.valueOf(details[i].getJspBeginLineNumber()),
                         details[i].getJspFileName() };
-                buf.append(System.lineSeparator());
-                buf.append(System.lineSeparator());
+                buf.append(Constants.NEWLINE);
+                buf.append(Constants.NEWLINE);
                 buf.append(Localizer.getMessage("jsp.error.single.line.number",
                         args));
-                buf.append(System.lineSeparator());
+                buf.append(Constants.NEWLINE);
                 buf.append(details[i].getErrorMessage());
-                buf.append(System.lineSeparator());
+                buf.append(Constants.NEWLINE);
                 buf.append(details[i].getJspExtract());
             } else {
                 args = new Object[] {
                         Integer.valueOf(details[i].getJavaLineNumber()),
                         details[i].getJavaFileName() };
-                buf.append(System.lineSeparator());
-                buf.append(System.lineSeparator());
+                buf.append(Constants.NEWLINE);
+                buf.append(Constants.NEWLINE);
                 buf.append(Localizer.getMessage("jsp.error.java.line.number",
                         args));
-                buf.append(System.lineSeparator());
+                buf.append(Constants.NEWLINE);
                 buf.append(details[i].getErrorMessage());
             }
         }
-        buf.append(System.lineSeparator());
-        buf.append(System.lineSeparator());
+        buf.append(Constants.NEWLINE);
+        buf.append(Constants.NEWLINE);
         buf.append("Stacktrace:");
         throw new JasperException(
                 Localizer.getMessage("jsp.error.unable.compile") + ": " + buf);

@@ -50,10 +50,10 @@
   <typedef
         name="threaddump"
         classname="org.apache.catalina.ant.ThreaddumpTask" />
-  <typedef
-        name="sslConnectorCiphers"
-        classname="org.apache.catalina.ant.SslConnectorCiphersTask" />
   <!-- Jk Task -->
+  <typedef
+        name="jkstatus"
+        classname="org.apache.catalina.ant.JKStatusUpdateTask" />
   <typedef
         name="jkupdate"
         classname="org.apache.catalina.ant.JKStatusUpdateTask" />
@@ -76,6 +76,9 @@
         classname="org.apache.catalina.ant.ValidatorTask" />
   <typedef
         name="jasper"
+        classname="org.apache.jasper.JspC" />
+  <typedef
+        name="jasper2"
         classname="org.apache.jasper.JspC" />
 -->
 </antlib>

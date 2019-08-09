@@ -21,10 +21,12 @@ import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import javax.servlet.ServletContextEvent;
 import javax.websocket.ContainerProvider;
 import javax.websocket.DeploymentException;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpoint;
 import javax.websocket.server.ServerEndpointConfig;
 
@@ -51,7 +53,7 @@ public class TestWsServerContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(Bug54807Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         tomcat.start();
 
@@ -66,7 +68,7 @@ public class TestWsServerContainer extends WebSocketBaseTest {
         Context ctx = tomcat.addContext("", null);
         ctx.addApplicationListener(Bug54807Config.class.getName());
         Tomcat.addServlet(ctx, "default", new DefaultServlet());
-        ctx.addServletMappingDecoded("/", "default");
+        ctx.addServletMapping("/", "default");
 
         WebSocketContainer wsContainer =
                 ContainerProvider.getWebSocketContainer();
@@ -78,7 +80,9 @@ public class TestWsServerContainer extends WebSocketBaseTest {
         SimpleClient client = new SimpleClient();
         URI uri = new URI("ws://localhost:" + getPort() + "/echoBasic");
 
-        try (Session session = wsContainer.connectToServer(client, uri);) {
+        Session session = null;
+        try {
+            session = wsContainer.connectToServer(client, uri);
             CountDownLatch latch = new CountDownLatch(1);
             BasicText handler = new BasicText(latch);
             session.addMessageHandler(handler);
@@ -92,16 +96,32 @@ public class TestWsServerContainer extends WebSocketBaseTest {
             for (String message : messages) {
                 Assert.assertEquals("echoBasic", message);
             }
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
     }
 
 
-    public static class Bug54807Config extends TesterEndpointConfig {
+    public static class Bug54807Config extends WsContextListener {
 
         @Override
-        protected ServerEndpointConfig getServerEndpointConfig() {
-            return ServerEndpointConfig.Builder.create(
+        public void contextInitialized(ServletContextEvent sce) {
+            super.contextInitialized(sce);
+
+            ServerContainer sc =
+                    (ServerContainer) sce.getServletContext().getAttribute(
+                            Constants.SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE);
+
+            ServerEndpointConfig sec = ServerEndpointConfig.Builder.create(
                     TesterEchoServer.Basic.class, "/{param}").build();
+
+            try {
+                sc.addEndpoint(sec);
+            } catch (DeploymentException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

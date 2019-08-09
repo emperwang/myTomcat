@@ -19,7 +19,7 @@ package cal;
 
 public class Entry {
 
-    final String hour;
+    String hour;
     String description;
 
     public Entry(String hour) {

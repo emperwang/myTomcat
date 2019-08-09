@@ -21,6 +21,9 @@ import java.io.IOException;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.connector.Request;
+import org.apache.catalina.deploy.LoginConfig;
+
+
 
 /**
  * An <b>Authenticator</b> and <b>Valve</b> implementation that checks
@@ -28,7 +31,32 @@ import org.apache.catalina.connector.Request;
  *
  * @author Craig R. McClanahan
  */
+
 public final class NonLoginAuthenticator extends AuthenticatorBase {
+
+
+    // ----------------------------------------------------- Instance Variables
+
+
+    /**
+     * Descriptive information about this implementation.
+     */
+    private static final String info =
+        "org.apache.catalina.authenticator.NonLoginAuthenticator/1.0";
+
+
+    // ------------------------------------------------------------- Properties
+
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
 
 
     // --------------------------------------------------------- Public Methods
@@ -70,11 +98,15 @@ public final class NonLoginAuthenticator extends AuthenticatorBase {
      *
      * @param request  Request we are processing
      * @param response Response we are creating
+     * @param config   Login configuration describing how authentication
+     *                 should be performed
      * @return boolean to indicate whether the user is authenticated
      * @exception IOException if an input/output error occurs
      */
     @Override
-    protected boolean doAuthenticate(Request request, HttpServletResponse response)
+    public boolean authenticate(Request request,
+                                HttpServletResponse response,
+                                LoginConfig config)
         throws IOException {
 
         // Don't try and use SSO to authenticate since there is no auth

@@ -27,6 +27,7 @@ import org.apache.catalina.tribes.group.GroupChannel;
 import org.apache.catalina.tribes.group.interceptors.DomainFilterInterceptor;
 import org.apache.catalina.tribes.group.interceptors.FragmentationInterceptor;
 import org.apache.catalina.tribes.group.interceptors.GzipInterceptor;
+import org.apache.catalina.tribes.group.interceptors.MessageDispatch15Interceptor;
 import org.apache.catalina.tribes.group.interceptors.MessageDispatchInterceptor;
 import org.apache.catalina.tribes.group.interceptors.OrderInterceptor;
 import org.apache.catalina.tribes.group.interceptors.StaticMembershipInterceptor;
@@ -46,6 +47,7 @@ import org.apache.catalina.tribes.transport.ReplicationTransmitter;
  *
  * <p>Company: </p>
  *
+ * @author fhanik
  * @version 1.0
  */
 public class ChannelCreator {
@@ -98,7 +100,7 @@ public class ChannelCreator {
         boolean frag = false;
         int fragsize = 1024;
         int autoBind = 10;
-        ArrayList<Member> staticMembers = new ArrayList<>();
+        ArrayList<Member> staticMembers = new ArrayList<Member>();
         Properties transportProperties = new Properties();
         String transport = "org.apache.catalina.tribes.transport.nio.PooledParallelSender";
         String receiver = "org.apache.catalina.tribes.transport.nio.NioReceiver";
@@ -131,7 +133,7 @@ public class ChannelCreator {
                 String d = args[++i];
                 String h = d.substring(0,d.indexOf(':'));
                 String p = d.substring(h.length()+1);
-                Member m = new MemberImpl(h,Integer.parseInt(p),2000);
+                MemberImpl m = new MemberImpl(h,Integer.parseInt(p),2000);
                 staticMembers.add(m);
             } else if ("-throughput".equals(args[i])) {
                 throughput = true;
@@ -171,7 +173,7 @@ public class ChannelCreator {
         System.out.println("Creating receiver class="+receiver);
         Class<?> cl = Class.forName(receiver, true,
                 ChannelCreator.class.getClassLoader());
-        ReceiverBase rx = (ReceiverBase)cl.getConstructor().newInstance();
+        ReceiverBase rx = (ReceiverBase)cl.newInstance();
         rx.setAddress(bind);
         rx.setPort(port);
         rx.setSelectorTimeout(tcpseltimeout);
@@ -185,8 +187,7 @@ public class ChannelCreator {
 
         ReplicationTransmitter ps = new ReplicationTransmitter();
         System.out.println("Creating transport class="+transport);
-        MultiPointSender sender = (MultiPointSender)Class.forName(
-                transport,true,ChannelCreator.class.getClassLoader()).getConstructor().newInstance();
+        MultiPointSender sender = (MultiPointSender)Class.forName(transport,true,ChannelCreator.class.getClassLoader()).newInstance();
         sender.setTimeout(acktimeout);
         sender.setMaxRetryAttempts(2);
         sender.setRxBufSize(43800);
@@ -225,7 +226,7 @@ public class ChannelCreator {
         }
 
         if ( async ) {
-            MessageDispatchInterceptor mi = new MessageDispatchInterceptor();
+            MessageDispatchInterceptor mi = new MessageDispatch15Interceptor();
             mi.setMaxQueueSize(asyncsize);
             channel.addInterceptor(mi);
             System.out.println("Added MessageDispatchInterceptor");

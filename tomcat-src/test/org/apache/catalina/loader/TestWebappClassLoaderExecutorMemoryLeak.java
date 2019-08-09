@@ -49,7 +49,7 @@ public class TestWebappClassLoaderExecutorMemoryLeak extends TomcatBaseTest {
 
         ExecutorServlet executorServlet = new ExecutorServlet();
         Tomcat.addServlet(ctx, "taskServlet", executorServlet);
-        ctx.addServletMappingDecoded("/", "taskServlet");
+        ctx.addServletMapping("/", "taskServlet");
 
         tomcat.start();
 
@@ -59,19 +59,14 @@ public class TestWebappClassLoaderExecutorMemoryLeak extends TomcatBaseTest {
         // Stop the context
         ctx.stop();
 
-        // Should be shutdown once the stop() method above exists
-        Assert.assertTrue(executorServlet.tpe.isShutdown());
-
-        // The time taken to shutdown the executor can vary between systems. Try
-        // to avoid false test failures due to timing issues. Give the executor
-        // upto 10 seconds to close down.
-        int count = 0;
-        while (count < 100 && !executorServlet.tpe.isTerminated()) {
-            count++;
-            Thread.sleep(100);
+        // If the thread still exists, we have a thread/memory leak
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ie) {
+            // ignore
         }
 
-        // If the executor has not terminated, there is a thread/memory leak
+        Assert.assertTrue(executorServlet.tpe.isShutdown());
         Assert.assertTrue(executorServlet.tpe.isTerminated());
     }
 
@@ -83,7 +78,7 @@ public class TestWebappClassLoaderExecutorMemoryLeak extends TomcatBaseTest {
         long n = 1000L;
         int tpSize = 10;
 
-        public transient volatile ThreadPoolExecutor tpe;
+        public volatile ThreadPoolExecutor tpe;
 
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp)

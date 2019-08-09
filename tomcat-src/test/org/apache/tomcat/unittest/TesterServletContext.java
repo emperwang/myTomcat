@@ -19,7 +19,6 @@ package org.apache.tomcat.unittest;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
 import java.util.HashSet;
@@ -39,7 +38,7 @@ import javax.servlet.SessionTrackingMode;
 import javax.servlet.descriptor.JspConfigDescriptor;
 
 import org.apache.catalina.core.ApplicationFilterRegistration;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
+import org.apache.catalina.deploy.FilterDef;
 
 public class TesterServletContext implements ServletContext {
 
@@ -51,27 +50,6 @@ public class TesterServletContext implements ServletContext {
     @Override
     public String getContextPath() {
         return "";
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This test implementation is hard coded to return an empty Set.
-     */
-    @Override
-    public Set<String> getResourcePaths(String path) {
-        return Collections.emptySet();
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This test implementation is hard coded to return the class loader that
-     * loaded this class.
-     */
-    @Override
-    public ClassLoader getClassLoader() {
-        return getClass().getClassLoader();
     }
 
     @Override
@@ -95,8 +73,13 @@ public class TesterServletContext implements ServletContext {
     }
 
     @Override
+    public Set<String> getResourcePaths(String path) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
     public URL getResource(String path) throws MalformedURLException {
-        return null;
+        throw new RuntimeException("Not implemented");
     }
 
     @Override
@@ -258,8 +241,7 @@ public class TesterServletContext implements ServletContext {
     @Override
     public javax.servlet.FilterRegistration.Dynamic addFilter(
             String filterName, Class<? extends Filter> filterClass) {
-        return new ApplicationFilterRegistration(
-                new FilterDef(), new TesterContext());
+        throw new RuntimeException("Not implemented");
     }
 
     @Override
@@ -284,7 +266,8 @@ public class TesterServletContext implements ServletContext {
         return sessionCookieConfig;
     }
 
-    private final Set<SessionTrackingMode> sessionTrackingModes = new HashSet<>();
+    private final Set<SessionTrackingMode> sessionTrackingModes =
+            new HashSet<SessionTrackingMode>();
     @Override
     public void setSessionTrackingModes(
             Set<SessionTrackingMode> sessionTrackingModes) {
@@ -329,17 +312,12 @@ public class TesterServletContext implements ServletContext {
     }
 
     @Override
-    public void declareRoles(String... roleNames) {
+    public ClassLoader getClassLoader() {
         throw new RuntimeException("Not implemented");
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This test implementation is hard coded to return <code>localhost</code>.
-     */
     @Override
-    public String getVirtualServerName() {
-        return "localhost";
+    public void declareRoles(String... roleNames) {
+        throw new RuntimeException("Not implemented");
     }
 }

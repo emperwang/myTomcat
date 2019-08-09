@@ -20,8 +20,36 @@ package org.apache.catalina.authenticator;
 
 
 public class Constants {
+
+    public static final String Package = "org.apache.catalina.authenticator";
+
     // Authentication methods for login configuration
-    // Servlet spec schemes are defined in HttpServletRequest
+    // Servlet spec schemes
+
+    /**
+     * @deprecated Replaced by HttpServletRequest.BASIC_AUTH
+     */
+    @Deprecated
+    public static final String BASIC_METHOD = "BASIC";
+
+    /**
+     * @deprecated Replaced by HttpServletRequest.CLIENT_CERT_AUTH
+     */
+    @Deprecated
+    public static final String CERT_METHOD = "CLIENT_CERT";
+
+    /**
+     * @deprecated Replaced by HttpServletRequest.DIGEST_AUTH
+     */
+    @Deprecated
+    public static final String DIGEST_METHOD = "DIGEST";
+
+    /**
+     * @deprecated Replaced by HttpServletRequest.FORM_AUTH
+     */
+    @Deprecated
+    public static final String FORM_METHOD = "FORM";
+
     // Vendor specific schemes
     public static final String SPNEGO_METHOD = "SPNEGO";
 
@@ -60,10 +88,6 @@ public class Constants {
      */
     public static final String REQ_SSOID_NOTE =
             "org.apache.catalina.request.SSOID";
-
-
-    public static final String REQ_JASPIC_SUBJECT_NOTE =
-            "org.apache.catalina.authenticator.jaspic.SUBJECT";
 
 
     // ---------------------------------------------------------- Session Notes

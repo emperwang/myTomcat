@@ -37,6 +37,29 @@ public final class RemoteHostValve extends RequestFilterValve {
     private static final Log log = LogFactory.getLog(RemoteHostValve.class);
 
 
+    // ----------------------------------------------------- Instance Variables
+
+    /**
+     * The descriptive information related to this implementation.
+     */
+    private static final String info =
+        "org.apache.catalina.valves.RemoteHostValve/1.0";
+
+
+    // ------------------------------------------------------------- Properties
+
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
+
+
     // --------------------------------------------------------- Public Methods
 
     @Override

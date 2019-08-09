@@ -42,8 +42,8 @@ import java.util.TimeZone;
  * @author Dan Sandberg
  */
 public class Strftime {
-    protected static final Properties translate;
-    protected final SimpleDateFormat simpleDateFormat;
+    protected static Properties translate;
+    protected SimpleDateFormat simpleDateFormat;
 
     /**
      * Initialize our pattern translation
@@ -109,6 +109,16 @@ public class Strftime {
     /**
      * Create an instance of this date formatting class
      *
+     * @see #Strftime( String, Locale )
+     */
+    public Strftime( String origFormat ) {
+        String convertedFormat = convertDateFormat( origFormat );
+        simpleDateFormat = new SimpleDateFormat( convertedFormat );
+    }
+
+    /**
+     * Create an instance of this date formatting class
+     *
      * @param origFormat the strftime-style formatting string
      * @param locale the locale to use for locale-specific conversions
      */
@@ -139,7 +149,6 @@ public class Strftime {
     /**
      * Change the timezone used to format dates
      *
-     * @param timeZone The new time zone
      * @see SimpleDateFormat#setTimeZone
      */
     public void setTimeZone( TimeZone timeZone ) {

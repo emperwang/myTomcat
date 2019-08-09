@@ -35,14 +35,14 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.deploy.FilterDef;
+import org.apache.catalina.deploy.FilterMap;
 import org.apache.catalina.filters.ExpiresFilter.Duration;
 import org.apache.catalina.filters.ExpiresFilter.DurationUnit;
 import org.apache.catalina.filters.ExpiresFilter.ExpiresConfiguration;
 import org.apache.catalina.filters.ExpiresFilter.StartingPoint;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.tomcat.util.descriptor.web.FilterDef;
-import org.apache.tomcat.util.descriptor.web.FilterMap;
 
 public class TestExpiresFilter extends TomcatBaseTest {
     public static final String TEMP_DIR = System.getProperty("java.io.tmpdir");
@@ -74,7 +74,7 @@ public class TestExpiresFilter extends TomcatBaseTest {
 
         FilterMap filterMap = new FilterMap();
         filterMap.setFilterName(ExpiresFilter.class.getName());
-        filterMap.addURLPatternDecoded("*");
+        filterMap.addURLPattern("*");
 
         tomcat.start();
         try {
@@ -395,11 +395,11 @@ public class TestExpiresFilter extends TomcatBaseTest {
 
         FilterMap filterMap = new FilterMap();
         filterMap.setFilterName(ExpiresFilter.class.getName());
-        filterMap.addURLPatternDecoded("*");
+        filterMap.addURLPattern("*");
         root.addFilterMap(filterMap);
 
         Tomcat.addServlet(root, servlet.getClass().getName(), servlet);
-        root.addServletMappingDecoded("/test", servlet.getClass().getName());
+        root.addServletMapping("/test", servlet.getClass().getName());
 
         tomcat.start();
 

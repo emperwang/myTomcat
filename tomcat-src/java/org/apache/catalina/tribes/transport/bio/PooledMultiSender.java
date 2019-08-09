@@ -23,11 +23,19 @@ import org.apache.catalina.tribes.transport.AbstractSender;
 import org.apache.catalina.tribes.transport.DataSender;
 import org.apache.catalina.tribes.transport.MultiPointSender;
 import org.apache.catalina.tribes.transport.PooledSender;
-import org.apache.catalina.tribes.util.StringManager;
 
+/**
+ * <p>Title: </p>
+ *
+ * <p>Description: </p>
+ *
+ * <p>Company: </p>
+ *
+ * @author not attributable
+ * @version 1.0
+ */
 public class PooledMultiSender extends PooledSender {
 
-    protected static final StringManager sm = StringManager.getManager(PooledMultiSender.class);
 
     public PooledMultiSender() {
         // NO-OP
@@ -39,10 +47,8 @@ public class PooledMultiSender extends PooledSender {
         try {
             sender = (MultiPointSender)getSender();
             if (sender == null) {
-                ChannelException cx = new ChannelException(sm.getString(
-                        "pooledMultiSender.unable.retrieve.sender", Long.toString(getMaxWait())));
-                for (int i = 0; i < destination.length; i++)
-                    cx.addFaultyMember(destination[i], new NullPointerException(sm.getString("pooledMultiSender.retrieve.fail")));
+                ChannelException cx = new ChannelException("Unable to retrieve a data sender, time out("+getMaxWait()+" ms) error.");
+                for (int i = 0; i < destination.length; i++) cx.addFaultyMember(destination[i], new NullPointerException("Unable to retrieve a sender from the sender pool"));
                 throw cx;
             } else {
                 sender.sendMessage(destination, msg);
@@ -53,10 +59,18 @@ public class PooledMultiSender extends PooledSender {
         }
     }
 
+    /**
+     * getNewDataSender
+     *
+     * @return DataSender
+     * TODO Implement this org.apache.catalina.tribes.transport.PooledSender
+     *   method
+     */
     @Override
     public DataSender getNewDataSender() {
         MultipointBioSender sender = new MultipointBioSender();
         AbstractSender.transferProperties(this,sender);
         return sender;
     }
+
 }

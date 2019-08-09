@@ -22,7 +22,6 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 /*
  * In a server it is very important to be able to operate on
@@ -83,7 +82,7 @@ public final class ByteChunk extends AbstractChunk {
          *
          * @throws IOException If an I/O error occurs during reading
          */
-        public int realReadBytes() throws IOException;
+        public int realReadBytes(byte cbuf[], int off, int len) throws IOException;
     }
 
     /**
@@ -104,16 +103,6 @@ public final class ByteChunk extends AbstractChunk {
          * @throws IOException If an I/O occurs while writing the bytes
          */
         public void realWriteBytes(byte buf[], int off, int len) throws IOException;
-
-
-        /**
-         * Send the bytes ( usually the internal conversion buffer ). Expect 8k
-         * output if the buffer is full.
-         *
-         * @param from bytes that will be written
-         * @throws IOException If an I/O occurs while writing the bytes
-         */
-        public void realWriteBytes(ByteBuffer from) throws IOException;
     }
 
     // --------------------
@@ -123,7 +112,7 @@ public final class ByteChunk extends AbstractChunk {
      * standards seem to converge, but the servlet API requires 8859_1, and this
      * object is used mostly for servlets.
      */
-    public static final Charset DEFAULT_CHARSET = StandardCharsets.ISO_8859_1;
+    public static final Charset DEFAULT_CHARSET = B2CConverter.ISO_8859_1;
 
     private transient Charset charset;
 
@@ -135,6 +124,9 @@ public final class ByteChunk extends AbstractChunk {
     private transient ByteOutputChannel out = null;
 
 
+    private boolean optimizedWrite = true;
+
+
     /**
      * Creates a new, uninitialized ByteChunk object.
      */
@@ -144,6 +136,19 @@ public final class ByteChunk extends AbstractChunk {
 
     public ByteChunk(int initial) {
         allocate(initial, -1);
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public ByteChunk getClone() {
+        try {
+            return (ByteChunk) this.clone();
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
 
@@ -169,6 +174,11 @@ public final class ByteChunk extends AbstractChunk {
     public void recycle() {
         super.recycle();
         charset = null;
+    }
+
+
+    public void reset() {
+        buff = null;
     }
 
 
@@ -199,6 +209,15 @@ public final class ByteChunk extends AbstractChunk {
         end = start + len;
         isSet = true;
         hasHashCode = false;
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void setOptimizedWrite(boolean optimizedWrite) {
+        this.optimizedWrite = optimizedWrite;
     }
 
 
@@ -255,6 +274,19 @@ public final class ByteChunk extends AbstractChunk {
 
     // -------------------- Adding data to the buffer --------------------
 
+    /**
+     * Append a char, by casting it to byte. This IS NOT intended for unicode.
+     *
+     * @param c
+     * @throws IOException
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void append(char c) throws IOException {
+        append((byte) c);
+    }
+
+
     public void append(byte b) throws IOException {
         makeSpace(1);
         int limit = getLimitInternal();
@@ -289,7 +321,7 @@ public final class ByteChunk extends AbstractChunk {
         // If the buffer is empty and the source is going to fill up all the
         // space in buffer, may as well write it directly to the output,
         // and avoid an extra copy
-        if (len == limit && end == start && out != null) {
+        if (optimizedWrite && len == limit && end == start && out != null) {
             out.realWriteBytes(src, off, len);
             return;
         }
@@ -326,67 +358,6 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
-    /**
-     * Add data to the buffer.
-     *
-     * @param from the ByteBuffer with the data
-     * @throws IOException Writing overflow data to the output channel failed
-     */
-    public void append(ByteBuffer from) throws IOException {
-        int len = from.remaining();
-
-        // will grow, up to limit
-        makeSpace(len);
-        int limit = getLimitInternal();
-
-        // Optimize on a common case.
-        // If the buffer is empty and the source is going to fill up all the
-        // space in buffer, may as well write it directly to the output,
-        // and avoid an extra copy
-        if (len == limit && end == start && out != null) {
-            out.realWriteBytes(from);
-            from.position(from.limit());
-            return;
-        }
-        // if we have limit and we're below
-        if (len <= limit - end) {
-            // makeSpace will grow the buffer to the limit,
-            // so we have space
-            from.get(buff, end, len);
-            end += len;
-            return;
-        }
-
-        // need more space than we can afford, need to flush
-        // buffer
-
-        // the buffer is already at ( or bigger than ) limit
-
-        // We chunk the data into slices fitting in the buffer limit, although
-        // if the data is written directly if it doesn't fit
-
-        int avail = limit - end;
-        from.get(buff, end, avail);
-        end += avail;
-
-        flushBuffer();
-
-        int fromLimit = from.limit();
-        int remain = len - avail;
-        avail = limit - end;
-        while (remain >= avail) {
-            from.limit(from.position() + avail);
-            out.realWriteBytes(from);
-            from.position(from.limit());
-            remain = remain - avail;
-        }
-
-        from.limit(fromLimit);
-        from.get(buff, end, remain);
-        end += remain;
-    }
-
-
     // -------------------- Removing data from the buffer --------------------
 
     public int substract() throws IOException {
@@ -394,6 +365,30 @@ public final class ByteChunk extends AbstractChunk {
             return -1;
         }
         return buff[start++] & 0xFF;
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int substract(ByteChunk src) throws IOException {
+
+        if ((end - start) == 0) {
+            if (in == null) {
+                return -1;
+            }
+            int n = in.realReadBytes(buff, 0, buff.length);
+            if (n < 0) {
+                return -1;
+            }
+        }
+
+        int len = getLength();
+        src.append(buff, start, len);
+        start = end;
+        return len;
+
     }
 
 
@@ -419,36 +414,12 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
-    /**
-     * Transfers bytes from the buffer to the specified ByteBuffer. After the
-     * operation the position of the ByteBuffer will be returned to the one
-     * before the operation, the limit will be the position incremented by the
-     * number of the transfered bytes.
-     *
-     * @param to the ByteBuffer into which bytes are to be written.
-     * @return an integer specifying the actual number of bytes read, or -1 if
-     *         the end of the stream is reached
-     * @throws IOException if an input or output exception has occurred
-     */
-    public int substract(ByteBuffer to) throws IOException {
-        if (checkEof()) {
-            return -1;
-        }
-        int n = Math.min(to.remaining(), getLength());
-        to.put(buff, start, n);
-        to.limit(to.position());
-        to.position(to.position() - n);
-        start += n;
-        return n;
-    }
-
-
     private boolean checkEof() throws IOException {
         if ((end - start) == 0) {
             if (in == null) {
                 return true;
             }
-            int n = in.realReadBytes();
+            int n = in.realReadBytes(buff, 0, buff.length);
             if (n < 0) {
                 return true;
             }
@@ -547,6 +518,15 @@ public final class ByteChunk extends AbstractChunk {
         // bytes will be used. The code below is from Apache Harmony.
         CharBuffer cb = charset.decode(ByteBuffer.wrap(buff, start, end - start));
         return new String(cb.array(), cb.arrayOffset(), cb.length());
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int getInt() {
+        return Ascii.parseInt(buff, start, end - start);
     }
 
 
@@ -674,6 +654,55 @@ public final class ByteChunk extends AbstractChunk {
      * in a case sensitive manner.
      *
      * @param s the string
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public boolean startsWith(String s) {
+        // Works only if enc==UTF
+        byte[] b = buff;
+        int blen = s.length();
+        if (b == null || blen > end - start) {
+            return false;
+        }
+        int boff = start;
+        for (int i = 0; i < blen; i++) {
+            if (b[boff++] != s.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * Returns true if the message bytes start with the specified byte array.
+     *
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public boolean startsWith(byte[] b2) {
+        byte[] b1 = buff;
+        if (b1 == null && b2 == null) {
+            return true;
+        }
+
+        int len = end - start;
+        if (b1 == null || b2 == null || b2.length > len) {
+            return false;
+        }
+        for (int i = start, j = 0; i < end && j < b2.length;) {
+            if (b1[i++] != b2[j++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * Returns true if the message bytes starts with the specified string.
+     *
+     * @param s the string
      * @param pos The position
      *
      * @return <code>true</code> if the start matches
@@ -722,6 +751,26 @@ public final class ByteChunk extends AbstractChunk {
     @Override
     protected int getBufferElement(int index) {
         return buff[index];
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int hashIgnoreCase() {
+        return hashBytesIC(buff, start, end - start);
+    }
+
+
+    private static int hashBytesIC(byte bytes[], int start, int bytesLen) {
+        int max = start + bytesLen;
+        byte bb[] = bytes;
+        int code = 0;
+        for (int i = start; i < max; i++) {
+            code = code * 37 + Ascii.toLower(bb[i]);
+        }
+        return code;
     }
 
 
@@ -810,6 +859,41 @@ public final class ByteChunk extends AbstractChunk {
                 if (bytes[offset] == b[i]) {
                     return offset;
                 }
+            }
+            offset++;
+        }
+        return -1;
+    }
+
+
+    /**
+     * Returns the first instance of any byte that is not one of the given bytes
+     * in the byte array between the specified start and end.
+     *
+     * @param bytes The byte array to search
+     * @param start The point to start searching from in the byte array
+     * @param end The point to stop searching in the byte array
+     * @param b The list of bytes to search for
+     * @return The position of the first instance a byte that is not in the list
+     *         of bytes to search for or -1 if no such byte is found.
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public static int findNotBytes(byte bytes[], int start, int end, byte b[]) {
+        int blen = b.length;
+        int offset = start;
+        boolean found;
+
+        while (offset < end) {
+            found = true;
+            for (int i = 0; i < blen; i++) {
+                if (bytes[offset] == b[i]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                return offset;
             }
             offset++;
         }

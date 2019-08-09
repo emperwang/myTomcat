@@ -40,6 +40,11 @@
       description="enable a jvm Route check"
       type="boolean"/>
     <attribute
+      name="info"
+      description="describe version"
+      type="java.lang.String"
+      writeable="false"/>
+    <attribute
       name="numberOfSessions"
       description="number of jvmRoute session corrections"
       type="long"
@@ -62,6 +67,23 @@
       description="Stops the Cluster JvmRouteBinderValve"
       impact="ACTION"
       returnType="void"/>
+  </mbean>
+  <mbean
+    name="JvmRouteSessionIDBinderListener"
+    description="Monitors the jvmRoute activity"
+    domain="Catalina"
+    group="Listener"
+    type="org.apache.catalina.ha.session.JvmRouteSessionIDBinderListener">
+    <attribute
+      name="info"
+      description="describe version"
+      type="java.lang.String"
+      writeable="false"/>
+    <attribute
+      name="numberOfSessions"
+      description="number of jvmRoute session corrections"
+      type="long"
+      writeable="false"/>
   </mbean>
   <mbean
     name="DeltaManager"
@@ -170,6 +192,10 @@
       type="long"
       writeable="false"/>
     <attribute
+      name="distributable"
+      description="The distributable flag for Sessions created by this Manager"
+      type="boolean"/>
+    <attribute
       name="duplicates"
       description="Number of duplicated session ids generated"
       type="int"/>
@@ -183,6 +209,11 @@
       description="expire all sessions cluster wide as one node goes down"
       type="boolean"/>
     <attribute
+      name="info"
+      description="describe version"
+      type="java.lang.String"
+      writeable="false"/>
+    <attribute
       name="invalidatedSessions"
       description="describe version"
       type="[Ljava.lang.String;"
@@ -194,6 +225,10 @@
     <attribute
       name="maxActiveSessions"
       description="The maximum number of active Sessions allowed, or -1 for no limit"
+      type="int"/>
+    <attribute
+      name="maxInactiveInterval"
+      description="The default maximum inactive interval for Sessions created by this Manager"
       type="int"/>
     <attribute
       name="name"
@@ -244,6 +279,10 @@
       name="sessionCounter"
       description="Total number of sessions created by this manager"
       type="long"/>
+    <attribute
+      name="sessionIdLength"
+      description="The session id length (in bytes) of Sessions created by this Manager"
+      type="int"/>
     <attribute
       name="sessionMaxAliveTime"
       description="Longest time an expired session had been alive"
@@ -432,6 +471,10 @@
       type="java.lang.String"
       writeable="false"/>
     <attribute
+      name="distributable"
+      description="The distributable flag for Sessions created by this Manager"
+      type="boolean"/>
+    <attribute
       name="duplicates"
       description="Number of duplicated session ids generated"
       type="int"/>
@@ -439,6 +482,11 @@
       name="expiredSessions"
       description="Number of sessions that expired ( doesn't include explicit invalidations )"
       type="long"/>
+    <attribute
+      name="expireSessionsOnShutdown"
+      is="true"
+      description="expire all sessions cluster wide as one node goes down"
+      type="boolean"/>
     <attribute
       name="invalidatedSessions"
       description="Get the list of invalidated session."
@@ -460,6 +508,10 @@
     <attribute
       name="maxActiveSessions"
       description="The maximum number of active Sessions allowed, or -1 for no limit"
+      type="int"/>
+    <attribute
+      name="maxInactiveInterval"
+      description="The default maximum inactive interval for Sessions created by this Manager"
       type="int"/>
     <attribute
       name="name"
@@ -486,6 +538,10 @@
       name="sessionCounter"
       description="Total number of sessions created by this manager"
       type="long"/>
+    <attribute
+      name="sessionIdLength"
+      description="The session id length (in bytes) of Sessions created by this Manager"
+      type="int"/>
     <attribute
       name="sessionMaxAliveTime"
       description="Longest time an expired session had been alive"

@@ -16,44 +16,43 @@
  */
 package org.apache.tomcat.util.compat;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URI;
-import java.security.KeyStore.LoadStoreParameter;
-import java.util.Collections;
-import java.util.Map;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLServerSocket;
 
-class Jre8Compat extends JreCompat {
+class Jre8Compat extends Jre7Compat {
 
     private static final int RUNTIME_MAJOR_VERSION = 8;
 
+    private static final Method getSSLParametersMethod;
     private static final Method setUseCipherSuitesOrderMethod;
-    private static final Constructor<?> domainLoadStoreParameterConstructor;
+    private static final Method setSSLParametersMethod;
 
 
     static {
         Method m1 = null;
-        Constructor<?> c2 = null;
+        Method m2 = null;
+        Method m3 = null;
         try {
             // The class is Java6+...
-            Class<?> clazz1 = Class.forName("javax.net.ssl.SSLParameters");
+            Class<?> c2 = Class.forName("javax.net.ssl.SSLParameters");
+            m1 = SSLServerSocket.class.getMethod("getSSLParameters");
             // ...but this method is Java8+
-            m1 = clazz1.getMethod("setUseCipherSuitesOrder", boolean.class);
-            Class<?> clazz2 = Class.forName("java.security.DomainLoadStoreParameter");
-            c2 = clazz2.getConstructor(URI.class, Map.class);
+            m2 = c2.getMethod("setUseCipherSuitesOrder", boolean.class);
+            m3 = SSLServerSocket.class.getMethod("setSSLParameters", c2);
         } catch (SecurityException e) {
             // Should never happen
         } catch (NoSuchMethodException e) {
             // Expected on Java < 8
         } catch (ClassNotFoundException e) {
-            // Should never happen
+            // Expected on Java < 7
         }
-        setUseCipherSuitesOrderMethod = m1;
-        domainLoadStoreParameterConstructor = c2;
+        getSSLParametersMethod = m1;
+        setUseCipherSuitesOrderMethod = m2;
+        setSSLParametersMethod = m3;
     }
 
 
@@ -63,13 +62,14 @@ class Jre8Compat extends JreCompat {
 
 
     @Override
-    public void setUseServerCipherSuitesOrder(SSLEngine engine,
+    public void setUseServerCipherSuitesOrder(SSLServerSocket socket,
             boolean useCipherSuitesOrder) {
-        SSLParameters sslParameters = engine.getSSLParameters();
         try {
-            setUseCipherSuitesOrderMethod.invoke(sslParameters,
-                    Boolean.valueOf(useCipherSuitesOrder));
-            engine.setSSLParameters(sslParameters);
+            Object sslParameters = getSSLParametersMethod.invoke(socket);
+            setUseCipherSuitesOrderMethod.invoke(
+                    sslParameters, Boolean.valueOf(useCipherSuitesOrder));
+            setSSLParametersMethod.invoke(socket, sslParameters);
+            return;
         } catch (IllegalArgumentException e) {
             throw new UnsupportedOperationException(e);
         } catch (IllegalAccessException e) {
@@ -81,12 +81,17 @@ class Jre8Compat extends JreCompat {
 
 
     @Override
-    public LoadStoreParameter getDomainLoadStoreParameter(URI uri) {
+    public void setUseServerCipherSuitesOrder(SSLEngine engine,
+            boolean useCipherSuitesOrder) {
+        SSLParameters sslParameters = engine.getSSLParameters();
         try {
-            return (LoadStoreParameter) domainLoadStoreParameterConstructor.newInstance(
-                    uri, Collections.EMPTY_MAP);
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException |
-                InvocationTargetException e) {
+            setUseCipherSuitesOrderMethod.invoke(sslParameters, Boolean.valueOf(useCipherSuitesOrder));
+            engine.setSSLParameters(sslParameters);
+        } catch (IllegalArgumentException e) {
+            throw new UnsupportedOperationException(e);
+        } catch (IllegalAccessException e) {
+            throw new UnsupportedOperationException(e);
+        } catch (InvocationTargetException e) {
             throw new UnsupportedOperationException(e);
         }
     }

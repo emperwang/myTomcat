@@ -40,7 +40,6 @@ public interface ErrorHandler {
      * @param column Parse error column number
      * @param msg Parse error message
      * @param exception Parse exception
-     * @throws JasperException An error occurred
      */
     public void jspError(String fname, int line, int column, String msg,
             Exception exception) throws JasperException;
@@ -50,7 +49,6 @@ public interface ErrorHandler {
      *
      * @param msg Parse error message
      * @param exception Parse exception
-     * @throws JasperException An error occurred
      */
     public void jspError(String msg, Exception exception)
             throws JasperException;
@@ -60,7 +58,6 @@ public interface ErrorHandler {
      *
      * @param details Array of JavacErrorDetail instances corresponding to the
      * compilation errors
-     * @throws JasperException An error occurred
      */
     public void javacError(JavacErrorDetail[] details)
             throws JasperException;
@@ -70,7 +67,6 @@ public interface ErrorHandler {
      *
      * @param errorReport Compilation error report
      * @param exception Compilation exception
-     * @throws JasperException An error occurred
      */
     public void javacError(String errorReport, Exception exception)
             throws JasperException;

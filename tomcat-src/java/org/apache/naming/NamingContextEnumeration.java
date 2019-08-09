@@ -47,7 +47,7 @@ public class NamingContextEnumeration
     /**
      * Underlying enumeration.
      */
-    protected final Iterator<NamingEntry> iterator;
+    protected Iterator<NamingEntry> iterator;
 
 
     // --------------------------------------------------------- Public Methods

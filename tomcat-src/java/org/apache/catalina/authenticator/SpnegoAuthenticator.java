@@ -33,6 +33,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Realm;
 import org.apache.catalina.connector.Request;
+import org.apache.catalina.deploy.LoginConfig;
+import org.apache.catalina.startup.Bootstrap;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.ByteChunk;
@@ -108,6 +110,12 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
 
 
     @Override
+    public String getInfo() {
+        return "org.apache.catalina.authenticator.SpnegoAuthenticator/1.0";
+    }
+
+
+    @Override
     protected void initInternal() throws LifecycleException {
         super.initInternal();
 
@@ -115,7 +123,7 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
         String krb5Conf = System.getProperty(Constants.KRB5_CONF_PROPERTY);
         if (krb5Conf == null) {
             // System property not set, use the Tomcat default
-            File krb5ConfFile = new File(container.getCatalinaBase(),
+            File krb5ConfFile = new File(Bootstrap.getCatalinaBase(),
                     Constants.DEFAULT_KRB5_CONF);
             System.setProperty(Constants.KRB5_CONF_PROPERTY,
                     krb5ConfFile.getAbsolutePath());
@@ -125,7 +133,7 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
         String jaasConf = System.getProperty(Constants.JAAS_CONF_PROPERTY);
         if (jaasConf == null) {
             // System property not set, use the Tomcat default
-            File jaasConfFile = new File(container.getCatalinaBase(),
+            File jaasConfFile = new File(Bootstrap.getCatalinaBase(),
                     Constants.DEFAULT_JAAS_CONF);
             System.setProperty(Constants.JAAS_CONF_PROPERTY,
                     jaasConfFile.getAbsolutePath());
@@ -134,8 +142,8 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
 
 
     @Override
-    protected boolean doAuthenticate(Request request, HttpServletResponse response)
-            throws IOException {
+    public boolean authenticate(Request request, HttpServletResponse response,
+            LoginConfig config) throws IOException {
 
         if (checkForCachedAuthentication(request, response, true)) {
             return true;
@@ -307,13 +315,13 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
     /**
      * This class gets a gss credential via a privileged action.
      */
-    public static class AcceptAction implements PrivilegedExceptionAction<byte[]> {
+    private static class AcceptAction implements PrivilegedExceptionAction<byte[]> {
 
         GSSContext gssContext;
 
         byte[] decoded;
 
-        public AcceptAction(GSSContext context, byte[] decodedToken) {
+        AcceptAction(GSSContext context, byte[] decodedToken) {
             this.gssContext = context;
             this.decoded = decodedToken;
         }
@@ -326,7 +334,7 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
     }
 
 
-    public static class AuthenticateAction implements PrivilegedAction<Principal> {
+    private static class AuthenticateAction implements PrivilegedAction<Principal> {
 
         private final Realm realm;
         private final GSSContext gssContext;
@@ -359,7 +367,7 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
      * This hack works by re-ordering the list of mechTypes in the NegTokenInit
      * token.
      */
-    public static class SpnegoTokenFixer {
+    private static class SpnegoTokenFixer {
 
         public static void fix(byte[] token) {
             SpnegoTokenFixer fixer = new SpnegoTokenFixer(token);
@@ -401,7 +409,7 @@ public class SpnegoAuthenticator extends AuthenticatorBase {
             // Read the mechTypes into an ordered set
             int mechTypesLen = lengthAsInt();
             int mechTypesStart = pos;
-            LinkedHashMap<String, int[]> mechTypeEntries = new LinkedHashMap<>();
+            LinkedHashMap<String, int[]> mechTypeEntries = new LinkedHashMap<String, int[]>();
             while (pos < mechTypesStart + mechTypesLen) {
                 int[] value = new int[2];
                 value[0] = pos;

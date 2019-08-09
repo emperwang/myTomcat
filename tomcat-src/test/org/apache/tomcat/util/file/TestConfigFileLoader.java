@@ -17,22 +17,28 @@
  */
 package org.apache.tomcat.util.file;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import org.apache.catalina.webresources.TomcatURLStreamHandlerFactory;
+import org.apache.naming.resources.DirContextURLStreamHandlerFactory;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
 
 public class TestConfigFileLoader {
 
     @BeforeClass
     public static void setup() {
-        TomcatURLStreamHandlerFactory.getInstance();
-        System.setProperty("catalina.base", "");
+        URL.setURLStreamHandlerFactory(
+                DirContextURLStreamHandlerFactory.getInstance());
+        File buildDir = new File(
+                System.getProperty("tomcat.test.tomcatbuild", "output/build"));
+        System.setProperty("catalina.base", buildDir.getAbsolutePath());
     }
 
     @Test
@@ -47,17 +53,33 @@ public class TestConfigFileLoader {
 
     @Test
     public void test03() throws IOException {
-        doTest("test/webresources/dir1");
+        doTest("conf/server.xml");
     }
 
     @Test(expected=FileNotFoundException.class)
     public void test04() throws IOException {
-        doTest("test/webresources/unknown");
+        doTest("conf/unknown");
+    }
+
+    @Test
+    public void testAbsolutePath() throws IOException {
+        File test = new File(System.getProperty("java.io.tmpdir"), "testAbsolutePath");
+        if (test.exists()) {
+            FileUtils.forceDelete(test);
+        }
+        test.createNewFile();
+        doTest(test.getAbsolutePath());
     }
 
     private void doTest(String path) throws IOException {
-        try (InputStream is = ConfigFileLoader.getInputStream(path)) {
+        InputStream is = null;
+        try {
+            is = ConfigFileLoader.getInputStream(path);
             Assert.assertNotNull(is);
+        } finally {
+            if (is != null) {
+                is.close();
+            }
         }
     }
 }

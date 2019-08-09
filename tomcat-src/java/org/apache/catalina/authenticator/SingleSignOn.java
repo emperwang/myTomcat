@@ -28,6 +28,7 @@ import javax.servlet.http.Cookie;
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
 import org.apache.catalina.Engine;
+import org.apache.catalina.Globals;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Manager;
 import org.apache.catalina.Realm;
@@ -59,6 +60,18 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public class SingleSignOn extends ValveBase {
 
+    protected static final boolean LAST_ACCESS_AT_START;
+
+    static {
+        String lastAccessAtStart = System.getProperty(
+                "org.apache.catalina.session.StandardSession.LAST_ACCESS_AT_START");
+        if (lastAccessAtStart == null) {
+            LAST_ACCESS_AT_START = Globals.STRICT_SERVLET_COMPLIANCE;
+        } else {
+            LAST_ACCESS_AT_START = Boolean.parseBoolean(lastAccessAtStart);
+        }
+    }
+
     private static final StringManager sm = StringManager.getManager(SingleSignOn.class);
 
     /* The engine at the top of the container hierarchy in which this SSO Valve
@@ -80,7 +93,15 @@ public class SingleSignOn extends ValveBase {
      * The cache of SingleSignOnEntry instances for authenticated Principals,
      * keyed by the cookie value that is used to select them.
      */
-    protected Map<String,SingleSignOnEntry> cache = new ConcurrentHashMap<>();
+    protected Map<String,SingleSignOnEntry> cache =
+            new ConcurrentHashMap<String,SingleSignOnEntry>();
+
+    /**
+     * Descriptive information about this Valve implementation.
+     */
+    protected static final String info =
+        "org.apache.catalina.authenticator.SingleSignOn";
+
 
     /**
      * Indicates whether this valve should require a downstream Authenticator to
@@ -190,6 +211,15 @@ public class SingleSignOn extends ValveBase {
 
 
     // ---------------------------------------------------------- Valve Methods
+
+    /**
+     * Return descriptive information about this Valve implementation.
+     */
+    @Override
+    public String getInfo() {
+        return info;
+    }
+
 
     /**
      * Perform single-sign-on support processing for this request.
@@ -314,8 +344,9 @@ public class SingleSignOn extends ValveBase {
         // session was logged out, we'll log out of all session associated with
         // the SSO.
         if (((session.getMaxInactiveInterval() > 0)
-            && (session.getIdleTimeInternal() >= session.getMaxInactiveInterval() * 1000))
-            || (!session.getManager().getContext().getState().isAvailable())) {
+            && (System.currentTimeMillis() - session.getThisAccessedTimeInternal() >=
+                session.getMaxInactiveInterval() * 1000))
+            || (!((Context)session.getManager().getContainer()).getState().isAvailable())) {
             if (containerLog.isDebugEnabled()) {
                 containerLog.debug(sm.getString("singleSignOn.debug.sessionTimeout",
                         ssoId, session));

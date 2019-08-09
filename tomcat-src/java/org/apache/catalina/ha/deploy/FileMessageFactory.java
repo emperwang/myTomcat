@@ -42,12 +42,14 @@ import org.apache.tomcat.util.res.StringManager;
  * To force a cleanup, call cleanup() from the calling object. <BR>
  * This class is not thread safe.
  *
+ * @author Filip Hanik
  * @version 1.0
  */
 public class FileMessageFactory {
     /*--Static Variables----------------------------------------*/
     private static final Log log = LogFactory.getLog(FileMessageFactory.class);
-    private static final StringManager sm = StringManager.getManager(FileMessageFactory.class);
+    private static final StringManager sm =
+        StringManager.getManager(Constants.Package);
 
     /**
      * The number of bytes that we read from file
@@ -57,16 +59,16 @@ public class FileMessageFactory {
     /**
      * The file that we are reading/writing
      */
-    protected final File file;
+    protected File file = null;
 
     /**
      * True means that we are writing with this factory. False means that we are
      * reading with this factory
      */
-    protected final boolean openForWrite;
+    protected boolean openForWrite;
 
     /**
-     * Once the factory is used, it cannot be reused.
+     * Once the factory is used, it can not be reused.
      */
     protected boolean closed = false;
 
@@ -105,7 +107,8 @@ public class FileMessageFactory {
      * everything is worked as expected, messages will spend very little time in
      * the buffer.
      */
-    protected final Map<Long, FileMessage> msgBuffer = new ConcurrentHashMap<>();
+    protected Map<Long, FileMessage> msgBuffer =
+        new ConcurrentHashMap<Long, FileMessage>();
 
     /**
      * The bytes that we hold the data in, not thread safe.
@@ -214,6 +217,7 @@ public class FileMessageFactory {
             return null;
         } else {
             f.setData(data, length);
+            f.setTotalLength(size);
             f.setTotalNrOfMsgs(totalNrOfMessages);
             f.setMessageNumber(++nrOfMessagesProcessed);
             return f;
@@ -333,8 +337,9 @@ public class FileMessageFactory {
      * asked to do. Invoked by readMessage/writeMessage before those methods
      * proceed.
      *
-     * @param openForWrite The value to check
-     * @throws IllegalArgumentException if the state is not the expected one
+     * @param openForWrite
+     *            boolean
+     * @throws IllegalArgumentException
      */
     protected void checkState(boolean openForWrite)
             throws IllegalArgumentException {
@@ -359,7 +364,7 @@ public class FileMessageFactory {
      * @param args
      *            String[], args[0] - read from filename, args[1] write to
      *            filename
-     * @throws Exception An error occurred
+     * @throws Exception
      */
     public static void main(String[] args) throws Exception {
 

@@ -52,7 +52,7 @@ public final class MessageBytes implements Cloneable, Serializable {
     public static final int T_CHARS = 3;
 
     private int hashCode=0;
-    // did we compute the hashcode ?
+    // did we computed the hashcode ?
     private boolean hasHashCode=false;
 
     // Internal objects to represent array + offset, and specific methods
@@ -73,21 +73,28 @@ public final class MessageBytes implements Cloneable, Serializable {
     private MessageBytes() {
     }
 
-    /**
-     * Construct a new MessageBytes instance.
-     * @return the instance
+    /** Construct a new MessageBytes instance
      */
     public static MessageBytes newInstance() {
         return factory.newInstance();
     }
 
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        return super.clone();
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public MessageBytes getClone() {
+        try {
+            return (MessageBytes)this.clone();
+        } catch( Exception ex) {
+            return null;
+        }
     }
 
     public boolean isNull() {
-        return byteC.isNull() && charC.isNull() && !hasStrValue;
+        // should we check also hasStrValue ???
+        return byteC.isNull() && charC.isNull() && ! hasStrValue;
+        // bytes==null && strValue==null;
     }
 
     /**
@@ -102,7 +109,8 @@ public final class MessageBytes implements Cloneable, Serializable {
 
         hasStrValue=false;
         hasHashCode=false;
-        hasLongValue=false;
+        hasIntValue=false;
+    hasLongValue=false;
     }
 
 
@@ -118,31 +126,33 @@ public final class MessageBytes implements Cloneable, Serializable {
         type=T_BYTES;
         hasStrValue=false;
         hasHashCode=false;
+        hasIntValue=false;
         hasLongValue=false;
     }
 
     /**
      * Sets the content to be a char[]
      *
-     * @param c the chars
-     * @param off the start offset of the chars
-     * @param len the length of the chars
+     * @param c the bytes
+     * @param off the start offset of the bytes
+     * @param len the length of the bytes
      */
     public void setChars( char[] c, int off, int len ) {
         charC.setChars( c, off, len );
         type=T_CHARS;
         hasStrValue=false;
         hasHashCode=false;
+        hasIntValue=false;
         hasLongValue=false;
     }
 
     /**
      * Set the content to be a string
-     * @param s The string
      */
     public void setString( String s ) {
         strValue=s;
         hasHashCode=false;
+        hasIntValue=false;
         hasLongValue=false;
         if (s == null) {
             hasStrValue=false;
@@ -155,34 +165,30 @@ public final class MessageBytes implements Cloneable, Serializable {
 
     // -------------------- Conversion and getters --------------------
 
-    /**
-     * Compute the string value.
-     * @return the string
+    /** Compute the string value
      */
     @Override
     public String toString() {
-        if (hasStrValue) {
+        if( hasStrValue ) {
             return strValue;
         }
 
         switch (type) {
         case T_CHARS:
-            strValue = charC.toString();
-            hasStrValue = true;
+            strValue=charC.toString();
+            hasStrValue=true;
             return strValue;
         case T_BYTES:
-            strValue = byteC.toString();
-            hasStrValue = true;
+            strValue=byteC.toString();
+            hasStrValue=true;
             return strValue;
         }
         return null;
     }
 
     //----------------------------------------
-    /**
-     * Return the type of the original content. Can be
-     * T_STR, T_BYTES, T_CHARS or T_NULL
-     * @return the type
+    /** Return the type of the original content. Can be
+     *  T_STR, T_BYTES, T_CHARS or T_NULL
      */
     public int getType() {
         return type;
@@ -191,7 +197,6 @@ public final class MessageBytes implements Cloneable, Serializable {
     /**
      * Returns the byte chunk, representing the byte[] and offset/length.
      * Valid only if T_BYTES or after a conversion was made.
-     * @return the byte chunk
      */
     public ByteChunk getByteChunk() {
         return byteC;
@@ -200,7 +205,6 @@ public final class MessageBytes implements Cloneable, Serializable {
     /**
      * Returns the char chunk, representing the char[] and offset/length.
      * Valid only if T_CHARS or after a conversion was made.
-     * @return the char chunk
      */
     public CharChunk getCharChunk() {
         return charC;
@@ -209,14 +213,13 @@ public final class MessageBytes implements Cloneable, Serializable {
     /**
      * Returns the string value.
      * Valid only if T_STR or after a conversion was made.
-     * @return the string
      */
     public String getString() {
         return strValue;
     }
 
     /**
-     * @return the Charset used for string&lt;-&gt;byte conversions.
+     * Get the Charset used for string&lt;-&gt;byte conversions.
      */
     public Charset getCharset() {
         return byteC.getCharset();
@@ -224,48 +227,37 @@ public final class MessageBytes implements Cloneable, Serializable {
 
     /**
      * Set the Charset used for string&lt;-&gt;byte conversions.
-     * @param charset The charset
      */
     public void setCharset(Charset charset) {
         byteC.setCharset(charset);
     }
 
-
-    /**
-     * Do a char-&gt;byte conversion.
+    /** Do a char-&gt;byte conversion.
      */
     public void toBytes() {
-        if (isNull()) {
-            return;
-        }
         if (!byteC.isNull()) {
-            type = T_BYTES;
+            type=T_BYTES;
             return;
         }
         toString();
-        type = T_BYTES;
+        type=T_BYTES;
         Charset charset = byteC.getCharset();
         ByteBuffer result = charset.encode(strValue);
         byteC.setBytes(result.array(), result.arrayOffset(), result.limit());
     }
 
-
-    /**
-     * Convert to char[] and fill the CharChunk.
-     * XXX Not optimized - it converts to String first.
+    /** Convert to char[] and fill the CharChunk.
+     *  XXX Not optimized - it converts to String first.
      */
     public void toChars() {
-        if (isNull()) {
-            return;
-        }
-        if (!charC.isNull()) {
-            type = T_CHARS;
+        if( ! charC.isNull() ) {
+            type=T_CHARS;
             return;
         }
         // inefficient
         toString();
-        type = T_CHARS;
-        char cc[] = strValue.toCharArray();
+        type=T_CHARS;
+        char cc[]=strValue.toCharArray();
         charC.setChars(cc, 0, cc.length);
     }
 
@@ -274,7 +266,6 @@ public final class MessageBytes implements Cloneable, Serializable {
      * Returns the length of the original buffer.
      * Note that the length in bytes may be different from the length
      * in chars.
-     * @return the length
      */
     public int getLength() {
         if(type==T_BYTES) {
@@ -298,7 +289,7 @@ public final class MessageBytes implements Cloneable, Serializable {
     /**
      * Compares the message bytes to the specified String object.
      * @param s the String to compare
-     * @return <code>true</code> if the comparison succeeded, <code>false</code> otherwise
+     * @return true if the comparison succeeded, false otherwise
      */
     public boolean equals(String s) {
         switch (type) {
@@ -319,7 +310,7 @@ public final class MessageBytes implements Cloneable, Serializable {
     /**
      * Compares the message bytes to the specified String object.
      * @param s the String to compare
-     * @return <code>true</code> if the comparison succeeded, <code>false</code> otherwise
+     * @return true if the comparison succeeded, false otherwise
      */
     public boolean equalsIgnoreCase(String s) {
         switch (type) {
@@ -379,7 +370,26 @@ public final class MessageBytes implements Cloneable, Serializable {
 
 
     /**
-     * @return <code>true</code> if the message bytes starts with the specified string.
+     * Returns true if the message bytes starts with the specified string.
+     * @param s the string
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public boolean startsWith(String s) {
+        switch (type) {
+        case T_STR:
+            return strValue.startsWith( s );
+        case T_CHARS:
+            return charC.startsWith( s );
+        case T_BYTES:
+            return byteC.startsWith( s );
+        default:
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if the message bytes starts with the specified string.
      * @param s the string
      * @param pos The start position
      */
@@ -443,6 +453,14 @@ public final class MessageBytes implements Cloneable, Serializable {
         }
     }
 
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int indexOf(char c) {
+        return indexOf( c, 0);
+    }
+
     // Inefficient initial implementation. Will be replaced on the next
     // round of tune-up
     public int indexOf(String s, int starting) {
@@ -464,9 +482,27 @@ public final class MessageBytes implements Cloneable, Serializable {
     }
 
     /**
-     * Copy the src into this MessageBytes, allocating more space if needed.
-     * @param src The source
-     * @throws IOException Writing overflow data to the output channel failed
+     * Returns true if the message bytes starts with the specified string.
+     * @param c the character
+     * @param starting The start position
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int indexOf(char c, int starting) {
+        switch (type) {
+        case T_STR:
+            return strValue.indexOf( c, starting );
+        case T_CHARS:
+            return charC.indexOf( c, starting);
+        case T_BYTES:
+            return byteC.indexOf( c, starting );
+        default:
+            return -1;
+        }
+    }
+
+    /** Copy the src into this MessageBytes, allocating more space if
+     *  needed
      */
     public void duplicate( MessageBytes src ) throws IOException
     {
@@ -493,14 +529,60 @@ public final class MessageBytes implements Cloneable, Serializable {
     }
 
     // -------------------- Deprecated code --------------------
-    // efficient long
-    // XXX used only for headers - shouldn't be stored here.
+    // efficient int, long and date
+    // XXX used only for headers - shouldn't be
+    // stored here.
+    private int intValue;
+    private boolean hasIntValue=false;
     private long longValue;
     private boolean hasLongValue=false;
 
     /**
-     * Set the buffer to the representation of an long.
-     * @param l The long
+     * Set the buffer to the representation of an int
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public void setInt(int i) {
+        byteC.allocate(16, 32);
+        int current = i;
+        byte[] buf = byteC.getBuffer();
+        int start = 0;
+        int end = 0;
+        if (i == 0) {
+            buf[end++] = (byte) '0';
+        }
+        if (i < 0) {
+            current = -i;
+            buf[end++] = (byte) '-';
+        }
+        while (current > 0) {
+            int digit = current % 10;
+            current = current / 10;
+            buf[end++] = HexUtils.getHex(digit);
+        }
+        byteC.setOffset(0);
+        byteC.setEnd(end);
+        // Inverting buffer
+        end--;
+        if (i < 0) {
+            start++;
+        }
+        while (end > start) {
+            byte temp = buf[start];
+            buf[start] = buf[end];
+            buf[end] = temp;
+            start++;
+            end--;
+        }
+        intValue=i;
+        hasStrValue=false;
+        hasHashCode=false;
+        hasIntValue=true;
+        hasLongValue=false;
+        type=T_BYTES;
+    }
+
+    /** Set the buffer to the representation of an long
      */
     public void setLong(long l) {
         byteC.allocate(32, 64);
@@ -537,14 +619,36 @@ public final class MessageBytes implements Cloneable, Serializable {
         longValue=l;
         hasStrValue=false;
         hasHashCode=false;
+        hasIntValue=false;
         hasLongValue=true;
         type=T_BYTES;
     }
 
     // Used for headers conversion
     /**
-     * Convert the buffer to an long, cache the value.
-     * @return the long value
+     * Convert the buffer to an int, cache the value
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public int getInt()
+    {
+        if( hasIntValue ) {
+            return intValue;
+        }
+
+        switch (type) {
+        case T_BYTES:
+            intValue=byteC.getInt();
+            break;
+        default:
+            intValue=Integer.parseInt(toString());
+        }
+        hasIntValue=true;
+        return intValue;
+    }
+
+    // Used for headers conversion
+    /** Convert the buffer to an long, cache the value
      */
     public long getLong() {
         if( hasLongValue ) {
@@ -566,9 +670,17 @@ public final class MessageBytes implements Cloneable, Serializable {
 
     // -------------------- Future may be different --------------------
 
-    private static final MessageBytesFactory factory=new MessageBytesFactory();
+    private static MessageBytesFactory factory=new MessageBytesFactory();
 
-    private static class MessageBytesFactory {
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 8.0.x onwards.
+     */
+    @Deprecated
+    public static void setFactory( MessageBytesFactory mbf ) {
+        factory=mbf;
+    }
+
+    public static class MessageBytesFactory {
         protected MessageBytesFactory() {
         }
         public MessageBytes newInstance() {

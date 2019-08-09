@@ -46,6 +46,7 @@ public final class ClientAbortException extends IOException {
      */
     public ClientAbortException(String message) {
         super(message);
+        this.message = getMessage();
     }
 
 
@@ -56,6 +57,8 @@ public final class ClientAbortException extends IOException {
      */
     public ClientAbortException(Throwable throwable) {
         super(throwable);
+        this.message = getMessage();
+        this.throwable = throwable;
     }
 
 
@@ -68,5 +71,27 @@ public final class ClientAbortException extends IOException {
      */
     public ClientAbortException(String message, Throwable throwable) {
         super(message, throwable);
+        this.message = getMessage();
+        this.throwable = throwable;
     }
+
+
+    //------------------------------------------------------ Instance Variables
+
+
+    /**
+     * The error message passed to our constructor (if any)
+     * @deprecated Use {@link Throwable#getMessage()}
+     */
+    @Deprecated
+    String message = null;
+
+
+    /**
+     * The underlying exception or error passed to our constructor (if any)
+     * @deprecated Use {@link Throwable#getCause()}
+     */
+    @Deprecated
+    Throwable throwable = null;
+
 }

@@ -83,7 +83,7 @@ public class Benchmarks {
             }
         };
 
-        private ThreadLocal<Date> currentDateLocal = new ThreadLocal<>();
+        private ThreadLocal<Date> currentDateLocal = new ThreadLocal<Date>();
 
         @Override
         public void run() {
@@ -119,7 +119,7 @@ public class Benchmarks {
             }
         };
 
-        private ThreadLocal<Date> currentDateLocal = new ThreadLocal<>();
+        private ThreadLocal<Date> currentDateLocal = new ThreadLocal<Date>();
 
         @Override
         public void run() {
@@ -193,7 +193,7 @@ public class Benchmarks {
             try {
                 index = Integer.parseInt(month) - 1;
             } catch (Throwable t) {
-                index = 0; // cannot happen, in theory
+                index = 0; // Can not happen, in theory
             }
             return (months[index]);
         }
@@ -266,7 +266,7 @@ public class Benchmarks {
             return "ThreadLocals";
         }
 
-        private ThreadLocal<String> currentDateStringLocal = new ThreadLocal<>();
+        private ThreadLocal<String> currentDateStringLocal = new ThreadLocal<String>();
 
         private ThreadLocal<Date> currentDateLocal = new ThreadLocal<Date>() {
             @Override

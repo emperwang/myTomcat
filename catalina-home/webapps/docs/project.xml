@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="ISO-8859-1"?>
 <!--
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -18,7 +18,7 @@
 <project name="Apache Tomcat Documentation"
         href="https://tomcat.apache.org/">
 
-    <title>Apache Tomcat 8</title>
+    <title>Apache Tomcat 7</title>
 
     <logo href="/images/tomcat.gif">
       The Apache Tomcat Servlet/JSP Container
@@ -75,7 +75,6 @@
         <item name="32) Tomcat's JDBC Pool"
               href="jdbc-pool.html"/>
         <item name="33) WebSocket"          href="web-socket-howto.html"/>
-        <item name="34) Rewrite"            href="rewrite.html"/>
     </menu>
 
     <menu name="Reference">
@@ -83,8 +82,8 @@
         <item name="Configuration"         href="config/index.html"/>
         <item name="Tomcat Javadocs"       href="api/index.html"/>
         <item name="Servlet Javadocs"      href="servletapi/index.html"/>
-        <item name="JSP 2.3 Javadocs"      href="jspapi/index.html"/>
-        <item name="EL 3.0 Javadocs"       href="elapi/index.html"/>
+        <item name="JSP 2.2 Javadocs"      href="jspapi/index.html"/>
+        <item name="EL 2.2 Javadocs"       href="elapi/index.html"/>
         <item name="WebSocket 1.1 Javadocs"
               href="websocketapi/index.html"/>
         <item name="JK 1.2 Documentation"

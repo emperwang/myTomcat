@@ -27,7 +27,6 @@ import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.group.ChannelInterceptorBase;
 import org.apache.catalina.tribes.group.InterceptorPayload;
 import org.apache.catalina.tribes.io.XByteBuffer;
-import org.apache.catalina.tribes.util.StringManager;
 
 
 /**
@@ -42,22 +41,22 @@ import org.apache.catalina.tribes.util.StringManager;
  * and the queue might become rather large. If this is the case, then you might want to set
  * the value OrderInterceptor.maxQueue = 25 (meaning that we will never keep more than 25 messages in our queue)
  * <br><b>Configuration Options</b><br>
- * OrderInterceptor.expire=&lt;milliseconds&gt; - if a message arrives out of order, how long before we act on it <b>default=3000ms</b><br>
- * OrderInterceptor.maxQueue=&lt;max queue size&gt; - how much can the queue grow to ensure ordering.
+ * OrderInterceptor.expire=<milliseconds> - if a message arrives out of order, how long before we act on it <b>default=3000ms</b><br>
+ * OrderInterceptor.maxQueue=<max queue size> - how much can the queue grow to ensure ordering.
  *   This setting is useful to avoid OutOfMemoryErrors<b>default=Integer.MAX_VALUE</b><br>
- * OrderInterceptor.forwardExpired=&lt;boolean&gt; - this flag tells the interceptor what to
+ * OrderInterceptor.forwardExpired=<boolean> - this flag tells the interceptor what to
  * do when a message has expired or the queue has grown larger than the maxQueue value.
  * true means that the message is sent up the stack to the receiver that will receive and out of order message
  * false means, forget the message and reset the message counter. <b>default=true</b>
  *
  *
+ * @author Filip Hanik
  * @version 1.1
  */
 public class OrderInterceptor extends ChannelInterceptorBase {
-    protected static final StringManager sm = StringManager.getManager(OrderInterceptor.class);
-    private final HashMap<Member, Counter> outcounter = new HashMap<>();
-    private final HashMap<Member, Counter> incounter = new HashMap<>();
-    private final HashMap<Member, MessageOrder> incoming = new HashMap<>();
+    private HashMap<Member, Counter> outcounter = new HashMap<Member, Counter>();
+    private HashMap<Member, Counter> incounter = new HashMap<Member, Counter>();
+    private HashMap<Member, MessageOrder> incoming = new HashMap<Member, MessageOrder>();
     private long expire = 3000;
     private boolean forwardExpired = true;
     private int maxQueue = Integer.MAX_VALUE;
@@ -75,8 +74,8 @@ public class OrderInterceptor extends ChannelInterceptorBase {
         for (int i=0; i<destination.length; i++ ) {
             try {
                 int nr = 0;
-                outLock.writeLock().lock();
                 try {
+                    outLock.writeLock().lock();
                     nr = incCounter(destination[i]);
                 } finally {
                     outLock.writeLock().unlock();
@@ -105,10 +104,10 @@ public class OrderInterceptor extends ChannelInterceptorBase {
         int msgnr = XByteBuffer.toInt(msg.getMessage().getBytesDirect(),msg.getMessage().getLength()-4);
         msg.getMessage().trim(4);
         MessageOrder order = new MessageOrder(msgnr,(ChannelMessage)msg.deepclone());
-        inLock.writeLock().lock();
         try {
+            inLock.writeLock().lock();
             if ( processIncoming(order) ) processLeftOvers(msg.getAddress(),false);
-        } finally {
+        }finally {
             inLock.writeLock().unlock();
         }
     }
@@ -213,7 +212,7 @@ public class OrderInterceptor extends ChannelInterceptorBase {
     }
 
     protected static class Counter {
-        private final AtomicInteger value = new AtomicInteger(0);
+        private AtomicInteger value = new AtomicInteger(0);
 
         public int getCounter() {
             return value.get();
@@ -229,9 +228,9 @@ public class OrderInterceptor extends ChannelInterceptorBase {
     }
 
     protected static class MessageOrder {
-        private final long received = System.currentTimeMillis();
+        private long received = System.currentTimeMillis();
         private MessageOrder next;
-        private final int msgNr;
+        private int msgNr;
         private ChannelMessage msg = null;
         public MessageOrder(int msgNr,ChannelMessage msg) {
             this.msgNr = msgNr;
@@ -294,7 +293,7 @@ public class OrderInterceptor extends ChannelInterceptorBase {
                 add.next = iter;
 
             } else {
-                throw new ArithmeticException(sm.getString("orderInterceptor.messageAdded.sameCounter"));
+                throw new ArithmeticException("Message added has the same counter, synchronization bug. Disable the order interceptor");
             }
 
             return head;

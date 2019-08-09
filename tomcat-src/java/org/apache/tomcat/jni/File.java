@@ -583,7 +583,7 @@ public class File {
      * APR_ENOTIMPL.
      * @param fname The file (name) to apply the permissions to.
      * @param perms The permission bits to apply to the file.
-     * @return the operation status
+     *
      */
     public static native int permsSet(String fname, int perms);
 

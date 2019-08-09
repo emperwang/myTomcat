@@ -14,15 +14,13 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 --%>
-<%@page session="false" import="java.util.Date,java.text.SimpleDateFormat"%>
+<%@page session="false"%>
 Output from async1.jsp
 Type is <%=request.getDispatcherType()%>
 <%
-  System.out.println("Inside Async 1");
+System.out.println("Inside Async 1");
   if (request.isAsyncStarted()) {
     request.getAsyncContext().complete();
   }
-  Date date = new Date(System.currentTimeMillis());
-  SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 %>
-Completed async request at <%=sdf.format(date)%>
+Completed async request at <%=new java.sql.Date(System.currentTimeMillis())%>

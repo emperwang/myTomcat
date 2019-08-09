@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.apache.catalina.core;
 
 
@@ -26,14 +28,12 @@ import javax.management.ObjectName;
 import org.apache.catalina.Container;
 import org.apache.catalina.Engine;
 import org.apache.catalina.Executor;
-import org.apache.catalina.JmxEnabled;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Server;
 import org.apache.catalina.Service;
 import org.apache.catalina.connector.Connector;
-import org.apache.catalina.mapper.Mapper;
-import org.apache.catalina.mapper.MapperListener;
+import org.apache.catalina.mbeans.MBeanUtils;
 import org.apache.catalina.util.LifecycleMBeanBase;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -55,6 +55,14 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
     // ----------------------------------------------------- Instance Variables
 
+
+    /**
+     * Descriptive information about this component implementation.
+     */
+    private static final String info =
+        "org.apache.catalina.core.StandardService/1.0";
+
+
     /**
      * The name of this service.
      */
@@ -75,7 +83,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     /**
      * The property change support for this component.
      */
-    protected final PropertyChangeSupport support = new PropertyChangeSupport(this);
+    protected PropertyChangeSupport support = new PropertyChangeSupport(this);
 
 
     /**
@@ -87,78 +95,78 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     /**
      *
      */
-    protected final ArrayList<Executor> executors = new ArrayList<>();
+    protected ArrayList<Executor> executors = new ArrayList<Executor>();
 
-    private Engine engine = null;
+    /**
+     * The Container associated with this Service. (In the case of the
+     * org.apache.catalina.startup.Embedded subclass, this holds the most
+     * recently added Engine.)
+     */
+    protected Container container = null;
 
     private ClassLoader parentClassLoader = null;
 
-    /**
-     * Mapper.
-     */
-    protected final Mapper mapper = new Mapper();
-
-
-    /**
-     * Mapper listener.
-     */
-    protected final MapperListener mapperListener = new MapperListener(this);
-
-
     // ------------------------------------------------------------- Properties
 
+
+    /**
+     * Return the <code>Container</code> that handles requests for all
+     * <code>Connectors</code> associated with this Service.
+     */
     @Override
-    public Mapper getMapper() {
-        return mapper;
+    public Container getContainer() {
+
+        return (this.container);
+
     }
 
 
+    /**
+     * Set the <code>Container</code> that handles requests for all
+     * <code>Connectors</code> associated with this Service.
+     *
+     * @param container The new Container
+     */
     @Override
-    public Engine getContainer() {
-        return engine;
-    }
+    public void setContainer(Container container) {
 
-
-    @Override
-    public void setContainer(Engine engine) {
-        Engine oldEngine = this.engine;
-        if (oldEngine != null) {
-            oldEngine.setService(null);
-        }
-        this.engine = engine;
-        if (this.engine != null) {
-            this.engine.setService(this);
-        }
-        if (getState().isAvailable()) {
-            if (this.engine != null) {
-                try {
-                    this.engine.start();
-                } catch (LifecycleException e) {
-                    log.error(sm.getString("standardService.engine.startFailed"), e);
-                }
-            }
-            // Restart MapperListener to pick up new engine.
+        Container oldContainer = this.container;
+        if ((oldContainer != null) && (oldContainer instanceof Engine))
+            ((Engine) oldContainer).setService(null);
+        this.container = container;
+        if ((this.container != null) && (this.container instanceof Engine))
+            ((Engine) this.container).setService(this);
+        if (getState().isAvailable() && (this.container != null)) {
             try {
-                mapperListener.stop();
+                this.container.start();
             } catch (LifecycleException e) {
-                log.error(sm.getString("standardService.mapperListener.stopFailed"), e);
+                // Ignore
             }
+        }
+        if (getState().isAvailable() && (oldContainer != null)) {
             try {
-                mapperListener.start();
+                oldContainer.stop();
             } catch (LifecycleException e) {
-                log.error(sm.getString("standardService.mapperListener.startFailed"), e);
-            }
-            if (oldEngine != null) {
-                try {
-                    oldEngine.stop();
-                } catch (LifecycleException e) {
-                    log.error(sm.getString("standardService.engine.stopFailed"), e);
-                }
+                // Ignore
             }
         }
 
         // Report this property change to interested listeners
-        support.firePropertyChange("container", oldEngine, this.engine);
+        support.firePropertyChange("container", oldContainer, this.container);
+
+    }
+
+
+    /**
+     * Return descriptive information about this Service implementation and
+     * the corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
     }
 
 
@@ -167,7 +175,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public String getName() {
-        return name;
+
+        return (this.name);
+
     }
 
 
@@ -178,7 +188,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public void setName(String name) {
+
         this.name = name;
+
     }
 
 
@@ -187,7 +199,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public Server getServer() {
-        return this.server;
+
+        return (this.server);
+
     }
 
 
@@ -198,11 +212,14 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public void setServer(Server server) {
+
         this.server = server;
+
     }
 
 
     // --------------------------------------------------------- Public Methods
+
 
     /**
      * Add a new Connector to the set of defined Connectors, and associate it
@@ -236,7 +253,6 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
     }
 
-
     public ObjectName[] getConnectorNames() {
         ObjectName results[] = new ObjectName[connectors.length];
         for (int i=0; i<results.length; i++) {
@@ -252,7 +268,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      * @param listener The listener to add
      */
     public void addPropertyChangeListener(PropertyChangeListener listener) {
+
         support.addPropertyChangeListener(listener);
+
     }
 
 
@@ -261,7 +279,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public Connector[] findConnectors() {
-        return connectors;
+
+        return (connectors);
+
     }
 
 
@@ -306,6 +326,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
             // Report this property change to interested listeners
             support.firePropertyChange("connector", connector, null);
         }
+
     }
 
 
@@ -315,7 +336,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      * @param listener The listener to remove
      */
     public void removePropertyChangeListener(PropertyChangeListener listener) {
+
         support.removePropertyChangeListener(listener);
+
     }
 
 
@@ -324,10 +347,12 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public String toString() {
+
         StringBuilder sb = new StringBuilder("StandardService[");
         sb.append(getName());
         sb.append("]");
-        return sb.toString();
+        return (sb.toString());
+
     }
 
 
@@ -340,17 +365,15 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         synchronized (executors) {
             if (!executors.contains(ex)) {
                 executors.add(ex);
-                if (getState().isAvailable()) {
+                if (getState().isAvailable())
                     try {
                         ex.start();
                     } catch (LifecycleException x) {
                         log.error("Executor.start", x);
                     }
-                }
             }
         }
     }
-
 
     /**
      * Retrieves all executors
@@ -364,7 +387,6 @@ public class StandardService extends LifecycleMBeanBase implements Service {
             return arr;
         }
     }
-
 
     /**
      * Retrieves executor by name, null if not found
@@ -381,7 +403,6 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         }
         return null;
     }
-
 
     /**
      * Removes an executor from the service
@@ -401,6 +422,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     }
 
 
+
     /**
      * Start nested components ({@link Executor}s, {@link Connector}s and
      * {@link Container}s) and implement the requirements of
@@ -417,9 +439,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         setState(LifecycleState.STARTING);
 
         // Start our defined Container first
-        if (engine != null) {
-            synchronized (engine) {
-                engine.start();
+        if (container != null) {
+            synchronized (container) {
+                container.start();
             }
         }
 
@@ -428,8 +450,6 @@ public class StandardService extends LifecycleMBeanBase implements Service {
                 executor.start();
             }
         }
-
-        mapperListener.start();
 
         // Start our defined Connectors second
         synchronized (connectorsLock) {
@@ -470,9 +490,6 @@ public class StandardService extends LifecycleMBeanBase implements Service {
                             "standardService.connector.pauseFailed",
                             connector), e);
                 }
-                // Close server socket if bound on start
-                // Note: test is in AbstractEndpoint
-                connector.getProtocolHandler().closeServerSocketGraceful();
             }
         }
 
@@ -481,9 +498,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         setState(LifecycleState.STOPPING);
 
         // Stop our defined Container second
-        if (engine != null) {
-            synchronized (engine) {
-                engine.stop();
+        if (container != null) {
+            synchronized (container) {
+                container.stop();
             }
         }
 
@@ -507,12 +524,6 @@ public class StandardService extends LifecycleMBeanBase implements Service {
             }
         }
 
-        // If the Server failed to start, the mapperListener won't have been
-        // started
-        if (mapperListener.getState() != LifecycleState.INITIALIZED) {
-            mapperListener.stop();
-        }
-
         synchronized (executors) {
             for (Executor executor: executors) {
                 executor.stop();
@@ -530,20 +541,17 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
         super.initInternal();
 
-        if (engine != null) {
-            engine.init();
+        if (container != null) {
+            container.init();
         }
 
         // Initialize any Executors
         for (Executor executor : findExecutors()) {
-            if (executor instanceof JmxEnabled) {
-                ((JmxEnabled) executor).setDomain(getDomain());
+            if (executor instanceof LifecycleMBeanBase) {
+                ((LifecycleMBeanBase) executor).setDomain(getDomain());
             }
             executor.init();
         }
-
-        // Initialize mapper listener
-        mapperListener.init();
 
         // Initialize our defined Connectors
         synchronized (connectorsLock) {
@@ -562,11 +570,8 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         }
     }
 
-
     @Override
     protected void destroyInternal() throws LifecycleException {
-        mapperListener.destroy();
-
         // Destroy our defined Connectors
         synchronized (connectorsLock) {
             for (Connector connector : connectors) {
@@ -574,7 +579,8 @@ public class StandardService extends LifecycleMBeanBase implements Service {
                     connector.destroy();
                 } catch (Exception e) {
                     log.error(sm.getString(
-                            "standardService.connector.destroyFailed", connector), e);
+                            "standardService.connector.destroyFailed",
+                            connector), e);
                 }
             }
         }
@@ -584,13 +590,12 @@ public class StandardService extends LifecycleMBeanBase implements Service {
             executor.destroy();
         }
 
-        if (engine != null) {
-            engine.destroy();
+        if (container != null) {
+            container.destroy();
         }
 
         super.destroyInternal();
     }
-
 
     /**
      * Return the parent class loader for this component.
@@ -598,13 +603,12 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     @Override
     public ClassLoader getParentClassLoader() {
         if (parentClassLoader != null)
-            return parentClassLoader;
+            return (parentClassLoader);
         if (server != null) {
-            return server.getParentClassLoader();
+            return (server.getParentClassLoader());
         }
-        return ClassLoader.getSystemClassLoader();
+        return (ClassLoader.getSystemClassLoader());
     }
-
 
     /**
      * Set the parent class loader for this server.
@@ -618,28 +622,11 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         support.firePropertyChange("parentClassLoader", oldParentClassLoader,
                                    this.parentClassLoader);
     }
-
-
     @Override
     protected String getDomainInternal() {
-        String domain = null;
-        Container engine = getContainer();
 
-        // Use the engine name first
-        if (engine != null) {
-            domain = engine.getName();
-        }
-
-        // No engine or no engine name, use the service name
-        if (domain == null) {
-            domain = getName();
-        }
-
-        // No service name, return null which will trigger the use of the
-        // default
-        return domain;
+        return MBeanUtils.getDomain(this);
     }
-
 
     @Override
     public final String getObjectNameKeyProperties() {

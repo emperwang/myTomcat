@@ -43,7 +43,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
      */
     @Test
     public void testForwardQueryString01() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b" });
         doQueryStringTest(null, "a=b", expected);
     }
@@ -51,7 +51,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testForwardQueryString02() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "c" });
         doQueryStringTest(null, "a=b&a=c", expected);
     }
@@ -59,7 +59,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testForwardQueryString03() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b" });
         expected.put("c", new String[] { "d" });
         doQueryStringTest(null, "a=b&c=d", expected);
@@ -68,7 +68,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testForwardQueryString04() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "e" });
         expected.put("c", new String[] { "d" });
         doQueryStringTest(null, "a=b&c=d&a=e", expected);
@@ -78,7 +78,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
     @Test
     public void testForwardQueryString05() throws Exception {
         // Parameters with no value are assigned a value of the empty string
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "e" });
         expected.put("c", new String[] { "" });
         doQueryStringTest(null, "a=b&c&a=e", expected);
@@ -87,7 +87,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testOriginalQueryString01() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b" });
         doQueryStringTest("a=b", null, expected);
     }
@@ -95,7 +95,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testOriginalQueryString02() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "c" });
         doQueryStringTest("a=b&a=c", null, expected);
     }
@@ -103,7 +103,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testOriginalQueryString03() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b" });
         expected.put("c", new String[] { "d" });
         doQueryStringTest("a=b&c=d", null, expected);
@@ -112,7 +112,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testOriginalQueryString04() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "e" });
         expected.put("c", new String[] { "d" });
         doQueryStringTest("a=b&c=d&a=e", null, expected);
@@ -122,7 +122,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
     @Test
     public void testOriginalQueryString05() throws Exception {
         // Parameters with no value are assigned a value of the empty string
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "e" });
         expected.put("c", new String[] { "" });
         doQueryStringTest("a=b&c&a=e", null, expected);
@@ -131,7 +131,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testMergeQueryString01() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "z", "b" });
         doQueryStringTest("a=b", "a=z", expected);
     }
@@ -139,7 +139,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testMergeQueryString02() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "z", "b", "e" });
         expected.put("c", new String[] { "" });
         doQueryStringTest("a=b&c&a=e", "a=z", expected);
@@ -148,7 +148,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testMergeQueryString03() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b", "e" });
         expected.put("c", new String[] { "z", "" });
         doQueryStringTest("a=b&c&a=e", "c=z", expected);
@@ -157,7 +157,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
 
     @Test
     public void testMergeQueryString04() throws Exception {
-        Map<String,String[]> expected = new HashMap<>();
+        Map<String,String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "", "b", "e" });
         expected.put("c", new String[] { "" });
         doQueryStringTest("a=b&c&a=e", "a", expected);
@@ -170,7 +170,7 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
         String test = "\u0422\u0435\u0441\u0442";
         String query = test + "=%D0%A2%D0%B5%D1%81%D1%82";
 
-        Map<String, String[]> expected = new HashMap<>();
+        Map<String, String[]> expected = new HashMap<String, String[]>();
         expected.put("a", new String[] { "b" });
         expected.put(test, new String[] { test });
         doQueryStringTest("a=b", query, expected);
@@ -189,10 +189,10 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
         } else {
             Tomcat.addServlet(ctx, "forward", new ForwardServlet("/display?" + forwardQueryString));
         }
-        ctx.addServletMappingDecoded("/forward", "forward");
+        ctx.addServletMapping("/forward", "forward");
 
         Tomcat.addServlet(ctx, "display", new DisplayParameterServlet(expected));
-        ctx.addServletMappingDecoded("/display", "display");
+        ctx.addServletMapping("/display", "display");
 
         tomcat.start();
 
@@ -219,10 +219,10 @@ public class TestApplicationHttpRequest extends TomcatBaseTest {
         Context ctx = tomcat.addContext("", null);
 
         Tomcat.addServlet(ctx, "forward", new ForwardServlet("/modify"));
-        ctx.addServletMappingDecoded("/forward", "forward");
+        ctx.addServletMapping("/forward", "forward");
 
         Tomcat.addServlet(ctx, "modify", new ModifyParameterServlet());
-        ctx.addServletMappingDecoded("/modify", "modify");
+        ctx.addServletMapping("/modify", "modify");
 
         tomcat.start();
 

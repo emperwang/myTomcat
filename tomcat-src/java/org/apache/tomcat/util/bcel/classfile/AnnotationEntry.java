@@ -48,7 +48,7 @@ public class AnnotationEntry {
         type_index = input.readUnsignedShort();
         final int num_element_value_pairs = input.readUnsignedShort();
 
-        element_value_pairs = new ArrayList<>(num_element_value_pairs);
+        element_value_pairs = new ArrayList<ElementValuePair>(num_element_value_pairs);
         for (int i = 0; i < num_element_value_pairs; i++) {
             element_value_pairs.add(new ElementValuePair(input, constant_pool));
         }

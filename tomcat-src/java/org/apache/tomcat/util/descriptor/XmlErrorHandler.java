@@ -30,9 +30,9 @@ public class XmlErrorHandler implements ErrorHandler {
     private static final StringManager sm =
         StringManager.getManager(Constants.PACKAGE_NAME);
 
-    private final List<SAXParseException> errors = new ArrayList<>();
+    private final List<SAXParseException> errors = new ArrayList<SAXParseException>();
 
-    private final List<SAXParseException> warnings = new ArrayList<>();
+    private final List<SAXParseException> warnings = new ArrayList<SAXParseException>();
 
     @Override
     public void error(SAXParseException exception) throws SAXException {

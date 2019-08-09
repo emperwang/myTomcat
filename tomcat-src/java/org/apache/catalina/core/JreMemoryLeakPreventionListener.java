@@ -20,10 +20,8 @@ package org.apache.catalina.core;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URLConnection;
 import java.sql.DriverManager;
 import java.util.StringTokenizer;
-import java.util.concurrent.ForkJoinPool;
 
 import javax.imageio.ImageIO;
 import javax.xml.parsers.DocumentBuilder;
@@ -33,7 +31,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
-import org.apache.catalina.startup.SafeForkJoinWorkerThreadFactory;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -66,15 +63,18 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
 
     private static final String FORK_JOIN_POOL_THREAD_FACTORY_PROPERTY =
             "java.util.concurrent.ForkJoinPool.common.threadFactory";
+
     /**
      * Protect against the memory leak caused when the first call to
      * <code>sun.awt.AppContext.getAppContext()</code> is triggered by a web
-     * application. Defaults to <code>false</code> since
+     * application. Defaults to <code>true</code> for Java 6 and earlier (since
+     * it is used by {@link java.beans.Introspector#flushCaches()}) but defaults
+     * to <code>false</code> for Java 7 and later since
      * {@link java.beans.Introspector#flushCaches()} no longer uses AppContext
      * from 1.7.0_02 onwards. Also, from 1.7.0_25 onwards, calling this method
      * requires a graphical environment and starts an AWT thread.
      */
-    private boolean appContextProtection = false;
+    private boolean appContextProtection = !JreCompat.isJre7Available();
     public boolean isAppContextProtection() { return appContextProtection; }
     public void setAppContextProtection(boolean appContextProtection) {
         this.appContextProtection = appContextProtection;
@@ -90,6 +90,19 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     public boolean isAWTThreadProtection() { return awtThreadProtection; }
     public void setAWTThreadProtection(boolean awtThreadProtection) {
       this.awtThreadProtection = awtThreadProtection;
+    }
+
+    /**
+     * Protect against the memory leak caused when the
+     * <code>sun.java2d.Disposer</code> class is loaded by a web application.
+     * Defaults to <code>false</code> because a new Thread is launched.
+     */
+    private boolean java2dDisposerProtection = false;
+    public boolean isJava2DDisposerProtection() {
+        return java2dDisposerProtection;
+    }
+    public void setJava2DDisposerProtection(boolean java2dDisposerProtection) {
+        this.java2dDisposerProtection = java2dDisposerProtection;
     }
 
     /**
@@ -152,7 +165,7 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     /**
      * Protect against resources being read for JAR files and, as a side-effect,
      * the JAR file becoming locked. Note this disables caching for all
-     * {@link URLConnection}s, regardless of type. Defaults to
+     * {@link java.net.URLConnection}s, regardless of type. Defaults to
      * <code>true</code>.
      */
     private boolean urlCacheProtection = true;
@@ -203,9 +216,9 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     }
 
     /**
-     * {@link ForkJoinPool} creates a thread pool that, by default,
-     * creates threads that retain references to the thread context class
-     * loader.
+     * {@link java.util.concurrent.ForkJoinPool#commonPool()} creates a thread
+     * pool that, by default, creates threads that retain references to the
+     * thread context class loader.
      */
     private boolean forkJoinCommonPoolProtection = true;
     public boolean getForkJoinCommonPoolProtection() {
@@ -227,8 +240,6 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     public void setClassesToInitialize(String classesToInitialize) {
         this.classesToInitialize = classesToInitialize;
     }
-
-
 
     @Override
     public void lifecycleEvent(LifecycleEvent event) {
@@ -267,7 +278,7 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                  * due to eventual calls to getAppContext() are:
                  * - Google Web Toolkit via its use of javax.imageio
                  * - Tomcat via its use of java.beans.Introspector.flushCaches()
-                 *   in 1.7.0 to 1.7.0_01. From 1.7.0_02 onwards use of
+                 *   in 1.6.0_15 to 1.7.0_01. From 1.7.0_02 onwards use of
                  *   AppContext by Introspector.flushCaches() was replaced with
                  *   ThreadGroupContext
                  * - others TBD
@@ -288,7 +299,19 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                 // Trigger the creation of the AWT (AWT-Windows, AWT-XAWT,
                 // etc.) thread
                 if (awtThreadProtection && !JreCompat.isJre9Available()) {
-                    java.awt.Toolkit.getDefaultToolkit();
+                  java.awt.Toolkit.getDefaultToolkit();
+                }
+
+                // Trigger the creation of the "Java2D Disposer" thread.
+                // See https://bz.apache.org/bugzilla/show_bug.cgi?id=51687
+                if(java2dDisposerProtection) {
+                    try {
+                        Class.forName("sun.java2d.Disposer");
+                    }
+                    catch (ClassNotFoundException cnfe) {
+                        // Ignore this case: we must be running on a
+                        // non-Sun-based JRE.
+                    }
                 }
 
                 /*
@@ -319,8 +342,16 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                             log.debug(sm.getString(
                                     "jreLeakListener.gcDaemonFail"), e);
                         }
-                    } catch (SecurityException | NoSuchMethodException | IllegalArgumentException |
-                            IllegalAccessException e) {
+                    } catch (SecurityException e) {
+                        log.error(sm.getString("jreLeakListener.gcDaemonFail"),
+                                e);
+                    } catch (NoSuchMethodException e) {
+                        log.error(sm.getString("jreLeakListener.gcDaemonFail"),
+                                e);
+                    } catch (IllegalArgumentException e) {
+                        log.error(sm.getString("jreLeakListener.gcDaemonFail"),
+                                e);
+                    } catch (IllegalAccessException e) {
                         log.error(sm.getString("jreLeakListener.gcDaemonFail"),
                                 e);
                     } catch (InvocationTargetException e) {
@@ -417,24 +448,29 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                  * Fixed in Java 9 onwards (from early access build 133)
                  */
                 if (xmlParsingProtection && !JreCompat.isJre9Available()) {
-                    // There are two known issues with XML parsing that affect
-                    // Java 7+. The issues both relate to cached Exception
-                    // instances that retain a link to the TCCL via the
-                    // backtrace field. Note that YourKit only shows this field
-                    // when using the HPROF format memory snapshots.
-                    // https://bz.apache.org/bugzilla/show_bug.cgi?id=58486
+                    // There are three known issues with XML parsing
+                    // 1. DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                    // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6916498
+                    // This issue is fixed in Java 7 onwards
                     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                     try {
                         DocumentBuilder documentBuilder = factory.newDocumentBuilder();
-                        // Issue 1
-                        // com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl
+
+                        // The 2nd and 3rd links both relate to cached Exception
+                        // instances that retain a link to the TCCL via the
+                        // backtrace field. Note that YourKit only shows this
+                        // field when using the HPROF format memory snapshots.
+                        // https://bz.apache.org/bugzilla/show_bug.cgi?id=58486
+                        // These issues are currently present in all current
+                        // versions of Java
+
+                        // 2. com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl
                         Document document = documentBuilder.newDocument();
                         document.createElement("dummy");
                         DOMImplementationLS implementation =
                                 (DOMImplementationLS)document.getImplementation();
                         implementation.createLSSerializer().writeToString(document);
-                        // Issue 1
-                        // com.sun.org.apache.xerces.internal.dom.DOMNormalizer
+                        // 3. com.sun.org.apache.xerces.internal.dom.DOMNormalizer
                         document.normalize();
                     } catch (ParserConfigurationException e) {
                         log.error(sm.getString("jreLeakListener.xmlParseFail"),
@@ -466,7 +502,7 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                     // Don't override any explicitly set property
                     if (System.getProperty(FORK_JOIN_POOL_THREAD_FACTORY_PROPERTY) == null) {
                         System.setProperty(FORK_JOIN_POOL_THREAD_FACTORY_PROPERTY,
-                                SafeForkJoinWorkerThreadFactory.class.getName());
+                                "org.apache.catalina.startup.SafeForkJoinWorkerThreadFactory");
                     }
                 }
 

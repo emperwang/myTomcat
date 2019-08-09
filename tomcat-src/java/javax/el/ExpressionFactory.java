@@ -28,10 +28,8 @@ import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -56,8 +54,8 @@ public abstract class ExpressionFactory {
     private static final String PROPERTY_FILE;
 
     private static final CacheValue nullTcclFactory = new CacheValue();
-    private static final ConcurrentMap<CacheKey, CacheValue> factoryCache =
-            new ConcurrentHashMap<>();
+    private static ConcurrentMap<CacheKey, CacheValue> factoryCache =
+            new ConcurrentHashMap<CacheKey, CacheValue>();
 
     static {
         if (IS_SECURITY_ENABLED) {
@@ -179,8 +177,13 @@ public abstract class ExpressionFactory {
             Throwable cause = e.getCause();
             Util.handleThrowable(cause);
             throw new ELException(Util.message(null, "expressionFactory.cannotCreate", clazz.getName()), e);
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException |
-                NoSuchMethodException e) {
+        } catch (InstantiationException e) {
+            throw new ELException(Util.message(null, "expressionFactory.cannotCreate", clazz.getName()), e);
+        } catch (IllegalAccessException e) {
+            throw new ELException(Util.message(null, "expressionFactory.cannotCreate", clazz.getName()), e);
+        } catch (IllegalArgumentException e) {
+            throw new ELException(Util.message(null, "expressionFactory.cannotCreate", clazz.getName()), e);
+        } catch (NoSuchMethodException e) {
             throw new ELException(Util.message(null, "expressionFactory.cannotCreate", clazz.getName()), e);
         }
 
@@ -243,24 +246,6 @@ public abstract class ExpressionFactory {
     public abstract Object coerceToType(Object obj, Class<?> expectedType);
 
     /**
-     * @return This default implementation returns null
-     *
-     * @since EL 3.0
-     */
-    public ELResolver getStreamELResolver() {
-        return null;
-    }
-
-    /**
-     * @return This default implementation returns null
-     *
-     * @since EL 3.0
-     */
-    public Map<String,Method> getInitFunctionMap() {
-        return null;
-    }
-
-    /**
      * Key used to cache ExpressionFactory discovery information per class
      * loader. The class loader reference is never {@code null}, because
      * {@code null} tccl is handled separately.
@@ -271,7 +256,7 @@ public abstract class ExpressionFactory {
 
         public CacheKey(ClassLoader cl) {
             hash = cl.hashCode();
-            ref = new WeakReference<>(cl);
+            ref = new WeakReference<ClassLoader>(cl);
         }
 
         @Override
@@ -384,8 +369,11 @@ public abstract class ExpressionFactory {
 
         if (is != null) {
             String line = null;
-            try (InputStreamReader isr = new InputStreamReader(is, "UTF-8");
-                    BufferedReader br = new BufferedReader(isr)) {
+            BufferedReader br = null;
+            InputStreamReader isr = null;
+            try {
+                isr = new InputStreamReader(is, "UTF-8");
+                br = new BufferedReader(isr);
                 line = br.readLine();
                 if (line != null && line.trim().length() > 0) {
                     return line.trim();
@@ -396,6 +384,16 @@ public abstract class ExpressionFactory {
             } catch (IOException e) {
                 throw new ELException(Util.message(null, "expressionFactory.readFailed", SERVICE_RESOURCE_NAME), e);
             } finally {
+                try {
+                    if (br != null) {
+                        br.close();
+                    }
+                } catch (IOException ioe) {/*Ignore*/}
+                try {
+                    if (isr != null) {
+                        isr.close();
+                    }
+                } catch (IOException ioe) {/*Ignore*/}
                 try {
                     is.close();
                 } catch (IOException ioe) {/*Ignore*/}
@@ -408,7 +406,9 @@ public abstract class ExpressionFactory {
     private static String getClassNameJreDir() {
         File file = new File(PROPERTY_FILE);
         if (file.canRead()) {
-            try (InputStream is = new FileInputStream(file)){
+            InputStream is = null;
+            try {
+                is = new FileInputStream(file);
                 Properties props = new Properties();
                 props.load(is);
                 String value = props.getProperty(PROPERTY_NAME);
@@ -419,6 +419,14 @@ public abstract class ExpressionFactory {
                 // Should not happen - ignore it if it does
             } catch (IOException e) {
                 throw new ELException(Util.message(null, "expressionFactory.readFailed", PROPERTY_FILE), e);
+            } finally {
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (IOException e) {
+                        // Ignore
+                    }
+                }
             }
         }
         return null;

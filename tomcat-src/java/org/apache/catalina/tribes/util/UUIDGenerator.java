@@ -24,6 +24,7 @@ import org.apache.juli.logging.LogFactory;
 
 /**
  * simple generation of a UUID
+ * @author Filip Hanik
  * @version 1.0
  */
 public class UUIDGenerator {
@@ -36,8 +37,8 @@ public class UUIDGenerator {
     public static final int BYTES_PER_INT = 4;
     public static final int BITS_PER_BYTE = 8;
 
-    protected static final SecureRandom secrand;
-    protected static final Random rand = new Random();
+    protected static SecureRandom secrand = null;
+    protected static Random rand = new Random();
 
     static {
         long start = System.currentTimeMillis();
@@ -58,9 +59,7 @@ public class UUIDGenerator {
 
     public static byte[] randomUUID(boolean secure, byte[] into, int offset) {
         if ( (offset+UUID_LENGTH)>into.length )
-            throw new ArrayIndexOutOfBoundsException(sm.getString("uuidGenerator.unable.fit",
-                    Integer.toString(UUID_LENGTH), Integer.toString(into.length),
-                    Integer.toString(offset+UUID_LENGTH)));
+            throw new ArrayIndexOutOfBoundsException("Unable to fit "+UUID_LENGTH+" bytes into the array. length:"+into.length+" required length:"+(offset+UUID_LENGTH));
         Random r = (secure&&(secrand!=null))?secrand:rand;
         nextBytes(into,offset,UUID_LENGTH,r);
         into[6+offset] &= 0x0F;

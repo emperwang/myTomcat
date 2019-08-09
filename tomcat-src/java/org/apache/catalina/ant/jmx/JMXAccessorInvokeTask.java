@@ -95,7 +95,26 @@ public class JMXAccessorInvokeTask extends JMXAccessorTask {
     // ----------------------------------------------------- Instance Variables
 
     private String operation ;
-    private List<Arg> args=new ArrayList<>();
+    private List<Arg> args=new ArrayList<Arg>();
+
+    // ----------------------------------------------------- Instance Info
+
+    /**
+     * Descriptive information describing this implementation.
+     */
+    private static final String info = "org.apache.catalina.ant.JMXAccessorInvokeTask/1.0";
+
+    /**
+     * Return descriptive information about this implementation and the
+     * corresponding version number, in the format
+     * <code>&lt;description&gt;/&lt;version&gt;</code>.
+     */
+    @Override
+    public String getInfo() {
+
+        return (info);
+
+    }
 
     // ------------------------------------------------------------- Properties
 
@@ -131,6 +150,14 @@ public class JMXAccessorInvokeTask extends JMXAccessorTask {
 
     // ------------------------------------------------------ protected Methods
 
+    /**
+     * Execute the specified command, based on the configured properties. The
+     * input stream will be closed upon completion of this task, whether it was
+     * executed successfully or not.
+     *
+     * @exception BuildException
+     *                if an error occurs
+     */
     @Override
     public String jmxExecute(MBeanServerConnection jmxServerConnection)
         throws Exception {
@@ -146,12 +173,8 @@ public class JMXAccessorInvokeTask extends JMXAccessorTask {
      }
 
     /**
-     * Invoke specified operation.
-     *
-     * @param jmxServerConnection Connection to the JMX server
-     * @param name The MBean name
-     * @return null (no error message to report other than exception)
-     * @throws Exception An error occurred
+     * @param jmxServerConnection
+     * @throws Exception
      */
     protected String jmxInvoke(MBeanServerConnection jmxServerConnection, String name) throws Exception {
         Object result ;

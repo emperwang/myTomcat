@@ -18,7 +18,7 @@ package org.apache.tomcat.util.http.fileupload;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +50,9 @@ import org.apache.tomcat.util.http.fileupload.util.Streams;
 public abstract class FileUploadBase {
 
     // ---------------------------------------------------------- Class methods
+
+    private static final Charset CHARSET_ISO_8859_1 =
+        Charset.forName("ISO-8859-1");
 
     /**
      * <p>Utility method that determines whether the request contains multipart
@@ -274,12 +277,11 @@ public abstract class FileUploadBase {
      */
     public List<FileItem> parseRequest(RequestContext ctx)
             throws FileUploadException {
-        List<FileItem> items = new ArrayList<>();
+        List<FileItem> items = new ArrayList<FileItem>();
         boolean successful = false;
         try {
             FileItemIterator iter = getItemIterator(ctx);
             FileItemFactory fac = getFileItemFactory();
-            final byte[] buffer = new byte[Streams.DEFAULT_BUFFER_SIZE];
             if (fac == null) {
                 throw new NullPointerException("No FileItemFactory has been set.");
             }
@@ -291,7 +293,7 @@ public abstract class FileUploadBase {
                                                    item.isFormField(), fileName);
                 items.add(fileItem);
                 try {
-                    Streams.copy(item.openStream(), fileItem.getOutputStream(), true, buffer);
+                    Streams.copy(item.openStream(), fileItem.getOutputStream(), true);
                 } catch (FileUploadIOException e) {
                     throw (FileUploadException) e.getCause();
                 } catch (IOException e) {
@@ -336,14 +338,15 @@ public abstract class FileUploadBase {
     public Map<String, List<FileItem>> parseParameterMap(RequestContext ctx)
             throws FileUploadException {
         final List<FileItem> items = parseRequest(ctx);
-        final Map<String, List<FileItem>> itemsMap = new HashMap<>(items.size());
+        final Map<String, List<FileItem>> itemsMap =
+                new HashMap<String, List<FileItem>>(items.size());
 
         for (FileItem fileItem : items) {
             String fieldName = fileItem.getFieldName();
             List<FileItem> mappedItems = itemsMap.get(fieldName);
 
             if (mappedItems == null) {
-                mappedItems = new ArrayList<>();
+                mappedItems = new ArrayList<FileItem>();
                 itemsMap.put(fieldName, mappedItems);
             }
 
@@ -375,7 +378,7 @@ public abstract class FileUploadBase {
             return null;
         }
         byte[] boundary;
-        boundary = boundaryStr.getBytes(StandardCharsets.ISO_8859_1);
+        boundary = boundaryStr.getBytes(CHARSET_ISO_8859_1);
         return boundary;
     }
 
@@ -404,7 +407,8 @@ public abstract class FileUploadBase {
                 ParameterParser parser = new ParameterParser();
                 parser.setLowerCaseNames(true);
                 // Parameter parser can handle null input
-                Map<String, String> params = parser.parse(pContentDisposition, ';');
+                Map<String,String> params =
+                    parser.parse(pContentDisposition, ';');
                 if (params.containsKey("filename")) {
                     fileName = params.get("filename");
                     if (fileName != null) {
@@ -446,7 +450,7 @@ public abstract class FileUploadBase {
             ParameterParser parser = new ParameterParser();
             parser.setLowerCaseNames(true);
             // Parameter parser can handle null input
-            Map<String, String> params = parser.parse(pContentDisposition, ';');
+            Map<String,String> params = parser.parse(pContentDisposition, ';');
             fieldName = params.get("name");
             if (fieldName != null) {
                 fieldName = fieldName.trim();
@@ -585,6 +589,11 @@ public abstract class FileUploadBase {
             private final InputStream stream;
 
             /**
+             * Whether the file item was already opened.
+             */
+            private boolean opened;
+
+            /**
              * The headers, if any.
              */
             private FileItemHeaders headers;
@@ -606,23 +615,20 @@ public abstract class FileUploadBase {
                 fieldName = pFieldName;
                 contentType = pContentType;
                 formField = pFormField;
-                if (fileSizeMax != -1) { // Check if limit is already exceeded
+                final ItemInputStream itemStream = multi.newInputStream();
+                InputStream istream = itemStream;
+                if (fileSizeMax != -1) {
                     if (pContentLength != -1
-                            && pContentLength > fileSizeMax) {
+                            &&  pContentLength > fileSizeMax) {
                         FileSizeLimitExceededException e =
-                                new FileSizeLimitExceededException(
-                                        String.format("The field %s exceeds its maximum permitted size of %s bytes.",
-                                                       fieldName, Long.valueOf(fileSizeMax)),
-                                        pContentLength, fileSizeMax);
+                            new FileSizeLimitExceededException(
+                                String.format("The field %s exceeds its maximum permitted size of %s bytes.",
+                                        fieldName, Long.valueOf(fileSizeMax)),
+                                pContentLength, fileSizeMax);
                         e.setFileName(pName);
                         e.setFieldName(pFieldName);
                         throw new FileUploadIOException(e);
                     }
-                }
-                // OK to construct stream now
-                final ItemInputStream itemStream = multi.newInputStream();
-                InputStream istream = itemStream;
-                if (fileSizeMax != -1) {
                     istream = new LimitedInputStream(istream, fileSizeMax) {
                         @Override
                         protected void raiseError(long pSizeMax, long pCount)
@@ -696,6 +702,10 @@ public abstract class FileUploadBase {
              */
             @Override
             public InputStream openStream() throws IOException {
+                if (opened) {
+                    throw new IllegalStateException(
+                            "The stream was already opened.");
+                }
                 if (((Closeable) stream).isClosed()) {
                     throw new FileItemStream.ItemSkippedException();
                 }

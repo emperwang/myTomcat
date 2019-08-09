@@ -92,7 +92,7 @@ public interface ServletContext {
 
     /**
      * Returns the major version of the Java Servlet API that this servlet
-     * container supports. All implementations that comply with Version 3.1 must
+     * container supports. All implementations that comply with Version 3.0 must
      * have this method return the integer 3.
      *
      * @return 3
@@ -101,10 +101,10 @@ public interface ServletContext {
 
     /**
      * Returns the minor version of the Servlet API that this servlet container
-     * supports. All implementations that comply with Version 3.1 must have this
-     * method return the integer 1.
+     * supports. All implementations that comply with Version 3.0 must have this
+     * method return the integer 0.
      *
-     * @return 1
+     * @return 0
      */
     public int getMinorVersion();
 
@@ -956,14 +956,4 @@ public interface ServletContext {
      * @since Servlet 3.0
      */
     public void declareRoles(String... roleNames);
-
-    /**
-     * Get the primary name of the virtual host on which this context is
-     * deployed. The name may or may not be a valid host name.
-     *
-     * @return The primary name of the virtual host on which this context is
-     *         deployed
-     * @since Servlet 3.1
-     */
-    public String getVirtualServerName();
 }

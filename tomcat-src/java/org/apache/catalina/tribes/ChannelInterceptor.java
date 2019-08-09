@@ -25,6 +25,7 @@ import org.apache.catalina.tribes.group.InterceptorPayload;
  * other actions when a message is sent or received.<br>
  * Interceptors are tied together in a linked list.
  * @see org.apache.catalina.tribes.group.ChannelInterceptorBase
+ * @author Filip Hanik
  */
 public interface ChannelInterceptor extends MembershipListener, Heartbeat {
 
@@ -34,7 +35,7 @@ public interface ChannelInterceptor extends MembershipListener, Heartbeat {
      * When a message is sent, the options can be retrieved from ChannelMessage.getOptions()
      * and if the bit is set, this interceptor will react to it.<br>
      * A simple evaluation if an interceptor should react to the message would be:<br>
-     * <code>boolean react = (getOptionFlag() == (getOptionFlag() &amp; ChannelMessage.getOptions()));</code><br>
+     * <code>boolean react = (getOptionFlag() == (getOptionFlag() & ChannelMessage.getOptions()));</code><br>
      * The default option is 0, meaning there is no way for the application to trigger the
      * interceptor. The interceptor itself will decide.<br>
      * @return int
@@ -86,7 +87,7 @@ public interface ChannelInterceptor extends MembershipListener, Heartbeat {
      * @param destination Member[] - the destination for this message
      * @param msg ChannelMessage - the message to be sent
      * @param payload InterceptorPayload - the payload, carrying an error handler and future useful data, can be null
-     * @throws ChannelException if a serialization error happens.
+     * @throws ChannelException
      * @see ErrorHandler
      * @see InterceptorPayload
      */
@@ -116,14 +117,14 @@ public interface ChannelInterceptor extends MembershipListener, Heartbeat {
     public boolean hasMembers() ;
 
     /**
-     * Intercepts the <code>Channel.getMembers()</code> method
+     * Intercepts the code>Channel.getMembers()</code> method
      * @return Member[]
      * @see Channel#getMembers()
      */
     public Member[] getMembers() ;
 
     /**
-     * Intercepts the <code>Channel.getLocalMember(boolean)</code> method
+     * Intercepts the code>Channel.getLocalMember(boolean)</code> method
      * @param incAliveTime boolean
      * @return Member
      * @see Channel#getLocalMember(boolean)
@@ -131,7 +132,7 @@ public interface ChannelInterceptor extends MembershipListener, Heartbeat {
     public Member getLocalMember(boolean incAliveTime) ;
 
     /**
-     * Intercepts the <code>Channel.getMember(Member)</code> method
+     * Intercepts the code>Channel.getMember(Member)</code> method
      * @param mbr Member
      * @return Member - the actual member information, including stay alive
      * @see Channel#getMember(Member)
@@ -167,18 +168,6 @@ public interface ChannelInterceptor extends MembershipListener, Heartbeat {
     public void stop(int svc) throws ChannelException;
 
     public void fireInterceptorEvent(InterceptorEvent event);
-
-    /**
-     * Return the channel that is related to this interceptor
-     * @return Channel
-     */
-    public Channel getChannel();
-
-    /**
-     * Set the channel that is related to this interceptor
-     * @param channel The channel
-     */
-    public void setChannel(Channel channel);
 
     interface InterceptorEvent {
         int getEventType();

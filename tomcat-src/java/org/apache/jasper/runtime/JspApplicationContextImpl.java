@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.el.CompositeELResolver;
-import javax.el.ELContext;
 import javax.el.ELContextEvent;
 import javax.el.ELContextListener;
 import javax.el.ELResolver;
@@ -47,9 +46,9 @@ public class JspApplicationContextImpl implements JspApplicationContext {
     private final ExpressionFactory expressionFactory =
             ExpressionFactory.newInstance();
 
-    private final List<ELContextListener> contextListeners = new ArrayList<>();
+    private final List<ELContextListener> contextListeners = new ArrayList<ELContextListener>();
 
-    private final List<ELResolver> resolvers = new ArrayList<>();
+    private final List<ELResolver> resolvers = new ArrayList<ELResolver>();
 
     private boolean instantiated = false;
 
@@ -102,23 +101,18 @@ public class JspApplicationContextImpl implements JspApplicationContext {
         ctx.putContext(JspContext.class, context);
 
         // alert all ELContextListeners
-        fireListeners(ctx);
-
-        return ctx;
-    }
-
-    protected void fireListeners(ELContext elContext) {
-        ELContextEvent event = new ELContextEvent(elContext);
+        ELContextEvent event = new ELContextEvent(ctx);
         for (int i = 0; i < this.contextListeners.size(); i++) {
             this.contextListeners.get(i).contextCreated(event);
         }
+
+        return ctx;
     }
 
     private ELResolver createELResolver() {
         this.instantiated = true;
         if (this.resolver == null) {
-            CompositeELResolver r = new JasperELResolver(this.resolvers,
-                    expressionFactory.getStreamELResolver());
+            CompositeELResolver r = new JasperELResolver(this.resolvers);
             this.resolver = r;
         }
         return this.resolver;

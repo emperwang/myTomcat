@@ -27,9 +27,9 @@ import org.apache.tomcat.util.digester.RuleSetBase;
  * <p><strong>RuleSet</strong> for processing the contents of a
  * Cluster definition element.  </p>
  *
+ * @author Filip Hanik
  * @author Peter Rossbach
  */
-@SuppressWarnings("deprecation")
 public class ClusterRuleSet extends RuleSetBase {
 
 
@@ -39,7 +39,7 @@ public class ClusterRuleSet extends RuleSetBase {
     /**
      * The matching pattern prefix to use for recognizing our elements.
      */
-    protected final String prefix;
+    protected String prefix = null;
 
 
     // ------------------------------------------------------------ Constructor
@@ -65,6 +65,7 @@ public class ClusterRuleSet extends RuleSetBase {
      */
     public ClusterRuleSet(String prefix) {
         super();
+        this.namespaceURI = null;
         this.prefix = prefix;
     }
 

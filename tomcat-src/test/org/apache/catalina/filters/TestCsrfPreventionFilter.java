@@ -65,7 +65,7 @@ public class TestCsrfPreventionFilter extends TomcatBaseTest {
 
     @Test
     public void testLruCacheSerializable() throws Exception {
-        LruCache<String> cache = new LruCache<>(5);
+        LruCache<String> cache = new LruCache<String>(5);
         cache.add("key1");
         cache.add("key2");
         cache.add("key3");

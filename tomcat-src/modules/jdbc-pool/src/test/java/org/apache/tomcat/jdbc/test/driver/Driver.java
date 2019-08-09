@@ -78,11 +78,11 @@ public class Driver implements java.sql.Driver {
         return false;
     }
 
-    @Override
+    // ---------------------------------------------------------- Java 7 methods
+    // Can't add @Override annotations since this code also has to compile with
+    // Java 6 for Tomcat 7.
+
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        // TODO Auto-generated method stub
         return null;
     }
-
-
 }

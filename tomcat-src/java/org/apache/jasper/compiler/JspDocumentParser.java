@@ -19,8 +19,11 @@ package org.apache.jasper.compiler;
 import java.io.CharArrayWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.AccessController;
-import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.jar.JarFile;
 
 import javax.servlet.jsp.tagext.TagFileInfo;
 import javax.servlet.jsp.tagext.TagInfo;
@@ -31,10 +34,8 @@ import javax.xml.parsers.SAXParserFactory;
 import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
-import org.apache.tomcat.Jar;
 import org.apache.tomcat.util.descriptor.DigesterFactory;
 import org.apache.tomcat.util.descriptor.LocalResolver;
-import org.apache.tomcat.util.descriptor.tld.TldResourcePath;
 import org.apache.tomcat.util.security.PrivilegedGetTccl;
 import org.apache.tomcat.util.security.PrivilegedSetTccl;
 import org.xml.sax.Attributes;
@@ -63,10 +64,10 @@ class JspDocumentParser
         "http://xml.org/sax/properties/lexical-handler";
     private static final String JSP_URI = "http://java.sun.com/JSP/Page";
 
-    private final ParserController parserController;
-    private final JspCompilationContext ctxt;
-    private final PageInfo pageInfo;
-    private final String path;
+    private ParserController parserController;
+    private JspCompilationContext ctxt;
+    private PageInfo pageInfo;
+    private String path;
     private StringBuilder charBuffer;
 
     // Node representing the XML element currently being parsed
@@ -99,9 +100,9 @@ class JspDocumentParser
     private boolean isValidating;
     private final EntityResolver2 entityResolver;
 
-    private final ErrorDispatcher err;
-    private final boolean isTagFile;
-    private final boolean directivesOnly;
+    private ErrorDispatcher err;
+    private boolean isTagFile;
+    private boolean directivesOnly;
     private boolean isTop;
 
     // Nesting level of Tag dependent bodies
@@ -150,7 +151,7 @@ class JspDocumentParser
     public static Node.Nodes parse(
         ParserController pc,
         String path,
-        Jar jar,
+        JarFile jarFile,
         Node parent,
         boolean isTagFile,
         boolean directivesOnly,
@@ -186,24 +187,29 @@ class JspDocumentParser
 
             // Parse the input
             SAXParser saxParser = getSAXParser(false, jspDocParser);
-            InputSource source = JspUtil.getInputSource(path, jar, jspDocParser.ctxt);
+            InputStream inStream = null;
             try {
-                saxParser.parse(source, jspDocParser);
+                inStream = JspUtil.getInputStream(path, jarFile,
+                                                  jspDocParser.ctxt,
+                                                  jspDocParser.err);
+                saxParser.parse(new InputSource(inStream), jspDocParser);
             } catch (EnableDTDValidationException e) {
                 saxParser = getSAXParser(true, jspDocParser);
                 jspDocParser.isValidating = true;
                 try {
-                    source.getByteStream().close();
-                } catch (IOException e2) {
-                    // ignore
+                    inStream.close();
+                } catch (Exception any) {
                 }
-                source = JspUtil.getInputSource(path, jar, jspDocParser.ctxt);
-                saxParser.parse(source, jspDocParser);
+                inStream = JspUtil.getInputStream(path, jarFile,
+                                                  jspDocParser.ctxt,
+                                                  jspDocParser.err);
+                saxParser.parse(new InputSource(inStream), jspDocParser);
             } finally {
-                try {
-                    source.getByteStream().close();
-                } catch (IOException e) {
-                    // ignore
+                if (inStream != null) {
+                    try {
+                        inStream.close();
+                    } catch (Exception any) {
+                    }
                 }
             }
 
@@ -236,14 +242,16 @@ class JspDocumentParser
      * This is used to implement the include-prelude and include-coda
      * subelements of the jsp-config element in web.xml
      */
-    private void addInclude(Node parent, Collection<String> files) throws SAXException {
+    private void addInclude(Node parent, List<String> files) throws SAXException {
         if (files != null) {
-            for (String file : files) {
+            Iterator<String> iter = files.iterator();
+            while (iter.hasNext()) {
+                String file = iter.next();
                 AttributesImpl attrs = new AttributesImpl();
                 attrs.addAttribute("", "file", "file", "CDATA", file);
 
                 // Create a dummy Include directive node
-                Node includeDir =
+                    Node includeDir =
                         new Node.IncludeDirective(attrs, null, // XXX
     parent);
                 processIncludeDirective(file, includeDir);
@@ -258,20 +266,21 @@ class JspDocumentParser
         return entityResolver.getExternalSubset(name, baseURI);
     }
 
+
+
     @Override
     public InputSource resolveEntity(String publicId, String systemId)
             throws SAXException, IOException {
         return entityResolver.resolveEntity(publicId, systemId);
     }
 
+
     @Override
-    public InputSource resolveEntity(String name, String publicId,
-            String baseURI, String systemId) throws SAXException, IOException {
-        // TODO URLs returned by the Jar abstraction may be of the form jar:jar:
-        //      which is not a URL that can be resolved by the JRE. This should
-        //      use the JarFactory to construct and return a valid InputSource.
+    public InputSource resolveEntity(String name, String publicId, String baseURI, String systemId)
+            throws SAXException, IOException {
         return entityResolver.resolveEntity(name, publicId, baseURI, systemId);
     }
+
 
     /*
      * Receives notification of the start of an element.
@@ -503,8 +512,10 @@ class JspDocumentParser
         if (!(current instanceof Node.JspText)
             && !(current instanceof Node.NamedAttribute)) {
             for (int i = 0; i < charBuffer.length(); i++) {
-                char ch = charBuffer.charAt(i);
-                if (!(ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t')) {
+                if (!(charBuffer.charAt(i) == ' '
+                    || charBuffer.charAt(i) == '\n'
+                    || charBuffer.charAt(i) == '\r'
+                    || charBuffer.charAt(i) == '\t')) {
                     isAllSpace = false;
                     break;
                 }
@@ -519,9 +530,7 @@ class JspDocumentParser
         if (tagDependentNesting > 0 || pageInfo.isELIgnored() ||
                 current instanceof Node.ScriptingElement) {
             if (charBuffer.length() > 0) {
-                @SuppressWarnings("unused")
-                Node unused = new Node.TemplateText(
-                        charBuffer.toString(), startMark, current);
+                new Node.TemplateText(charBuffer.toString(), startMark, current);
             }
             startMark = new Mark(ctxt, path, locator.getLineNumber(),
                                  locator.getColumnNumber());
@@ -550,10 +559,11 @@ class JspDocumentParser
                 if ((lastCh == '$' || lastCh == '#') && ch == '{') {
                     elType = lastCh;
                     if (ttext.size() > 0) {
-                        @SuppressWarnings("unused")
-                        Node unused = new Node.TemplateText(
-                                ttext.toString(), startMark, current);
-                        ttext.reset();
+                        new Node.TemplateText(
+                            ttext.toString(),
+                            startMark,
+                            current);
+                        ttext = new CharArrayWriter();
                         //We subtract two from the column number to
                         //account for the '[$,#]{' that we've already parsed
                         startMark = new Mark(ctxt, path, line, column - 2);
@@ -585,11 +595,11 @@ class JspDocumentParser
                             continue;
                         }
                         if (ch == '}') {
-                            @SuppressWarnings("unused")
-                            Node unused = new Node.ELExpression(
-                                    (char) elType, ttext.toString(),
-                                    startMark, current);
-                            ttext.reset();
+                            new Node.ELExpression((char) elType,
+                                ttext.toString(),
+                                startMark,
+                                current);
+                            ttext = new CharArrayWriter();
                             startMark = new Mark(ctxt, path, line, column);
                             break;
                         }
@@ -621,9 +631,7 @@ class JspDocumentParser
                 ttext.write(lastCh);
             }
             if (ttext.size() > 0) {
-                @SuppressWarnings("unused")
-                Node unused = new Node.TemplateText(
-                        ttext.toString(), startMark, current);
+                new Node.TemplateText(ttext.toString(), startMark, current);
             }
         }
         startMark = new Mark(ctxt, path, locator.getLineNumber(),
@@ -732,11 +740,13 @@ class JspDocumentParser
 
         // ignore comments in the DTD
         if (!inDTD) {
-            startMark = new Mark(ctxt, path, locator.getLineNumber(),
+            startMark =
+                new Mark(
+                    ctxt,
+                    path,
+                    locator.getLineNumber(),
                     locator.getColumnNumber());
-            @SuppressWarnings("unused")
-            Node unused = new Node.Comment(
-                    new String(buf, offset, len), startMark, current);
+            new Node.Comment(new String(buf, offset, len), startMark, current);
         }
     }
 
@@ -1304,8 +1314,8 @@ class JspDocumentParser
                 isPlainUri = true;
             }
 
-            TldResourcePath tldResourcePath = ctxt.getTldResourcePath(uri);
-            if (tldResourcePath != null || !isPlainUri) {
+            TldLocation location = ctxt.getTldLocation(uri);
+            if (location != null || !isPlainUri) {
                 if (ctxt.getOptions().isCaching()) {
                     result = ctxt.getOptions().getCache().get(uri);
                 }
@@ -1323,8 +1333,9 @@ class JspDocumentParser
                             pageInfo,
                             prefix,
                             uri,
-                            tldResourcePath,
-                            err);
+                            location,
+                            err,
+                            null);
                     if (ctxt.getOptions().isCaching()) {
                         ctxt.getOptions().getCache().put(uri, result);
                     }

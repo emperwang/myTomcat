@@ -25,8 +25,6 @@ import java.io.ObjectStreamClass;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 
-import org.apache.catalina.tribes.util.StringManager;
-
 /**
  * Custom subclass of <code>ObjectInputStream</code> that loads from the
  * class loader for this web application.  This allows classes defined only
@@ -34,10 +32,10 @@ import org.apache.catalina.tribes.util.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Bip Thelin
+ * @author Filip Hanik
  */
 public final class ReplicationStream extends ObjectInputStream {
 
-    static final StringManager sm = StringManager.getManager(ReplicationStream.class);
 
     /**
      * The class loader we will use to resolve classes.
@@ -80,7 +78,8 @@ public final class ReplicationStream extends ObjectInputStream {
         }
     }
 
-    public Class<?> resolveClass(String name) throws ClassNotFoundException {
+    public Class<?> resolveClass(String name)
+        throws ClassNotFoundException, IOException {
 
         boolean tryRepFirst = name.startsWith("org.apache.catalina.tribes");
             try {
@@ -122,7 +121,7 @@ public final class ReplicationStream extends ObjectInputStream {
                 if (hasNonPublicInterface) {
                     if (nonPublicLoader != cl.getClassLoader()) {
                         throw new IllegalAccessError(
-                                sm.getString("replicationStream.conflict"));
+                                "conflicting non-public interface class loaders");
                     }
                 } else {
                     nonPublicLoader = cl.getClassLoader();
@@ -141,7 +140,7 @@ public final class ReplicationStream extends ObjectInputStream {
 
 
     public Class<?> findReplicationClass(String name)
-            throws ClassNotFoundException {
+        throws ClassNotFoundException, IOException {
         Class<?> clazz = Class.forName(name, false, getClass().getClassLoader());
         return clazz;
     }

@@ -42,7 +42,7 @@ public class NamingEntry {
      * lookups.
      */
     public int type;
-    public final String name;
+    public String name;
     public Object value;
 
 

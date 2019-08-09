@@ -34,7 +34,7 @@ public class TestDeployTask extends TomcatBaseTest {
         DeployTask deployTask = new DeployTask() {
 
             @Override
-            public void execute(String command, InputStream istream, String contentType, long contentLength)
+            public void execute(String command, InputStream istream, String contentType, int contentLength)
                     throws BuildException {
                 Assert.assertEquals("/deploy?path=somepath", command);
                 Assert.assertEquals("application/octet-stream", contentType);
@@ -86,7 +86,7 @@ public class TestDeployTask extends TomcatBaseTest {
         DeployTask deployTask = new DeployTask() {
 
             @Override
-            public void execute(String command, InputStream istream, String contentType, long contentLength)
+            public void execute(String command, InputStream istream, String contentType, int contentLength)
                     throws BuildException {
                 Assert.assertEquals("/deploy?path=somepath", command);
                 Assert.assertEquals("application/octet-stream", contentType);

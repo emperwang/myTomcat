@@ -25,13 +25,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.deploy.LoginConfig;
+import org.apache.catalina.deploy.SecurityCollection;
+import org.apache.catalina.deploy.SecurityConstraint;
 import org.apache.catalina.startup.TesterServlet;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.LoginConfig;
-import org.apache.tomcat.util.descriptor.web.SecurityCollection;
-import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.apache.tomcat.util.security.ConcurrentMessageDigest;
 import org.apache.tomcat.util.security.MD5Encoder;
 
@@ -84,7 +84,7 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
 
     private List<String> cookies;
 
-    /*
+    /**
      * Try to access an unprotected resource without an
      * established SSO session.
      * This should be permitted.
@@ -106,7 +106,7 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
                        false, true, 403);
     }
 
-    /*
+    /**
      * Logon to access a protected resource using DIGEST authentication,
      * which will establish an SSO session.
      * Wait until the SSO session times-out, then try to re-access
@@ -202,8 +202,10 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
             boolean expectedReject, int expectedRC)
             throws Exception {
 
-        Map<String,List<String>> reqHeaders = new HashMap<>();
-        Map<String,List<String>> respHeaders = new HashMap<>();
+        Map<String,List<String>> reqHeaders =
+                new HashMap<String,List<String>>();
+        Map<String,List<String>> respHeaders =
+                new HashMap<String,List<String>>();
 
         ByteChunk bc = new ByteChunk();
         if (addCookies) {
@@ -232,9 +234,11 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
 
         String digestUri= uri;
 
-        List<String> auth = new ArrayList<>();
-        Map<String,List<String>> reqHeaders1 = new HashMap<>();
-        Map<String,List<String>> respHeaders1 = new HashMap<>();
+        List<String> auth = new ArrayList<String>();
+        Map<String,List<String>> reqHeaders1 =
+                new HashMap<String,List<String>>();
+        Map<String,List<String>> respHeaders1 =
+                new HashMap<String,List<String>>();
 
         // the first access attempt should be challenged
         auth.add(buildDigestResponse(user, pwd, digestUri, REALM, "null",
@@ -257,8 +261,10 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
         }
 
         // Second request should succeed (if we use the server nonce)
-        Map<String,List<String>> reqHeaders2 = new HashMap<>();
-        Map<String,List<String>> respHeaders2 = new HashMap<>();
+        Map<String,List<String>> reqHeaders2 =
+                new HashMap<String,List<String>>();
+        Map<String,List<String>> respHeaders2 =
+                new HashMap<String,List<String>>();
 
         auth.clear();
         if (useServerNonce) {
@@ -321,16 +327,15 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
 
     private void setUpNonLogin(Tomcat tomcat) throws Exception {
 
-        // Must have a real docBase for webapps - just use temp
-        Context ctxt = tomcat.addContext(CONTEXT_PATH_NOLOGIN,
-                System.getProperty("java.io.tmpdir"));
+        // No file system docBase required
+        Context ctxt = tomcat.addContext(CONTEXT_PATH_NOLOGIN, null);
         ctxt.setSessionTimeout(LONG_TIMEOUT_SECS);
 
         // Add protected servlet
         Tomcat.addServlet(ctxt, "TesterServlet1", new TesterServlet());
-        ctxt.addServletMappingDecoded(URI_PROTECTED, "TesterServlet1");
+        ctxt.addServletMapping(URI_PROTECTED, "TesterServlet1");
         SecurityCollection collection1 = new SecurityCollection();
-        collection1.addPatternDecoded(URI_PROTECTED);
+        collection1.addPattern(URI_PROTECTED);
         SecurityConstraint sc1 = new SecurityConstraint();
         sc1.addAuthRole(ROLE);
         sc1.addCollection(collection1);
@@ -338,9 +343,9 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
 
         // Add unprotected servlet
         Tomcat.addServlet(ctxt, "TesterServlet2", new TesterServlet());
-        ctxt.addServletMappingDecoded(URI_PUBLIC, "TesterServlet2");
+        ctxt.addServletMapping(URI_PUBLIC, "TesterServlet2");
         SecurityCollection collection2 = new SecurityCollection();
-        collection2.addPatternDecoded(URI_PUBLIC);
+        collection2.addPattern(URI_PUBLIC);
         SecurityConstraint sc2 = new SecurityConstraint();
         // do not add a role - which signals access permitted without one
         sc2.addCollection(collection2);
@@ -355,16 +360,15 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
 
     private void setUpDigest(Tomcat tomcat) throws Exception {
 
-        // Must have a real docBase for webapps - just use temp
-        Context ctxt = tomcat.addContext(CONTEXT_PATH_DIGEST,
-                System.getProperty("java.io.tmpdir"));
+        // No file system docBase required
+        Context ctxt = tomcat.addContext(CONTEXT_PATH_DIGEST, null);
         ctxt.setSessionTimeout(SHORT_TIMEOUT_SECS);
 
         // Add protected servlet
         Tomcat.addServlet(ctxt, "TesterServlet3", new TesterServlet());
-        ctxt.addServletMappingDecoded(URI_PROTECTED, "TesterServlet3");
+        ctxt.addServletMapping(URI_PROTECTED, "TesterServlet3");
         SecurityCollection collection = new SecurityCollection();
-        collection.addPatternDecoded(URI_PROTECTED);
+        collection.addPattern(URI_PROTECTED);
         SecurityConstraint sc = new SecurityConstraint();
         sc.addAuthRole(ROLE);
         sc.addCollection(collection);
@@ -468,35 +472,16 @@ public class TestSSOnonLoginAndDigestAuthenticator extends TomcatBaseTest {
     protected void saveCookies(Map<String,List<String>> respHeaders) {
 
         // we only save the Cookie values, not header prefix
-        List<String> cookieHeaders = respHeaders.get(SERVER_COOKIES);
-        if (cookieHeaders == null) {
-            cookies = null;
-        } else {
-            cookies = new ArrayList<>(cookieHeaders.size());
-            for (String cookieHeader : cookieHeaders) {
-                cookies.add(cookieHeader.substring(0, cookieHeader.indexOf(';')));
-            }
-        }
+        cookies = respHeaders.get(SERVER_COOKIES);
     }
 
     /*
      * add all saved cookies to the outgoing request
      */
     protected void addCookies(Map<String,List<String>> reqHeaders) {
+
         if ((cookies != null) && (cookies.size() > 0)) {
-            StringBuilder cookieHeader = new StringBuilder();
-            boolean first = true;
-            for (String cookie : cookies) {
-                if (!first) {
-                    cookieHeader.append(';');
-                } else {
-                    first = false;
-                }
-                cookieHeader.append(cookie);
-            }
-            List<String> cookieHeaderList = new ArrayList<>(1);
-            cookieHeaderList.add(cookieHeader.toString());
-            reqHeaders.put(BROWSER_COOKIES, cookieHeaderList);
+            reqHeaders.put(BROWSER_COOKIES, cookies);
         }
     }
 }

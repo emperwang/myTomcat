@@ -33,35 +33,42 @@ import org.apache.juli.logging.LogFactory;
  * what about the bind(IP. port) only IP makes sense (for the moment).
  * BTW:v  = version :-)
  */
-public class HeartbeatListener implements LifecycleListener, ContainerListener {
+public class HeartbeatListener
+    implements LifecycleListener, ContainerListener {
 
     private static final Log log = LogFactory.getLog(HeartbeatListener.class);
 
     /* To allow to select the connector */
-    private int port = 0;
-    private String host = null;
+    int port = 0;
+    String host = null;
+    public void setHost(String host) { this.host = host; }
+    public void setPort(int port) { this.port = port; }
 
     /* for multicasting stuff */
-    private final String ip = "224.0.1.105"; /* Multicast IP */
-    private final int multiport = 23364;     /* Multicast Port */
-    private final int ttl = 16;
+    String ip = "224.0.1.105"; /* Multicast IP */
+    int multiport = 23364;     /* Multicast Port */
+    int ttl = 16;
 
-    public String getHost() { return host; }
+    public void setGroup(String ip) { this.ip = ip; }
     public String getGroup() { return ip; }
+    public void setMultiport(int multiport) { this.multiport = multiport; }
     public int getMultiport() { return multiport; }
+    public void setTtl(int ttl) { this.ttl = ttl; }
     public int getTtl() { return ttl; }
 
     /**
      * Proxy list, format "address:port,address:port".
      */
-    private final String proxyList = null;
+    protected String proxyList = null;
     public String getProxyList() { return proxyList; }
+    public void setProxyList(String proxyList) { this.proxyList = proxyList; }
 
     /**
      * URL prefix.
      */
-    private final String proxyURL = "/HeartbeatListener";
+    protected String proxyURL = "/HeartbeatListener";
     public String getProxyURL() { return proxyURL; }
+    public void setProxyURL(String proxyURL) { this.proxyURL = proxyURL; }
 
     private CollectedInfo coll = null;
 
