@@ -10,7 +10,7 @@
     <version>8</version>
 
     <properties>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.1</junit.version>
         <easymock.version>3.4</easymock.version>
         <ant.version>1.7.0</ant.version>
         <wsdl4j.version>1.6.2</wsdl4j.version>
