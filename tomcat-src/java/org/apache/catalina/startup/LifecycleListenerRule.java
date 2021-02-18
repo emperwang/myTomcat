@@ -55,8 +55,10 @@ public class LifecycleListenerRule extends Rule {
      *  includes an override name of the LifecycleListener class
      */
     public LifecycleListenerRule(String listenerClass, String attributeName) {
-
+        // 举例说明:
+        // listenerClass = org.apache.catalina.startup.HostConfig
         this.listenerClass = listenerClass;
+        //attributeName = hostConfigClass
         this.attributeName = attributeName;
 
     }
@@ -88,6 +90,8 @@ public class LifecycleListenerRule extends Rule {
      *
      * @exception Exception if a processing error occurs
      */
+    // 对lifecycle的监听器的一下处理
+    // 如: 会把 HostConfig添加到 StandardHost中
     @Override
     public void begin(String namespace, String name, Attributes attributes)
         throws Exception {
@@ -123,10 +127,14 @@ public class LifecycleListenerRule extends Rule {
         }
 
         // Instantiate a new LifecycleListener implementation object
+        // 加载 listener
         Class<?> clazz = Class.forName(className);
+        // 实例化 listener
         LifecycleListener listener = (LifecycleListener) clazz.getConstructor().newInstance();
 
         // Add this LifecycleListener to our associated component
+        // 把lifecycleListener 添加到 container中
+        // 如: 把HostConfig添加到 standardHost中
         c.addLifecycleListener(listener);
     }
 
