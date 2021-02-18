@@ -155,6 +155,7 @@ public class StandardContext extends ContainerBase
      * SCIs and other code may use the pluggability APIs to add listener
      * instances directly to this list before the application starts.
      */
+    // 存储 application Event 事件的监听器
     private List<Object> applicationEventListenersList = new CopyOnWriteArrayList<>();
 
 
@@ -163,6 +164,7 @@ public class StandardContext extends ContainerBase
      * SCIs and other code may use the pluggability APIs to add listener
      * instances directly to this list before the application starts.
      */
+    // application 生命周期的监听器
     private Object applicationLifecycleListenersObjects[] =
         new Object[0];
 
@@ -503,6 +505,7 @@ public class StandardContext extends ContainerBase
     /**
      * The watched resources for this application.
      */
+    // 需要检测的资源,
     private String watchedResources[] = new String[0];
 
     private final Object watchedResourcesLock = new Object();

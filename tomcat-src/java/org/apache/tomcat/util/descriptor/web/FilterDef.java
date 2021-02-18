@@ -153,7 +153,7 @@ public class FilterDef implements Serializable {
     public void setSmallIcon(String smallIcon) {
         this.smallIcon = smallIcon;
     }
-
+    // 是否支持异步
     private String asyncSupported = null;
 
     public String getAsyncSupported() {

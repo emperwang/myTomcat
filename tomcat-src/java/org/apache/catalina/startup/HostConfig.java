@@ -564,6 +564,7 @@ public class HostConfig implements LifecycleListener {
         try (FileInputStream fis = new FileInputStream(contextXml)) {
             synchronized (digesterLock) {
                 try {
+                    // 解析 standardContext
                     context = (Context) digester.parse(fis);
                 } catch (Exception e) {
                     log.error(sm.getString(
@@ -576,9 +577,10 @@ public class HostConfig implements LifecycleListener {
                     }
                 }
             }
-
+            // 生成 contextConfig
             Class<?> clazz = Class.forName(host.getConfigClass());
             LifecycleListener listener = (LifecycleListener) clazz.getConstructor().newInstance();
+            // 设置contextConfig 到standardContext中
             context.addLifecycleListener(listener);
 
             context.setConfigFile(contextXml.toURI().toURL());
