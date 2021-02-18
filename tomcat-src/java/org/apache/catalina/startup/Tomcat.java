@@ -1049,6 +1049,7 @@ public class Tomcat {
                     context.setConfigured(true);
 
                     // Process annotations
+                    // 处理 listener filter servlet 的注解: Resource  Resources 等
                     WebAnnotationSet.loadApplicationAnnotations(context);
 
                     // LoginConfig is required to process @ServletSecurity

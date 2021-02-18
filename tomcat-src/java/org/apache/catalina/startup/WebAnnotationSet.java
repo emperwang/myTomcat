@@ -64,8 +64,11 @@ public class WebAnnotationSet {
      * @param context The context which will have its annotations processed
      */
     public static void loadApplicationAnnotations(Context context) {
+        // 处理注解的listener
         loadApplicationListenerAnnotations(context);
+        // 处理注解的 filter
         loadApplicationFilterAnnotations(context);
+        // 处理注解的 servlet
         loadApplicationServletAnnotations(context);
     }
 

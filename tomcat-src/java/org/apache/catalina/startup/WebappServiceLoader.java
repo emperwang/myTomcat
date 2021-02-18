@@ -88,10 +88,14 @@ public class WebappServiceLoader<T> {
      * @return an unmodifiable collection of service providers
      * @throws IOException if there was a problem loading any service
      */
+    // 对 "META-INF/services/" 下面的 ServletContainerInitializer 进行解析
     public List<T> load(Class<T> serviceType) throws IOException {
+        // String SERVICES = "META-INF/services/";
+        // configFile= "META-INF/services/javax.servlet.ServletContainerInitializer"
         String configFile = SERVICES + serviceType.getName();
-
+        // 保存 jar包中的  ServletContainerInitializer 实现类
         LinkedHashSet<String> applicationServicesFound = new LinkedHashSet<>();
+        // 保存当前容器中的 ServletContainerInitializer实现类
         LinkedHashSet<String> containerServicesFound = new LinkedHashSet<>();
 
         ClassLoader loader = servletContext.getClassLoader();
@@ -101,6 +105,7 @@ public class WebappServiceLoader<T> {
         @SuppressWarnings("unchecked")
         List<String> orderedLibs =
                 (List<String>) servletContext.getAttribute(ServletContext.ORDERED_LIBS);
+        // 1.解析 jar包中的 META-INF/services/" 下面的 ServletContainerInitializer
         if (orderedLibs != null) {
             // handle ordered libs directly, ...
             for (String lib : orderedLibs) {
@@ -112,12 +117,14 @@ public class WebappServiceLoader<T> {
 
                 String base = jarUrl.toExternalForm();
                 URL url;
+                //
                 if (base.endsWith("/")) {
                     url = new URL(base + configFile);
                 } else {
                     url = JarFactory.getJarEntryURL(jarUrl, configFile);
                 }
                 try {
+                    // 解析jar包中的 configFile
                     parseConfigFile(applicationServicesFound, url);
                 } catch (FileNotFoundException e) {
                     // no provider file found, this is OK
@@ -132,9 +139,12 @@ public class WebappServiceLoader<T> {
         if (loader == null) {
             resources = ClassLoader.getSystemResources(configFile);
         } else {
+            // 2. 解析当前容器中 META-INF/services/" 下面的 ServletContainerInitializer
             resources = loader.getResources(configFile);
         }
+        // 解析 META-INF/services/" 下面的 ServletContainerInitializer 文件中的内容
         while (resources.hasMoreElements()) {
+            // 3. 解析当前容器中中的 configFile
             parseConfigFile(containerServicesFound, resources.nextElement());
         }
 
@@ -156,6 +166,8 @@ public class WebappServiceLoader<T> {
         if (containerServicesFound.isEmpty()) {
             return Collections.emptyList();
         }
+        // 加载 META-INF/services/" 下面的 ServletContainerInitializer 中对应的 实现类
+        // 4. 加载 configFile中的所有的ServletContainerInitializer实现类
         return loadServices(serviceType, containerServicesFound);
     }
 
@@ -178,7 +190,7 @@ public class WebappServiceLoader<T> {
             }
         }
     }
-
+    // 加载 class
     List<T> loadServices(Class<T> serviceType, LinkedHashSet<String> servicesFound)
             throws IOException {
         ClassLoader loader = servletContext.getClassLoader();
